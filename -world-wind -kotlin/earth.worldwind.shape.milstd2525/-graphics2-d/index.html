@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>Graphics2D</title>
+    <link href="../../../images/logo-icon.svg" rel="icon" type="image/svg">
+        <script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async="async"></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async="async"></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async="async"></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer="defer"></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async="async"></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer="defer"></script>
+</head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+            <a class="library-name--link" href="../../../index.html" tabindex="1">
+                    WorldWind Kotlin
+            </a>
+        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle"
+                type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+2.1.0        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector wasm-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/wasmJsMain">wasmJs</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox"
+                        data-role="dropdown-toggle"
+                        aria-controls="platform-tags-listbox"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-label="Toggle source sets"
+                ></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option wasm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/wasmJsMain"
+                                       data-filter=":worldwind/wasmJsMain"/>
+                                <span class="checkbox--icon"></span>
+                                wasmJs
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button"
+                    type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config='{"defaultSize": 280, "minSize": 200, "maxSize": 400}'>
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list"
+                    data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    WorldWind Kotlin
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="classlike" id="content" pageIds="WorldWind Kotlin::earth.worldwind.shape.milstd2525/Graphics2D///PointingToDeclaration//-4826054">
+  <div class="breadcrumbs"><a href="../../../index.html">WorldWind Kotlin</a><span class="delimiter">/</span><a href="../index.html">earth.worldwind.shape.milstd2525</a><span class="delimiter">/</span><span class="current">Graphics2D</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Graphics2D</span></span></h1>
+    <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+      <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">external </span><span class="token keyword">class </span><a href="index.html">Graphics2D</a> : <a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.js/-js-any/index.html">JsAny</a></div></div>    </div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="CONSTRUCTOR">
+        <h2 class="tableheader">Constructors</h2>
+        <div class="table"><a data-name="458977791%2FConstructors%2F-4826054" anchor-label="Graphics2D" id="458977791%2FConstructors%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-togglable="CONSTRUCTOR" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-graphics2-d.html"><span><span>Graphics2D</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="458977791%2FConstructors%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">constructor</span><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="-1109458554%2FFunctions%2F-4826054" anchor-label="clearRect" id="-1109458554%2FFunctions%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="clear-rect.html"><span>clear</span><wbr></wbr><span><span>Rect</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1109458554%2FFunctions%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="clear-rect.html"><span class="token function">clearRect</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">x<span class="token operator">: </span><a href="../double/index.html">double</a><span class="token punctuation">, </span></span><span class="parameter ">y<span class="token operator">: </span><a href="../double/index.html">double</a><span class="token punctuation">, </span></span><span class="parameter ">width<span class="token operator">: </span><a href="../double/index.html">double</a><span class="token punctuation">, </span></span><span class="parameter ">height<span class="token operator">: </span><a href="../double/index.html">double</a></span></span><span class="token punctuation">)</span></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-952509185%2FFunctions%2F-4826054" anchor-label="dispose" id="-952509185%2FFunctions%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="dispose.html"><span><span>dispose</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-952509185%2FFunctions%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="dispose.html"><span class="token function">dispose</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="434050031%2FFunctions%2F-4826054" anchor-label="drawLine" id="434050031%2FFunctions%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="draw-line.html"><span>draw</span><wbr></wbr><span><span>Line</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="434050031%2FFunctions%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="draw-line.html"><span class="token function">drawLine</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">x1<span class="token operator">: </span><a href="../double/index.html">double</a><span class="token punctuation">, </span></span><span class="parameter ">y1<span class="token operator">: </span><a href="../double/index.html">double</a><span class="token punctuation">, </span></span><span class="parameter ">x2<span class="token operator">: </span><a href="../double/index.html">double</a><span class="token punctuation">, </span></span><span class="parameter ">y2<span class="token operator">: </span><a href="../double/index.html">double</a></span></span><span class="token punctuation">)</span></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-466623577%2FFunctions%2F-4826054" anchor-label="drawString" id="-466623577%2FFunctions%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="draw-string.html"><span>draw</span><wbr></wbr><span><span>String</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-466623577%2FFunctions%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="draw-string.html"><span class="token function">drawString</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">s<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">x<span class="token operator">: </span><a href="../double/index.html">double</a><span class="token punctuation">, </span></span><span class="parameter ">y<span class="token operator">: </span><a href="../double/index.html">double</a></span></span><span class="token punctuation">)</span></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1121924377%2FFunctions%2F-4826054" anchor-label="getFont" id="1121924377%2FFunctions%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-font.html"><span>get</span><wbr></wbr><span><span>Font</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1121924377%2FFunctions%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="get-font.html"><span class="token function">getFont</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-font/index.html">Font</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="690530206%2FFunctions%2F-4826054" anchor-label="getFontMetrics" id="690530206%2FFunctions%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-font-metrics.html"><span>get</span><wbr></wbr><span>Font</span><wbr></wbr><span><span>Metrics</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="690530206%2FFunctions%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="get-font-metrics.html"><span class="token function">getFontMetrics</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-font-metrics/index.html">FontMetrics</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="320487144%2FFunctions%2F-4826054" anchor-label="getFontRenderContext" id="320487144%2FFunctions%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-font-render-context.html"><span>get</span><wbr></wbr><span>Font</span><wbr></wbr><span>Render</span><wbr></wbr><span><span>Context</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="320487144%2FFunctions%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="get-font-render-context.html"><span class="token function">getFontRenderContext</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-font-render-context/index.html">FontRenderContext</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1656346%2FFunctions%2F-4826054" anchor-label="getTransform" id="-1656346%2FFunctions%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-transform.html"><span>get</span><wbr></wbr><span><span>Transform</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1656346%2FFunctions%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="get-transform.html"><span class="token function">getTransform</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.js/-js-any/index.html">JsAny</a><span class="token operator">?</span></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-533238323%2FFunctions%2F-4826054" anchor-label="rotate" id="-533238323%2FFunctions%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="rotate.html"><span><span>rotate</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-533238323%2FFunctions%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="rotate.html"><span class="token function">rotate</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">theta<span class="token operator">: </span><a href="../double/index.html">double</a><span class="token punctuation">, </span></span><span class="parameter ">x<span class="token operator">: </span><a href="../double/index.html">double</a><span class="token punctuation">, </span></span><span class="parameter ">y<span class="token operator">: </span><a href="../double/index.html">double</a></span></span><span class="token punctuation">)</span></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1599106651%2FFunctions%2F-4826054" anchor-label="setBackground" id="1599106651%2FFunctions%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="set-background.html"><span>set</span><wbr></wbr><span><span>Background</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1599106651%2FFunctions%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="set-background.html"><span class="token function">setBackground</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">color<span class="token operator">: </span><a href="../-color/index.html">Color</a></span></span><span class="token punctuation">)</span></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="861634728%2FFunctions%2F-4826054" anchor-label="setColor" id="861634728%2FFunctions%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="set-color.html"><span>set</span><wbr></wbr><span><span>Color</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="861634728%2FFunctions%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="set-color.html"><span class="token function">setColor</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">color<span class="token operator">: </span><a href="../-color/index.html">Color</a></span></span><span class="token punctuation">)</span></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="958548054%2FFunctions%2F-4826054" anchor-label="setFont" id="958548054%2FFunctions%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="set-font.html"><span>set</span><wbr></wbr><span><span>Font</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="958548054%2FFunctions%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="set-font.html"><span class="token function">setFont</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="../-font/index.html">Font</a></span></span><span class="token punctuation">)</span></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1638396870%2FFunctions%2F-4826054" anchor-label="setFontMetrics" id="1638396870%2FFunctions%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="set-font-metrics.html"><span>set</span><wbr></wbr><span>Font</span><wbr></wbr><span><span>Metrics</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1638396870%2FFunctions%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="set-font-metrics.html"><span class="token function">setFontMetrics</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="../-font-metrics/index.html">FontMetrics</a></span></span><span class="token punctuation">)</span></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1037130062%2FFunctions%2F-4826054" anchor-label="setStroke" id="1037130062%2FFunctions%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="set-stroke.html"><span>set</span><wbr></wbr><span><span>Stroke</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1037130062%2FFunctions%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="set-stroke.html"><span class="token function">setStroke</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">stroke<span class="token operator">: </span><a href="../-basic-stroke/index.html">BasicStroke</a></span></span><span class="token punctuation">)</span></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="246341397%2FFunctions%2F-4826054" anchor-label="setTransform" id="246341397%2FFunctions%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="set-transform.html"><span>set</span><wbr></wbr><span><span>Transform</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="246341397%2FFunctions%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="set-transform.html"><span class="token function">setTransform</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">id<span class="token operator">: </span><a href="../-affine-transform/index.html">AffineTransform</a></span></span><span class="token punctuation">)</span></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>(c) WorldWind Earth</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

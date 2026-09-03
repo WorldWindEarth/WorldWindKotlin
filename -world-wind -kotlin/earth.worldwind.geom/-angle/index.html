@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>Angle</title>
+    <link href="../../../images/logo-icon.svg" rel="icon" type="image/svg">
+        <script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async="async"></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async="async"></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async="async"></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer="defer"></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async="async"></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer="defer"></script>
+</head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+            <a class="library-name--link" href="../../../index.html" tabindex="1">
+                    WorldWind Kotlin
+            </a>
+        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle"
+                type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+2.1.0        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector common-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/commonMain">common</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox"
+                        data-role="dropdown-toggle"
+                        aria-controls="platform-tags-listbox"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-label="Toggle source sets"
+                ></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/commonMain"
+                                       data-filter=":worldwind/commonMain"/>
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button"
+                    type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config='{"defaultSize": 280, "minSize": 200, "maxSize": 400}'>
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list"
+                    data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    WorldWind Kotlin
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="classlike" id="content" pageIds="WorldWind Kotlin::earth.worldwind.geom/Angle///PointingToDeclaration//-405091373">
+  <div class="breadcrumbs"><a href="../../../index.html">WorldWind Kotlin</a><span class="delimiter">/</span><a href="../index.html">earth.worldwind.geom</a><span class="delimiter">/</span><span class="current">Angle</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Angle</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.jvm/-jvm-inline/index.html"><span class="token annotation builtin">JvmInline</span></a></div></div><span class="token keyword">value </span><span class="token keyword">class </span><a href="index.html">Angle</a> : <a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-comparable/index.html">Comparable</a><span class="token operator">&lt;</span><a href="index.html">Angle</a><span class="token operator">&gt; </span></div></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="228599643%2FClasslikes%2F-405091373" anchor-label="Companion" id="228599643%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-companion/index.html"><span><span>Companion</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="228599643%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="-companion/index.html">Companion</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="900084242%2FProperties%2F-405091373" anchor-label="inDegrees" id="900084242%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="in-degrees.html"><span>in</span><wbr></wbr><span><span>Degrees</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="900084242%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="in-degrees.html">inDegrees</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></div><div class="brief "><p class="paragraph">Size of this angle in degrees.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1731726501%2FProperties%2F-405091373" anchor-label="inMilNATO" id="-1731726501%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="in-mil-n-a-t-o.html"><span>in</span><wbr></wbr><span>Mil</span><wbr></wbr><span><span>NATO</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1731726501%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="in-mil-n-a-t-o.html">inMilNATO</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></div><div class="brief "><p class="paragraph">Size of this angle in mil NATO.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-59482800%2FProperties%2F-405091373" anchor-label="inMilWP" id="-59482800%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="in-mil-w-p.html"><span>in</span><wbr></wbr><span>Mil</span><wbr></wbr><span><span>WP</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-59482800%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="in-mil-w-p.html">inMilWP</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></div><div class="brief "><p class="paragraph">Size of this angle in mil Warsaw Pact.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-270311590%2FProperties%2F-405091373" anchor-label="inMinutes" id="-270311590%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="in-minutes.html"><span>in</span><wbr></wbr><span><span>Minutes</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-270311590%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="in-minutes.html">inMinutes</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></div><div class="brief "><p class="paragraph">Size of this angle in minutes.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1027069126%2FProperties%2F-405091373" anchor-label="inMOA" id="-1027069126%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="in-m-o-a.html"><span>in</span><wbr></wbr><span><span>MOA</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1027069126%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="in-m-o-a.html">inMOA</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></div><div class="brief "><p class="paragraph">Size of this angle in minute of angle (MOA).</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-292381159%2FProperties%2F-405091373" anchor-label="inMrad" id="-292381159%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="in-mrad.html"><span>in</span><wbr></wbr><span><span>Mrad</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-292381159%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="in-mrad.html">inMrad</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></div><div class="brief "><p class="paragraph">Size of this angle in milliradians.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="526843175%2FProperties%2F-405091373" anchor-label="inRadians" id="526843175%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="in-radians.html"><span>in</span><wbr></wbr><span><span>Radians</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="526843175%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="in-radians.html">inRadians</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></div><div class="brief "><p class="paragraph">Size of this angle in radians. This may be useful for functions, which generally take radians as trigonometric arguments.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-270547526%2FProperties%2F-405091373" anchor-label="inSeconds" id="-270547526%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="in-seconds.html"><span>in</span><wbr></wbr><span><span>Seconds</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-270547526%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="in-seconds.html">inSeconds</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></div><div class="brief "><p class="paragraph">Size of this angle in seconds.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-908465051%2FProperties%2F-405091373" anchor-label="inStreck" id="-908465051%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="in-streck.html"><span>in</span><wbr></wbr><span><span>Streck</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-908465051%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="in-streck.html">inStreck</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></div><div class="brief "><p class="paragraph">Size of this angle in Streck.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1843198186%2FProperties%2F-405091373" anchor-label="isValidLatitude" id="-1843198186%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="is-valid-latitude.html"><span>is</span><wbr></wbr><span>Valid</span><wbr></wbr><span><span>Latitude</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1843198186%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="is-valid-latitude.html">isValidLatitude</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div><div class="brief "><p class="paragraph">Indicates whether this angle is within the normal range of latitude, -90, 90.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="275044169%2FProperties%2F-405091373" anchor-label="isValidLongitude" id="275044169%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="is-valid-longitude.html"><span>is</span><wbr></wbr><span>Valid</span><wbr></wbr><span><span>Longitude</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="275044169%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="is-valid-longitude.html">isValidLongitude</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div><div class="brief "><p class="paragraph">Indicates whether this angle is within the normal range of longitude, -180, 180.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1478705236%2FProperties%2F-405091373" anchor-label="latitudeLetter" id="1478705236%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="latitude-letter.html"><span>latitude</span><wbr></wbr><span><span>Letter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1478705236%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="latitude-letter.html">latitudeLetter</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><p class="paragraph">Return North or South notation depends on sign</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="759636927%2FProperties%2F-405091373" anchor-label="longitudeLetter" id="759636927%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="longitude-letter.html"><span>longitude</span><wbr></wbr><span><span>Letter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="759636927%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="longitude-letter.html">longitudeLetter</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><p class="paragraph">Return West or East notation depends on sign</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1173284142%2FProperties%2F-405091373" anchor-label="relativeLatitude" id="1173284142%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="relative-latitude.html"><span>relative</span><wbr></wbr><span><span>Latitude</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1173284142%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="relative-latitude.html">relativeLatitude</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></div><div class="brief "><p class="paragraph">Relative latitude (from wiki.openstreetmap.org)</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-703284175%2FProperties%2F-405091373" anchor-label="relativeLongitude" id="-703284175%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="relative-longitude.html"><span>relative</span><wbr></wbr><span><span>Longitude</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-703284175%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="relative-longitude.html">relativeLongitude</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></div><div class="brief "><p class="paragraph">Relative longitude (from wiki.openstreetmap.org)</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="-1397889885%2FFunctions%2F-405091373" anchor-label="clampAngle180" id="-1397889885%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="clamp-angle180.html"><span>clamp</span><wbr></wbr><span><span>Angle180</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1397889885%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="clamp-angle180.html"><span class="token function">clampAngle180</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Angle</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="464376287%2FFunctions%2F-405091373" anchor-label="clampAngle360" id="464376287%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="clamp-angle360.html"><span>clamp</span><wbr></wbr><span><span>Angle360</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="464376287%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="clamp-angle360.html"><span class="token function">clampAngle360</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Angle</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-680701395%2FFunctions%2F-405091373" anchor-label="clampLatitude" id="-680701395%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="clamp-latitude.html"><span>clamp</span><wbr></wbr><span><span>Latitude</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-680701395%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="clamp-latitude.html"><span class="token function">clampLatitude</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Angle</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1952706322%2FFunctions%2F-405091373" anchor-label="clampLongitude" id="1952706322%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="clamp-longitude.html"><span>clamp</span><wbr></wbr><span><span>Longitude</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1952706322%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="clamp-longitude.html"><span class="token function">clampLongitude</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Angle</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2033775483%2FFunctions%2F-405091373" anchor-label="compareTo" id="2033775483%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="compare-to.html"><span>compare</span><wbr></wbr><span><span>To</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2033775483%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">operator override </span><span class="token keyword">fun </span><a href="compare-to.html"><span class="token function">compareTo</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">other<span class="token operator">: </span><a href="index.html">Angle</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></div><div class="brief "><p class="paragraph">Compares this <a href="index.html">Angle</a> with another. Returns a negative integer if this is the smaller angle, a positive integer if this is the larger, and zero if both angles are equal.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="821729821%2FFunctions%2F-405091373" anchor-label="distanceTo" id="821729821%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="distance-to.html"><span>distance</span><wbr></wbr><span><span>To</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="821729821%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="distance-to.html"><span class="token function">distanceTo</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">angle<span class="token operator">: </span><a href="index.html">Angle</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Angle</a></div><div class="brief "><p class="paragraph">Computes the shortest distance between this and angle, as an angle.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="485478023%2FFunctions%2F-405091373" anchor-label="div" id="485478023%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="div.html"><span><span>div</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="485478023%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">operator </span><span class="token keyword">fun </span><a href="div.html"><span class="token function">div</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">angle<span class="token operator">: </span><a href="index.html">Angle</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Angle</a></div><div class="symbol monospace"><span class="token keyword">operator </span><span class="token keyword">fun </span><a href="div.html"><span class="token function">div</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">divisor<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-number/index.html">Number</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Angle</a></div><div class="brief "><p class="paragraph">Divides this angle by another angle. This angle remains unchanged. The result is returned as a new angle.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1064157899%2FFunctions%2F-405091373" anchor-label="minus" id="1064157899%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="minus.html"><span><span>minus</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1064157899%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">operator </span><span class="token keyword">fun </span><a href="minus.html"><span class="token function">minus</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">angle<span class="token operator">: </span><a href="index.html">Angle</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Angle</a></div><div class="brief "><p class="paragraph">Obtains the difference of these two angles. This method is not commutative. Neither this angle nor angle is changed, instead the result is returned as a new angle.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2011952043%2FFunctions%2F-405091373" anchor-label="minusDegrees" id="-2011952043%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="minus-degrees.html"><span>minus</span><wbr></wbr><span><span>Degrees</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2011952043%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="minus-degrees.html"><span class="token function">minusDegrees</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">degrees<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Angle</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-597251232%2FFunctions%2F-405091373" anchor-label="minusRadians" id="-597251232%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="minus-radians.html"><span>minus</span><wbr></wbr><span><span>Radians</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-597251232%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="minus-radians.html"><span class="token function">minusRadians</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">radians<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Angle</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1003462454%2FFunctions%2F-405091373" anchor-label="normalize180" id="-1003462454%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="normalize180.html"><span><span>normalize180</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1003462454%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="normalize180.html"><span class="token function">normalize180</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Angle</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="858803718%2FFunctions%2F-405091373" anchor-label="normalize360" id="858803718%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="normalize360.html"><span><span>normalize360</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="858803718%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="normalize360.html"><span class="token function">normalize360</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Angle</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="551742107%2FFunctions%2F-405091373" anchor-label="normalizeLatitude" id="551742107%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="normalize-latitude.html"><span>normalize</span><wbr></wbr><span><span>Latitude</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="551742107%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="normalize-latitude.html"><span class="token function">normalizeLatitude</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Angle</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1503749220%2FFunctions%2F-405091373" anchor-label="normalizeLongitude" id="1503749220%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="normalize-longitude.html"><span>normalize</span><wbr></wbr><span><span>Longitude</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1503749220%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="normalize-longitude.html"><span class="token function">normalizeLongitude</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Angle</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1220052051%2FFunctions%2F-405091373" anchor-label="plus" id="1220052051%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="plus.html"><span><span>plus</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1220052051%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">operator </span><span class="token keyword">fun </span><a href="plus.html"><span class="token function">plus</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">angle<span class="token operator">: </span><a href="index.html">Angle</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Angle</a></div><div class="brief "><p class="paragraph">Obtains the sum of these two angles. This method is commutative, so <code class="lang-kotlin">a.add(b)</code> and <code class="lang-kotlin">b.add(a)</code> are equivalent. Neither this angle nor angle is changed, instead the result is returned as a new angle.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="181441501%2FFunctions%2F-405091373" anchor-label="plusDegrees" id="181441501%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="plus-degrees.html"><span>plus</span><wbr></wbr><span><span>Degrees</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="181441501%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="plus-degrees.html"><span class="token function">plusDegrees</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">degrees<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Angle</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1596142312%2FFunctions%2F-405091373" anchor-label="plusRadians" id="1596142312%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="plus-radians.html"><span>plus</span><wbr></wbr><span><span>Radians</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1596142312%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="plus-radians.html"><span class="token function">plusRadians</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">radians<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Angle</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1461760551%2FFunctions%2F-405091373" anchor-label="times" id="1461760551%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="times.html"><span><span>times</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1461760551%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">operator </span><span class="token keyword">fun </span><a href="times.html"><span class="token function">times</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">angle<span class="token operator">: </span><a href="index.html">Angle</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Angle</a></div><div class="brief "><p class="paragraph">Multiplies this angle by another angle. This method is commutative, so <code class="lang-kotlin">a.multiply(b)</code> and <code class="lang-kotlin">b.multiply(a)</code> are equivalent. This angle remains unchanged. The result is returned as a new angle.</p></div><div class="symbol monospace"><span class="token keyword">operator </span><span class="token keyword">fun </span><a href="times.html"><span class="token function">times</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">multiplier<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-number/index.html">Number</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Angle</a></div><div class="brief "><p class="paragraph">Multiplies this angle by <code class="lang-kotlin">multiplier</code>. This method is commutative, so <code class="lang-kotlin">a.multiply(b)</code> and <code class="lang-kotlin">b.multiply(a)</code> are equivalent. This angle remains unchanged. The result is returned as a new angle.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1158639288%2FFunctions%2F-405091373" anchor-label="toDDString" id="1158639288%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="to-d-d-string.html"><span>to</span><wbr></wbr><span><span>DDString</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1158639288%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="to-d-d-string.html"><span class="token function">toDDString</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">digits<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">6</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><p class="paragraph">Forms a decimal degrees <a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a> representation of this <a href="index.html">Angle</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="718267365%2FFunctions%2F-405091373" anchor-label="toDMS" id="718267365%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="to-d-m-s.html"><span>to</span><wbr></wbr><span><span>DMS</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="718267365%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="to-d-m-s.html"><span class="token function">toDMS</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double-array/index.html">DoubleArray</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="742703986%2FFunctions%2F-405091373" anchor-label="toDMSString" id="742703986%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="to-d-m-s-string.html"><span>to</span><wbr></wbr><span><span>DMSString</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="742703986%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="to-d-m-s-string.html"><span class="token function">toDMSString</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">digits<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">1</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><p class="paragraph">Obtains a <a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a> representation of this <a href="index.html">Angle</a> formatted as degrees, minutes and seconds.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2019668785%2FFunctions%2F-405091373" anchor-label="toDMString" id="-2019668785%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="to-d-m-string.html"><span>to</span><wbr></wbr><span><span>DMString</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2019668785%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="to-d-m-string.html"><span class="token function">toDMString</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">digits<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">3</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><p class="paragraph">Obtains a <a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a> representation of this <a href="index.html">Angle</a> formatted as degrees and decimal minutes.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-324417126%2FFunctions%2F-405091373" anchor-label="toString" id="-324417126%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="to-string.html"><span>to</span><wbr></wbr><span><span>String</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-324417126%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="to-string.html"><span class="token function">toString</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-919864603%2FFunctions%2F-405091373" anchor-label="unaryMinus" id="-919864603%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="unary-minus.html"><span>unary</span><wbr></wbr><span><span>Minus</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-919864603%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">operator </span><span class="token keyword">fun </span><a href="unary-minus.html"><span class="token function">unaryMinus</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Angle</a></div><div class="brief "><p class="paragraph">Returns new angle with opposite sign.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>(c) WorldWind Earth</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

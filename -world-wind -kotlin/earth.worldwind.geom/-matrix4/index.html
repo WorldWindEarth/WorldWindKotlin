@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>Matrix4</title>
+    <link href="../../../images/logo-icon.svg" rel="icon" type="image/svg">
+        <script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async="async"></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async="async"></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async="async"></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer="defer"></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async="async"></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer="defer"></script>
+</head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+            <a class="library-name--link" href="../../../index.html" tabindex="1">
+                    WorldWind Kotlin
+            </a>
+        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle"
+                type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+2.1.0        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector common-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/commonMain">common</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox"
+                        data-role="dropdown-toggle"
+                        aria-controls="platform-tags-listbox"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-label="Toggle source sets"
+                ></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/commonMain"
+                                       data-filter=":worldwind/commonMain"/>
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button"
+                    type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config='{"defaultSize": 280, "minSize": 200, "maxSize": 400}'>
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list"
+                    data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    WorldWind Kotlin
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="classlike" id="content" pageIds="WorldWind Kotlin::earth.worldwind.geom/Matrix4///PointingToDeclaration//-405091373">
+  <div class="breadcrumbs"><a href="../../../index.html">WorldWind Kotlin</a><span class="delimiter">/</span><a href="../index.html">earth.worldwind.geom</a><span class="delimiter">/</span><span class="current">Matrix4</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Matrix4</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">class </span><a href="index.html">Matrix4</a></div><p class="paragraph">4 x 4 matrix in row-major order.</p></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="CONSTRUCTOR">
+        <h2 class="tableheader">Constructors</h2>
+        <div class="table"><a data-name="274033173%2FConstructors%2F-405091373" anchor-label="Matrix4" id="274033173%2FConstructors%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-togglable="CONSTRUCTOR" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-matrix4.html"><span><span>Matrix4</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="274033173%2FConstructors%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">constructor</span><span class="token punctuation">(</span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Constructs a 4 x 4 identity matrix.</p></div><div class="symbol monospace"><span class="token keyword">constructor</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">m11<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m12<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m13<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m14<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m21<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m22<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m23<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m24<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m31<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m32<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m33<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m34<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m41<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m42<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m43<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m44<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Constructs a 4 x 4 matrix with specified components.</p></div><div class="symbol monospace"><span class="token keyword">constructor</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">matrix<span class="token operator">: </span><a href="index.html">Matrix4</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Constructs a 4 x 4 matrix with the components of a specified matrix.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="1600957659%2FClasslikes%2F-405091373" anchor-label="Companion" id="1600957659%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-companion/index.html"><span><span>Companion</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1600957659%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="-companion/index.html">Companion</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="1893533383%2FProperties%2F-405091373" anchor-label="m" id="1893533383%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="m.html"><span><span>m</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1893533383%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="m.html">m</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double-array/index.html">DoubleArray</a></div><div class="brief "><p class="paragraph">The matrix's components, stored in row-major order.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="486528848%2FFunctions%2F-405091373" anchor-label="boundingRectForUnitSquare" id="486528848%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="bounding-rect-for-unit-square.html"><span>bounding</span><wbr></wbr><span>Rect</span><wbr></wbr><span>For</span><wbr></wbr><span>Unit</span><wbr></wbr><span><span>Square</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="486528848%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="bounding-rect-for-unit-square.html"><span class="token function">boundingRectForUnitSquare</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">result<span class="token operator">: </span><a href="../-viewport/index.html">Viewport</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-viewport/index.html">Viewport</a></div><div class="brief "><p class="paragraph">Computes the bounding rectangle for a unit square after applying a transformation matrix to the square's four corners.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-213829928%2FFunctions%2F-405091373" anchor-label="copy" id="-213829928%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="copy.html"><span><span>copy</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-213829928%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="copy.html"><span class="token function">copy</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">matrix<span class="token operator">: </span><a href="index.html">Matrix4</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Sets this 4 x 4 matrix to the components of a specified matrix.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-887284421%2FFunctions%2F-405091373" anchor-label="equals" id="-887284421%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="equals.html"><span><span>equals</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-887284421%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">operator override </span><span class="token keyword">fun </span><a href="equals.html"><span class="token function">equals</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">other<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1192207150%2FFunctions%2F-405091373" anchor-label="extractEigenvectors" id="1192207150%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="extract-eigenvectors.html"><span>extract</span><wbr></wbr><span><span>Eigenvectors</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1192207150%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="extract-eigenvectors.html"><span class="token function">extractEigenvectors</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">result1<span class="token operator">: </span><a href="../-vec3/index.html">Vec3</a><span class="token punctuation">, </span></span><span class="parameter ">result2<span class="token operator">: </span><a href="../-vec3/index.html">Vec3</a><span class="token punctuation">, </span></span><span class="parameter ">result3<span class="token operator">: </span><a href="../-vec3/index.html">Vec3</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div><div class="brief "><p class="paragraph">Returns this symmetric matrix's eigenvectors. The eigenvectors are returned in the specified result arguments in order of descending magnitude (most prominent to least prominent). Each eigenvector has length equal to its corresponding eigenvalue. <br> This method returns false if this matrix is not a symmetric matrix.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2056425515%2FFunctions%2F-405091373" anchor-label="extractEyePoint" id="-2056425515%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="extract-eye-point.html"><span>extract</span><wbr></wbr><span>Eye</span><wbr></wbr><span><span>Point</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2056425515%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="extract-eye-point.html"><span class="token function">extractEyePoint</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">result<span class="token operator">: </span><a href="../-vec3/index.html">Vec3</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-vec3/index.html">Vec3</a></div><div class="brief "><p class="paragraph">Returns this viewing matrix's eye point. In model coordinates, a viewing matrix's eye point is the point the viewer is looking from and maps to the center of the screen. <br> The result of this method is undefined if this matrix is not a viewing matrix.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-908232950%2FFunctions%2F-405091373" anchor-label="extractForwardVector" id="-908232950%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="extract-forward-vector.html"><span>extract</span><wbr></wbr><span>Forward</span><wbr></wbr><span><span>Vector</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-908232950%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="extract-forward-vector.html"><span class="token function">extractForwardVector</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">result<span class="token operator">: </span><a href="../-vec3/index.html">Vec3</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-vec3/index.html">Vec3</a></div><div class="brief "><p class="paragraph">Returns this viewing matrix's forward vector. <br> The result of this method is undefined if this matrix is not a viewing matrix.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1409024908%2FFunctions%2F-405091373" anchor-label="extractHeading" id="1409024908%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="extract-heading.html"><span>extract</span><wbr></wbr><span><span>Heading</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1409024908%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="extract-heading.html"><span class="token function">extractHeading</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">roll<span class="token operator">: </span><a href="../-angle/index.html">Angle</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-angle/index.html">Angle</a></div><div class="brief "><p class="paragraph">Returns this viewing matrix's heading angle. The roll argument enables the caller to disambiguate heading and roll when the two rotation axes for heading and roll are parallel, causing gimbal lock. <br> The result of this method is undefined if this matrix is not a viewing matrix.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="489177452%2FFunctions%2F-405091373" anchor-label="extractScale" id="489177452%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="extract-scale.html"><span>extract</span><wbr></wbr><span><span>Scale</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="489177452%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="extract-scale.html"><span class="token function">extractScale</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">result<span class="token operator">: </span><a href="../-vec3/index.html">Vec3</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-vec3/index.html">Vec3</a></div><div class="brief "><p class="paragraph">Extracts the scale components from this matrix and stores them in the specified result vector.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="401480886%2FFunctions%2F-405091373" anchor-label="extractTilt" id="401480886%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="extract-tilt.html"><span>extract</span><wbr></wbr><span><span>Tilt</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="401480886%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="extract-tilt.html"><span class="token function">extractTilt</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-angle/index.html">Angle</a></div><div class="brief "><p class="paragraph">Returns this viewing matrix's tilt angle. <br> The result of this method is undefined if this matrix is not a viewing matrix.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1626002101%2FFunctions%2F-405091373" anchor-label="hashCode" id="-1626002101%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="hash-code.html"><span>hash</span><wbr></wbr><span><span>Code</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1626002101%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="hash-code.html"><span class="token function">hashCode</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1328910384%2FFunctions%2F-405091373" anchor-label="invert" id="1328910384%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="invert.html"><span><span>invert</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1328910384%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="invert.html"><span class="token function">invert</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Inverts this matrix in place. <br> This throws an exception if this matrix is singular.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1238665386%2FFunctions%2F-405091373" anchor-label="invertMatrix" id="-1238665386%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="invert-matrix.html"><span>invert</span><wbr></wbr><span><span>Matrix</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1238665386%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="invert-matrix.html"><span class="token function">invertMatrix</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">matrix<span class="token operator">: </span><a href="index.html">Matrix4</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Inverts the specified matrix and stores the result in this matrix. <br> This throws an exception if the specified matrix is singular. <br> The result of this method is undefined if this matrix is passed in as the matrix to invert.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-512294965%2FFunctions%2F-405091373" anchor-label="invertOrthonormal" id="-512294965%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="invert-orthonormal.html"><span>invert</span><wbr></wbr><span><span>Orthonormal</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-512294965%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="invert-orthonormal.html"><span class="token function">invertOrthonormal</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Inverts this orthonormal transform matrix in place. This matrix's upper 3x3 is transposed, then its fourth column is transformed by the transposed upper 3x3 and negated. <br> The result of this method is undefined if this matrix's values are not consistent with those of an orthonormal transform.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1198702543%2FFunctions%2F-405091373" anchor-label="invertOrthonormalMatrix" id="-1198702543%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="invert-orthonormal-matrix.html"><span>invert</span><wbr></wbr><span>Orthonormal</span><wbr></wbr><span><span>Matrix</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1198702543%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="invert-orthonormal-matrix.html"><span class="token function">invertOrthonormalMatrix</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">matrix<span class="token operator">: </span><a href="index.html">Matrix4</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Inverts the specified orthonormal transform matrix and stores the result in 'this' matrix. The specified matrix's upper 3x3 is transposed, then its fourth column is transformed by the transposed upper 3x3 and negated.  The result is stored in 'this' matrix. <br> The result of this method is undefined if this matrix is passed in as the matrix to invert, or if the matrix's values are not consistent with those of an orthonormal transform.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1952235744%2FFunctions%2F-405091373" anchor-label="multiplyByMatrix" id="-1952235744%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="multiply-by-matrix.html"><span>multiply</span><wbr></wbr><span>By</span><wbr></wbr><span><span>Matrix</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1952235744%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="multiply-by-matrix.html"><span class="token function">multiplyByMatrix</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">matrix<span class="token operator">: </span><a href="index.html">Matrix4</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Multiplies this matrix by a specified matrix.</p></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="multiply-by-matrix.html"><span class="token function">multiplyByMatrix</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">m11<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m12<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m13<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m14<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m21<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m22<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m23<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m24<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m31<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m32<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m33<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m34<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m41<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m42<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m43<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m44<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Multiplies this matrix by a matrix specified by individual components.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1144663035%2FFunctions%2F-405091373" anchor-label="multiplyByRotation" id="-1144663035%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="multiply-by-rotation.html"><span>multiply</span><wbr></wbr><span>By</span><wbr></wbr><span><span>Rotation</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1144663035%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="multiply-by-rotation.html"><span class="token function">multiplyByRotation</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">x<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">y<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">z<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">angle<span class="token operator">: </span><a href="../-angle/index.html">Angle</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Multiplies this matrix by a rotation matrix about a specified axis and angle. Positive angles are interpreted as counter-clockwise rotation about the axis.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="775473577%2FFunctions%2F-405091373" anchor-label="multiplyByScale" id="775473577%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="multiply-by-scale.html"><span>multiply</span><wbr></wbr><span>By</span><wbr></wbr><span><span>Scale</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="775473577%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="multiply-by-scale.html"><span class="token function">multiplyByScale</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">xScale<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">yScale<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">zScale<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Multiplies this matrix by a scale matrix with specified values.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1687954128%2FFunctions%2F-405091373" anchor-label="multiplyByTranslation" id="1687954128%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="multiply-by-translation.html"><span>multiply</span><wbr></wbr><span>By</span><wbr></wbr><span><span>Translation</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1687954128%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="multiply-by-translation.html"><span class="token function">multiplyByTranslation</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">x<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">y<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">z<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Multiplies this matrix by a translation matrix with specified translation values.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2041171823%2FFunctions%2F-405091373" anchor-label="offsetProjectionDepth" id="-2041171823%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="offset-projection-depth.html"><span>offset</span><wbr></wbr><span>Projection</span><wbr></wbr><span><span>Depth</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2041171823%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="offset-projection-depth.html"><span class="token function">offsetProjectionDepth</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">depthOffset<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Applies a specified depth offset to this projection matrix. The depth offset may be any real number and is typically used to draw geometry slightly closer to the user's eye in order to give those shapes visual priority over nearby or geometry. An offset of zero has no effect. An offset less than zero brings depth values closer to the eye, while an offset greater than zero pushes depth values away from the eye. <br> The result of this method is undefined if this matrix is not a projection matrix. Projection matrices can be created by calling <code class="lang-kotlin">setToPerspectiveProjection</code> or <code class="lang-kotlin">setToScreenProjection</code> <br> Depth offset may be applied to both perspective and screen projection matrices. The effect on each type is outlined here: <br> <strong>Perspective Projection</strong> <br> The effect of depth offset on a perspective projection increases exponentially with distance from the eye. This has the effect of adjusting the offset for the loss in depth precision with geometry drawn further from the eye. Distant geometry requires a greater offset to differentiate itself from nearby geometry, while close geometry does not. <br> <strong>Screen Projection</strong> <br> The effect of depth offset on an screen projection increases linearly with distance from the eye. While it is reasonable to apply a depth offset to an screen projection, the effect is most appropriate when applied to the projection used to draw the scene. For example, when an object's coordinates are projected by a perspective projection into screen coordinates then drawn using a screen projection, it is best to apply the offset to the original perspective projection. The method <code class="lang-kotlin">RenderContext.project</code> performs the correct behavior for the projection type used to draw the scene.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1539779520%2FFunctions%2F-405091373" anchor-label="project" id="1539779520%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="project.html"><span><span>project</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1539779520%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="project.html"><span class="token function">project</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">x<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">y<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">z<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">viewport<span class="token operator">: </span><a href="../-viewport/index.html">Viewport</a><span class="token punctuation">, </span></span><span class="parameter ">result<span class="token operator">: </span><a href="../-vec3/index.html">Vec3</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div><div class="brief "><p class="paragraph">Projects a Cartesian point to screen coordinates. This method assumes this matrix represents an inverse modelview-projection matrix. The result of this method is undefined if this matrix is not an inverse modelview-projection matrix. <br> The resultant screen point is in OpenGL screen coordinates, with the origin in the bottom-left corner and axes that extend up and to the right from the origin. <br> This stores the projected point in the result argument, and returns a boolean value indicating whether or not the projection is successful. This returns false if the Cartesian point is clipped by the near clipping plane or the far clipping plane.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1004785219%2FFunctions%2F-405091373" anchor-label="set" id="-1004785219%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="set.html"><span><span>set</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1004785219%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="set.html"><span class="token function">set</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">m11<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m12<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m13<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m14<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m21<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m22<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m23<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m24<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m31<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m32<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m33<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m34<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m41<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m42<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m43<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">m44<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Sets this 4 x 4 matrix to specified components.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1690840404%2FFunctions%2F-405091373" anchor-label="setRotation" id="-1690840404%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="set-rotation.html"><span>set</span><wbr></wbr><span><span>Rotation</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1690840404%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="set-rotation.html"><span class="token function">setRotation</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">x<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">y<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">z<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">angle<span class="token operator">: </span><a href="../-angle/index.html">Angle</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Sets the rotation components of this matrix to a specified axis and angle. Positive angles are interpreted as counter-clockwise rotation about the axis when viewed when viewed from the positive end of the axis, looking toward the negative end of the axis. <br> The result of this method is undefined if the axis components are not a unit vector.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1481959792%2FFunctions%2F-405091373" anchor-label="setScale" id="-1481959792%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="set-scale.html"><span>set</span><wbr></wbr><span><span>Scale</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1481959792%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="set-scale.html"><span class="token function">setScale</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">xScale<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">yScale<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">zScale<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Sets the scale components of this matrix to specified values.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-779986632%2FFunctions%2F-405091373" anchor-label="setToCovarianceOfPoints" id="-779986632%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="set-to-covariance-of-points.html"><span>set</span><wbr></wbr><span>To</span><wbr></wbr><span>Covariance</span><wbr></wbr><span>Of</span><wbr></wbr><span><span>Points</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-779986632%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="set-to-covariance-of-points.html"><span class="token function">setToCovarianceOfPoints</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">array<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-float-array/index.html">FloatArray</a><span class="token punctuation">, </span></span><span class="parameter ">count<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">stride<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Sets this matrix to the symmetric covariance Matrix computed from an array of points. <br> The computed covariance matrix represents the correlation between each pair of x-, y-, and z-coordinates as they're distributed about the point array's arithmetic mean. Its layout is as follows: <br> <code class="lang-kotlin">C(x, x)  C(x, y)  C(x, z) &lt;br&gt; C(x, y)  C(y, y)  C(y, z) &lt;br&gt; C(x, z)  C(y, z)  C(z, z) </code> <br> C(i, j) is the covariance of coordinates i and j, where i or j are a coordinate's dispersion about its mean value. If any entry is zero, then there's no correlation between the two coordinates defining that entry. If the returned matrix is diagonal, then all three coordinates are uncorrelated, and the specified point is distributed evenly about its mean point.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-109500903%2FFunctions%2F-405091373" anchor-label="setToIdentity" id="-109500903%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="set-to-identity.html"><span>set</span><wbr></wbr><span>To</span><wbr></wbr><span><span>Identity</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-109500903%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="set-to-identity.html"><span class="token function">setToIdentity</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Sets this matrix to the 4 x 4 identity matrix.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="372007520%2FFunctions%2F-405091373" anchor-label="setToInfiniteProjection" id="372007520%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="set-to-infinite-projection.html"><span>set</span><wbr></wbr><span>To</span><wbr></wbr><span>Infinite</span><wbr></wbr><span><span>Projection</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="372007520%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="set-to-infinite-projection.html"><span class="token function">setToInfiniteProjection</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">viewportWidth<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">viewportHeight<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">vFieldOfView<span class="token operator">: </span><a href="../-angle/index.html">Angle</a><span class="token punctuation">, </span></span><span class="parameter ">nearDistance<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Sets this matrix to an infinite perspective projection matrix for the specified viewport dimensions, vertical field of view and near clip distance. <br> An infinite perspective projection matrix maps points in a manner similar to a standard projection matrix, but is not bounded by depth. Objects at any depth greater than or equal to the near distance may be rendered. In addition, this matrix interprets vertices with a w-coordinate of 0 as infinitely far from the camera in the direction indicated by the point's coordinates. <br> The field of view must be positive and less than 180. The near distance must be positive.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="657562444%2FFunctions%2F-405091373" anchor-label="setToMultiply" id="657562444%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="set-to-multiply.html"><span>set</span><wbr></wbr><span>To</span><wbr></wbr><span><span>Multiply</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="657562444%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="set-to-multiply.html"><span class="token function">setToMultiply</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">a<span class="token operator">: </span><a href="index.html">Matrix4</a><span class="token punctuation">, </span></span><span class="parameter ">b<span class="token operator">: </span><a href="index.html">Matrix4</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Sets this matrix to the matrix product of two specified matrices.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="521984105%2FFunctions%2F-405091373" anchor-label="setToPerspectiveProjection" id="521984105%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="set-to-perspective-projection.html"><span>set</span><wbr></wbr><span>To</span><wbr></wbr><span>Perspective</span><wbr></wbr><span><span>Projection</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="521984105%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="set-to-perspective-projection.html"><span class="token function">setToPerspectiveProjection</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">viewportWidth<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">viewportHeight<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">vFieldOfView<span class="token operator">: </span><a href="../-angle/index.html">Angle</a><span class="token punctuation">, </span></span><span class="parameter ">nearDistance<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">farDistance<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Sets this matrix to a perspective projection matrix for the specified viewport dimensions, vertical field of view and clip distances. <br> A perspective projection matrix maps points in eye coordinates into clip coordinates in a way that causes distant objects to appear smaller, and preserves the appropriate depth information for each point. In model coordinates, a perspective projection is defined by frustum originating at the eye position and extending outward in the viewer's direction. The near distance and the far distance identify the minimum and maximum distance, respectively, at which an object in the scene is visible. <br> The field of view must be positive and less than 180. Near and far distances must be positive and must not be equal to one another.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="331426737%2FFunctions%2F-405091373" anchor-label="setToRotation" id="331426737%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="set-to-rotation.html"><span>set</span><wbr></wbr><span>To</span><wbr></wbr><span><span>Rotation</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="331426737%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="set-to-rotation.html"><span class="token function">setToRotation</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">x<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">y<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">z<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">angle<span class="token operator">: </span><a href="../-angle/index.html">Angle</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Sets this matrix to a rotation matrix with a specified axis and angle. Positive angles are interpreted as counter-clockwise rotation about the axis when viewed when viewed from the positive end of the axis, looking toward the negative end of the axis. <br> The result of this method is undefined if the axis components are not a unit vector.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1106941525%2FFunctions%2F-405091373" anchor-label="setToScale" id="1106941525%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="set-to-scale.html"><span>set</span><wbr></wbr><span>To</span><wbr></wbr><span><span>Scale</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1106941525%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="set-to-scale.html"><span class="token function">setToScale</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">xScale<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">yScale<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">zScale<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Sets this matrix to a scale matrix with specified scale components.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1177242189%2FFunctions%2F-405091373" anchor-label="setToScreenProjection" id="1177242189%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="set-to-screen-projection.html"><span>set</span><wbr></wbr><span>To</span><wbr></wbr><span>Screen</span><wbr></wbr><span><span>Projection</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1177242189%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="set-to-screen-projection.html"><span class="token function">setToScreenProjection</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">viewportWidth<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">viewportHeight<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Sets this matrix to a screen projection matrix for the specified viewport dimensions. <br> A screen projection matrix is an orthographic projection that interprets points in model coordinates as representing a screen XY and a Z depth. Screen projection matrices therefore map coordinates directly into screen coordinates without modification. A point's XY coordinates are interpreted as literal screen coordinates and must be in the viewport to be visible. A point's Z coordinate is interpreted as a depth value that ranges from 0 to 1. Additionally, the screen projection matrix preserves the depth value returned by <code class="lang-kotlin">RenderContext.project</code>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-444285316%2FFunctions%2F-405091373" anchor-label="setToTranslation" id="-444285316%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="set-to-translation.html"><span>set</span><wbr></wbr><span>To</span><wbr></wbr><span><span>Translation</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-444285316%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="set-to-translation.html"><span class="token function">setToTranslation</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">x<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">y<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">z<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Sets this matrix to a translation matrix with specified translation components.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1780160905%2FFunctions%2F-405091373" anchor-label="setTranslation" id="-1780160905%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="set-translation.html"><span>set</span><wbr></wbr><span><span>Translation</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1780160905%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="set-translation.html"><span class="token function">setTranslation</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">x<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">y<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">z<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Sets the translation components of this matrix to specified values.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1804168166%2FFunctions%2F-405091373" anchor-label="toString" id="-1804168166%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="to-string.html"><span>to</span><wbr></wbr><span><span>String</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1804168166%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="to-string.html"><span class="token function">toString</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1862551163%2FFunctions%2F-405091373" anchor-label="transpose" id="1862551163%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="transpose.html"><span><span>transpose</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1862551163%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="transpose.html"><span class="token function">transpose</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Transposes this matrix in place.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1672684831%2FFunctions%2F-405091373" anchor-label="transposeMatrix" id="-1672684831%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="transpose-matrix.html"><span>transpose</span><wbr></wbr><span><span>Matrix</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1672684831%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="transpose-matrix.html"><span class="token function">transposeMatrix</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">matrix<span class="token operator">: </span><a href="index.html">Matrix4</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Sets this matrix to the transpose of a specified matrix.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1959495898%2FFunctions%2F-405091373" anchor-label="transposeToArray" id="-1959495898%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="transpose-to-array.html"><span>transpose</span><wbr></wbr><span>To</span><wbr></wbr><span><span>Array</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1959495898%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="transpose-to-array.html"><span class="token function">transposeToArray</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">result<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-float-array/index.html">FloatArray</a><span class="token punctuation">, </span></span><span class="parameter ">offset<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-float-array/index.html">FloatArray</a></div><div class="brief "><p class="paragraph">Transposes this matrix, storing the result in the specified single precision array. The result is compatible with GLSL uniform matrices, and can be passed to the function glUniformMatrix4fv.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-400559385%2FFunctions%2F-405091373" anchor-label="unProject" id="-400559385%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="un-project.html"><span>un</span><wbr></wbr><span><span>Project</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-400559385%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="un-project.html"><span class="token function">unProject</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">x<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">y<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">viewport<span class="token operator">: </span><a href="../-viewport/index.html">Viewport</a><span class="token punctuation">, </span></span><span class="parameter ">nearResult<span class="token operator">: </span><a href="../-vec3/index.html">Vec3</a><span class="token punctuation">, </span></span><span class="parameter ">farResult<span class="token operator">: </span><a href="../-vec3/index.html">Vec3</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div><div class="brief "><p class="paragraph">Un-projects a screen coordinate point to Cartesian coordinates at the near clip plane and the far clip plane. This method assumes this matrix represents an inverse modelview-projection matrix. The result of this method is undefined if this matrix is not an inverse modelview-projection matrix. <br> The screen point is understood to be in OpenGL screen coordinates, with the origin in the bottom-left corner and axes that extend up and to the right from the origin. <br> This function stores the un-projected points in the result argument, and a boolean value indicating whether the un-projection is successful.</p></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="un-project.html"><span class="token function">unProject</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">x<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">y<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">z<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">viewport<span class="token operator">: </span><a href="../-viewport/index.html">Viewport</a><span class="token punctuation">, </span></span><span class="parameter ">result<span class="token operator">: </span><a href="../-vec3/index.html">Vec3</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div><div class="brief "><p class="paragraph">Un-projects a screen coordinate point at a given normalized depth to Cartesian coordinates. This method assumes this matrix represents an inverse modelview-projection matrix; the result is undefined otherwise. <br> The screen point is in OpenGL screen coordinates (origin at the bottom-left). The depth value is the normalized depth-buffer value in <code class="lang-kotlin">[0, 1]</code> as read from the depth buffer at the screen point.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1119574000%2FFunctions%2F-405091373" anchor-label="upper3By3" id="1119574000%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="upper3-by3.html"><span><span>upper3By3</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1119574000%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="upper3-by3.html"><span class="token function">upper3By3</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">result<span class="token operator">: </span><a href="index.html">Matrix4</a><span class="token operator"> = </span>Matrix4()</span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Matrix4</a></div><div class="brief "><p class="paragraph">Extracts and returns a new matrix whose upper 3x3 entries are identical to those of this matrix, and whose fourth row and column are 0 except for a 1 in the diagonal position.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>(c) WorldWind Earth</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

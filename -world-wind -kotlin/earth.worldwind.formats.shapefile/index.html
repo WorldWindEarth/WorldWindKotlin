@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>earth.worldwind.formats.shapefile</title>
+    <link href="../../images/logo-icon.svg" rel="icon" type="image/svg">
+        <script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async="async"></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async="async"></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async="async"></script>
+<script type="text/javascript" src="../../scripts/main.js" defer="defer"></script>
+<script type="text/javascript" src="../../scripts/prism.js" async="async"></script>
+<script type="text/javascript" src="../../ui-kit/ui-kit.min.js" defer="defer"></script>
+</head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+            <a class="library-name--link" href="../../index.html" tabindex="1">
+                    WorldWind Kotlin
+            </a>
+        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle"
+                type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+2.1.0        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector common-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/commonMain">common</button>
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/jvmCommonMain">jvmCommon</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox"
+                        data-role="dropdown-toggle"
+                        aria-controls="platform-tags-listbox"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-label="Toggle source sets"
+                ></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/commonMain"
+                                       data-filter=":worldwind/commonMain"/>
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/jvmCommonMain"
+                                       data-filter=":worldwind/jvmCommonMain"/>
+                                <span class="checkbox--icon"></span>
+                                jvmCommon
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button"
+                    type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config='{"defaultSize": 280, "minSize": 200, "maxSize": 400}'>
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list"
+                    data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    WorldWind Kotlin
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="package" id="content" pageIds="WorldWind Kotlin::earth.worldwind.formats.shapefile////PointingToDeclaration//1101327604">
+  <div class="breadcrumbs"><a href="../../index.html">WorldWind Kotlin</a><span class="delimiter">/</span><span class="current">earth.worldwind.formats.shapefile</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="TYPE">Types</button><button class="section-tab" data-togglable="FUNCTION,EXTENSION_FUNCTION">Functions</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="385361214%2FClasslikes%2F-405091373" anchor-label="DBaseCharset" id="385361214%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-d-base-charset/index.html"><span>DBase</span><wbr></wbr><span><span>Charset</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="385361214%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">sealed </span><span class="token keyword">class </span><a href="-d-base-charset/index.html">DBaseCharset</a></div><div class="brief "><p class="paragraph">Character encodings supported by the dBASE / DBF string decoder. Single-byte codepages are decoded in pure Kotlin via 256-entry lookup tables, so no platform-specific Charset support is required. Multi-byte codepages (GBK, Shift_JIS, etc.) are not supported here — callers using those encodings should resolve them on their own.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-780195952%2FClasslikes%2F-405091373" anchor-label="DBaseField" id="-780195952%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-d-base-field/index.html"><span>DBase</span><wbr></wbr><span><span>Field</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-780195952%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-d-base-field/index.html">DBaseField</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>name<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>type<span class="token operator">: </span><a href="-d-base-field-type/index.html">DBaseFieldType</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>typeCode<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-char/index.html">Char</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>length<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>decimals<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Schema for a single DBF column.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1658718730%2FClasslikes%2F-405091373" anchor-label="DBaseFieldType" id="-1658718730%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-d-base-field-type/index.html"><span>DBase</span><wbr></wbr><span>Field</span><wbr></wbr><span><span>Type</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1658718730%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">enum </span><a href="-d-base-field-type/index.html">DBaseFieldType</a> : <a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-enum/index.html">Enum</a><span class="token operator">&lt;</span><a href="-d-base-field-type/index.html">DBaseFieldType</a><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="826177532%2FClasslikes%2F-405091373" anchor-label="DBaseFile" id="826177532%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-d-base-file/index.html"><span>DBase</span><wbr></wbr><span><span>File</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="826177532%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-d-base-file/index.html">DBaseFile</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">bytes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-byte-array/index.html">ByteArray</a><span class="token punctuation">, </span></span><span class="parameter ">charset<span class="token operator">: </span><a href="-d-base-charset/index.html">DBaseCharset</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter ">cpgText<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Parser for a dBASE III / IV (.dbf) sidecar file holding shapefile attributes. Records are read eagerly into <a href="-d-base-file/records.html">records</a>; row N (one-based, matching the .shp record number) is at <a href="-d-base-file/records.html">records</a><code class="lang-kotlin">[N - 1]</code>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-666036985%2FClasslikes%2F-405091373" anchor-label="DBaseRecord" id="-666036985%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-d-base-record/index.html"><span>DBase</span><wbr></wbr><span><span>Record</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-666036985%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-d-base-record/index.html">DBaseRecord</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>recordNumber<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>deleted<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>values<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">One row of attributes. <span data-unresolved-link="earth.worldwind.formats.shapefile/DBaseRecord//#kotlin.Int#kotlin.Boolean#kotlin.collections.Map[kotlin.String,kotlin.Any?]/PointingToCallableParameters(0)/">recordNumber</span> is one-based and matches the .shp record number. <span data-unresolved-link="earth.worldwind.formats.shapefile/DBaseRecord//#kotlin.Int#kotlin.Boolean#kotlin.collections.Map[kotlin.String,kotlin.Any?]/PointingToCallableParameters(1)/">deleted</span> is the dBASE record deletion flag; deleted rows are still parsed and exposed so callers can filter them.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="23074457%2FClasslikes%2F-405091373" anchor-label="MultiPatchPartType" id="23074457%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-multi-patch-part-type/index.html"><span>Multi</span><wbr></wbr><span>Patch</span><wbr></wbr><span>Part</span><wbr></wbr><span><span>Type</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="23074457%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">enum </span><a href="-multi-patch-part-type/index.html">MultiPatchPartType</a> : <a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-enum/index.html">Enum</a><span class="token operator">&lt;</span><a href="-multi-patch-part-type/index.html">MultiPatchPartType</a><span class="token operator">&gt; </span></div><div class="brief "><p class="paragraph">Per-part type codes for MultiPatch records. Each part in a <a href="-shapefile-shape-type/-m-u-l-t-i_-p-a-t-c-h/index.html">ShapefileShapeType.MULTI_PATCH</a> record carries one of these to indicate how the vertices in that part assemble into triangles. The numeric values match the ESRI Shapefile Technical Description.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1397011831%2FClasslikes%2F-405091373" anchor-label="PrjFile" id="-1397011831%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-prj-file/index.html"><span>Prj</span><wbr></wbr><span><span>File</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1397011831%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-prj-file/index.html">PrjFile</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>text<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Projection (<code class="lang-kotlin">.prj</code>) parser. Distinguishes geographic and projected coordinate systems via OGC well-known text. For projected systems we recognize the UTM family — the only projection commonly distributed with raw shapefiles — and expose a <a href="-prj-file/-projection/index.html">Projection</a> that can convert easting/northing pairs into lon/lat. Other projected systems are flagged as projected-but-unsupported; callers can treat coordinates as geographic at their own risk.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1600329040%2FClasslikes%2F-405091373" anchor-label="Shapefile" id="1600329040%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-shapefile/index.html"><span><span>Shapefile</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1600329040%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-shapefile/index.html">Shapefile</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">shpBytes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-byte-array/index.html">ByteArray</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>projection<span class="token operator">: </span><a href="-prj-file/index.html">PrjFile</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>attributes<span class="token operator">: </span><a href="-d-base-file/index.html">DBaseFile</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Parser for an ESRI shapefile (<code class="lang-kotlin">.shp</code>). Reads the entire input eagerly into a <a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><<a href="-shapefile-record/index.html">ShapefileRecord</a>> at construction time; iteration is then in-memory and allocation-free. Mirrors the behavior of WebWorldWind's <code class="lang-kotlin">Shapefile</code> class.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="147164979%2FClasslikes%2F-405091373" anchor-label="ShapefileBulkFeatureSource" id="147164979%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-shapefile-bulk-feature-source/index.html"><span>Shapefile</span><wbr></wbr><span>Bulk</span><wbr></wbr><span>Feature</span><wbr></wbr><span><span>Source</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="147164979%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-shapefile-bulk-feature-source/index.html">ShapefileBulkFeatureSource</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>shpUrl<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span> : <a href="../earth.worldwind.layer.source/-bulk-feature-source/index.html">BulkFeatureSource</a></div><div class="brief "><p class="paragraph"><a href="../earth.worldwind.layer.source/-bulk-feature-source/index.html">BulkFeatureSource</a> for ESRI Shapefiles. Downloads the .shp/.dbf/.prj/.cpg quartet from <span data-unresolved-link="earth.worldwind.formats.shapefile/ShapefileBulkFeatureSource//#kotlin.String/PointingToCallableParameters(0)/">shpUrl</span> (sidecars derived by extension), parses every record through <a href="-shapefile-layer-factory/index.html">ShapefileLayerFactory</a>, and emits one <a href="../earth.worldwind.layer.source/-cached-feature-row/index.html">CachedFeatureRow</a> per record with the geometry extracted as a <a href="../earth.worldwind.layer.source/-cached-geometry/index.html">CachedGeometry</a> and the DBF attributes encoded as a JSON object string.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="700543575%2FClasslikes%2F-405091373" anchor-label="ShapefileLayerFactory" id="700543575%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-shapefile-layer-factory/index.html"><span>Shapefile</span><wbr></wbr><span>Layer</span><wbr></wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="700543575%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="-shapefile-layer-factory/index.html">ShapefileLayerFactory</a></div><div class="brief "><p class="paragraph">Builds a <a href="../earth.worldwind.layer/-renderable-layer/index.html">RenderableLayer</a> from an ESRI shapefile. Two entry points:</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="766401215%2FClasslikes%2F-405091373" anchor-label="ShapefileRecord" id="766401215%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-shapefile-record/index.html"><span>Shapefile</span><wbr></wbr><span><span>Record</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="766401215%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-shapefile-record/index.html">ShapefileRecord</a></div><div class="brief "><p class="paragraph">One parsed shapefile record. Records of all shape types are represented by this single class; the <span data-unresolved-link="earth.worldwind.formats.shapefile/ShapefileRecord//#earth.worldwind.formats.shapefile.ShapefileShapeType#kotlin.Int#kotlin.collections.List[kotlin.DoubleArray]#kotlin.DoubleArray?#kotlin.DoubleArray?#kotlin.DoubleArray?#kotlin.DoubleArray?#kotlin.DoubleArray?#kotlin.collections.List[earth.worldwind.formats.shapefile.MultiPatchPartType]?/PointingToCallableParameters(0)/">shapeType</span> field discriminates. Geometry is exposed as a list of &quot;parts&quot;, each part an interleaved <code class="lang-kotlin">[x0, y0, x1, y1, …]</code> <code class="lang-kotlin">DoubleArray</code> matching the on-disk coordinate order (longitude, latitude for geographic shapefiles).</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1832109509%2FClasslikes%2F-405091373" anchor-label="ShapefileShapeConfiguration" id="-1832109509%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-shapefile-shape-configuration/index.html"><span>Shapefile</span><wbr></wbr><span>Shape</span><wbr></wbr><span><span>Configuration</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1832109509%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-shapefile-shape-configuration/index.html">ShapefileShapeConfiguration</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>attributes<span class="token operator">: </span><a href="../earth.worldwind.shape/-shape-attributes/index.html">ShapeAttributes</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>highlightAttributes<span class="token operator">: </span><a href="../earth.worldwind.shape/-shape-attributes/index.html">ShapeAttributes</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>placemarkAttributes<span class="token operator">: </span><a href="../earth.worldwind.shape/-placemark-attributes/index.html">PlacemarkAttributes</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>highlightPlacemarkAttributes<span class="token operator">: </span><a href="../earth.worldwind.shape/-placemark-attributes/index.html">PlacemarkAttributes</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>altitudeMode<span class="token operator">: </span><a href="../earth.worldwind.geom/-altitude-mode/index.html">AltitudeMode</a><span class="token operator"> = </span>AltitudeMode.RELATIVE_TO_GROUND<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>altitude<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token operator"> = </span><span class="token constant">0.0</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>height<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token operator"> = </span><span class="token constant">0.0</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>name<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Per-record customization returned by the <a href="-shapefile-layer-factory/index.html">ShapefileLayerFactory</a> <code class="lang-kotlin">shapeConfiguration</code> callback. Match WebWorldWind's plain-object configuration: setting <code class="lang-kotlin">attributes</code> / <code class="lang-kotlin">placemarkAttributes</code> overrides the defaults; setting <code class="lang-kotlin">altitude</code> or <code class="lang-kotlin">height</code> switches polylines from <code class="lang-kotlin">SurfacePolyline</code> to <code class="lang-kotlin">Path</code> and polygons from <code class="lang-kotlin">SurfacePolygon</code> to extruded <code class="lang-kotlin">Polygon</code>; returning <code class="lang-kotlin">null</code> from the callback skips the record entirely.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="807812087%2FClasslikes%2F-405091373" anchor-label="ShapefileShapeType" id="807812087%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-shapefile-shape-type/index.html"><span>Shapefile</span><wbr></wbr><span>Shape</span><wbr></wbr><span><span>Type</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="807812087%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">enum </span><a href="-shapefile-shape-type/index.html">ShapefileShapeType</a> : <a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-enum/index.html">Enum</a><span class="token operator">&lt;</span><a href="-shapefile-shape-type/index.html">ShapefileShapeType</a><span class="token operator">&gt; </span></div><div class="brief "><p class="paragraph">Shape type discriminator for a shapefile record. ESRI shapefiles carry the type code in the file header and again at the start of every record's contents.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="EXTENSION_FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="-420049249%2FFunctions%2F-1022326867" anchor-label="createLayerFromZip" id="-420049249%2FFunctions%2F-1022326867" data-filterable-set=":worldwind/jvmCommonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="create-layer-from-zip.html"><span>create</span><wbr></wbr><span>Layer</span><wbr></wbr><span>From</span><wbr></wbr><span><span>Zip</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-420049249%2FFunctions%2F-1022326867"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain" data-active="" data-toggle=":worldwind/jvmCommonMain">jvmCommon</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmCommonMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="-shapefile-layer-factory/index.html#700543575%2FMain%2F-1022326867">ShapefileLayerFactory</a><span class="token punctuation">.</span><a href="create-layer-from-zip.html"><span class="token function">createLayerFromZip</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">zipBytes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-byte-array/index.html">ByteArray</a><span class="token punctuation">, </span></span><span class="parameter ">displayName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter ">shapeConfiguration<span class="token operator">: </span><span class="token punctuation">(</span><span data-unresolved-link="earth.worldwind.formats.shapefile/ShapefileRecord///PointingToDeclaration/">ShapefileRecord</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><span data-unresolved-link="earth.worldwind.formats.shapefile/ShapefileShapeConfiguration///PointingToDeclaration/">ShapefileShapeConfiguration</span><span class="token operator">?</span><span class="token operator"> = </span>{ ShapefileShapeConfiguration() }</span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="earth.worldwind.layer/RenderableLayer///PointingToDeclaration/">RenderableLayer</span></div><div class="brief "><p class="paragraph">Loads a shapefile distributed as a ZIP archive (the canonical packaging on most data portals). The first <code class="lang-kotlin">.shp</code>, <code class="lang-kotlin">.dbf</code>, <code class="lang-kotlin">.prj</code>, and <code class="lang-kotlin">.cpg</code> entries found are routed through <span data-unresolved-link="earth.worldwind.formats.shapefile/ShapefileLayerFactory/createLayer/#kotlin.String#kotlin.String?#kotlin.Function1[earth.worldwind.formats.shapefile.ShapefileRecord,earth.worldwind.formats.shapefile.ShapefileShapeConfiguration?]/PointingToDeclaration/">ShapefileLayerFactory.createLayer</span>. Entries deeper in subdirectories are accepted too, but only the first match of each extension is used — ZIP archives occasionally bundle multiple shapefiles together, and picking one deterministically is better than guessing.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>(c) WorldWind Earth</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>RenderContext</title>
+    <link href="../../../images/logo-icon.svg" rel="icon" type="image/svg">
+        <script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async="async"></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async="async"></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async="async"></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer="defer"></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async="async"></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer="defer"></script>
+</head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+            <a class="library-name--link" href="../../../index.html" tabindex="1">
+                    WorldWind Kotlin
+            </a>
+        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle"
+                type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+2.1.0        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector common-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/commonMain">common</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox"
+                        data-role="dropdown-toggle"
+                        aria-controls="platform-tags-listbox"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-label="Toggle source sets"
+                ></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/commonMain"
+                                       data-filter=":worldwind/commonMain"/>
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button"
+                    type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config='{"defaultSize": 280, "minSize": 200, "maxSize": 400}'>
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list"
+                    data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    WorldWind Kotlin
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="classlike" id="content" pageIds="WorldWind Kotlin::earth.worldwind.render/RenderContext///PointingToDeclaration//-405091373">
+  <div class="breadcrumbs"><a href="../../../index.html">WorldWind Kotlin</a><span class="delimiter">/</span><a href="../index.html">earth.worldwind.render</a><span class="delimiter">/</span><span class="current">RenderContext</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Render</span><wbr></wbr><span><span>Context</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">class </span><a href="index.html">RenderContext</a></div></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="CONSTRUCTOR">
+        <h2 class="tableheader">Constructors</h2>
+        <div class="table"><a data-name="-126347941%2FConstructors%2F-405091373" anchor-label="RenderContext" id="-126347941%2FConstructors%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-togglable="CONSTRUCTOR" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-render-context.html"><span>Render</span><wbr></wbr><span><span>Context</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-126347941%2FConstructors%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">constructor</span><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="-1367493861%2FClasslikes%2F-405091373" anchor-label="Companion" id="-1367493861%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-companion/index.html"><span><span>Companion</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1367493861%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="-companion/index.html">Companion</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="-2030719454%2FProperties%2F-405091373" anchor-label="atmosphereAltitude" id="-2030719454%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="atmosphere-altitude.html"><span>atmosphere</span><wbr></wbr><span><span>Altitude</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2030719454%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="atmosphere-altitude.html">atmosphereAltitude</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="683840897%2FProperties%2F-405091373" anchor-label="camera" id="683840897%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="camera.html"><span><span>camera</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="683840897%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">lateinit </span><span class="token keyword">var </span><a href="camera.html">camera</a><span class="token operator">: </span><a href="../../earth.worldwind.geom/-camera/index.html">Camera</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1211483401%2FProperties%2F-405091373" anchor-label="cameraPoint" id="1211483401%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="camera-point.html"><span>camera</span><wbr></wbr><span><span>Point</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1211483401%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="camera-point.html">cameraPoint</a><span class="token operator">: </span><a href="../../earth.worldwind.geom/-vec3/index.html">Vec3</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1463410685%2FProperties%2F-405091373" anchor-label="contextVersion" id="1463410685%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="context-version.html"><span>context</span><wbr></wbr><span><span>Version</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1463410685%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="context-version.html">contextVersion</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a></div><div class="brief "><p class="paragraph">Mirrors <a href="../../earth.worldwind.draw/-draw-context/context-version.html">earth.worldwind.draw.DrawContext.contextVersion</a> for this frame. Renderables that own GPU handles outside <a href="../-render-resource-cache/index.html">RenderResourceCache</a> can compare this against a cached value during <code class="lang-kotlin">doRender</code> to detect a GL context teardown (e.g. Android pause / resume) and reset their stale references.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1579770350%2FProperties%2F-405091373" anchor-label="currentLayer" id="1579770350%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="current-layer.html"><span>current</span><wbr></wbr><span><span>Layer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1579770350%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">lateinit </span><span class="token keyword">var </span><a href="current-layer.html">currentLayer</a><span class="token operator">: </span><a href="../../earth.worldwind.layer/-layer/index.html">Layer</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1974374877%2FProperties%2F-405091373" anchor-label="densityFactor" id="1974374877%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="density-factor.html"><span>density</span><wbr></wbr><span><span>Factor</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1974374877%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="density-factor.html">densityFactor</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-float/index.html">Float</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1683337117%2FProperties%2F-405091373" anchor-label="drawableCount" id="-1683337117%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="drawable-count.html"><span>drawable</span><wbr></wbr><span><span>Count</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1683337117%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="drawable-count.html">drawableCount</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1962056037%2FProperties%2F-405091373" anchor-label="drawablePools" id="-1962056037%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="drawable-pools.html"><span>drawable</span><wbr></wbr><span><span>Pools</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1962056037%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="drawable-pools.html">drawablePools</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-hash-map/index.html">HashMap</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-class/index.html">KClass</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">, </span><a href="../../earth.worldwind.util/-pool/index.html">Pool</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="90582689%2FProperties%2F-405091373" anchor-label="drawableQueue" id="90582689%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="drawable-queue.html"><span>drawable</span><wbr></wbr><span><span>Queue</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="90582689%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="drawable-queue.html">drawableQueue</a><span class="token operator">: </span><a href="../../earth.worldwind.draw/-drawable-queue/index.html">DrawableQueue</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1121598531%2FProperties%2F-405091373" anchor-label="drawableTerrain" id="-1121598531%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="drawable-terrain.html"><span>drawable</span><wbr></wbr><span><span>Terrain</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1121598531%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="drawable-terrain.html">drawableTerrain</a><span class="token operator">: </span><a href="../../earth.worldwind.draw/-drawable-queue/index.html">DrawableQueue</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1466376490%2FProperties%2F-405091373" anchor-label="elevationModelTimestamp" id="1466376490%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="elevation-model-timestamp.html"><span>elevation</span><wbr></wbr><span>Model</span><wbr></wbr><span><span>Timestamp</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1466376490%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="elevation-model-timestamp.html">elevationModelTimestamp</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="598901116%2FProperties%2F-405091373" anchor-label="fogDensity" id="598901116%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="fog-density.html"><span>fog</span><wbr></wbr><span><span>Density</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="598901116%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="fog-density.html">fogDensity</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></div><div class="brief "><p class="paragraph">Frame snapshot of <a href="../../earth.worldwind/-fog-sse/index.html">earth.worldwind.FogSse</a>: camera fog density; 0 disables fog degradation.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="834173113%2FProperties%2F-405091373" anchor-label="fogScreenSpaceErrorFactor" id="834173113%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="fog-screen-space-error-factor.html"><span>fog</span><wbr></wbr><span>Screen</span><wbr></wbr><span>Space</span><wbr></wbr><span>Error</span><wbr></wbr><span><span>Factor</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="834173113%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="fog-screen-space-error-factor.html">fogScreenSpaceErrorFactor</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></div><div class="brief "><p class="paragraph">Frame snapshot of <a href="../../earth.worldwind/-fog-sse/screen-space-error-factor.html">earth.worldwind.FogSse.screenSpaceErrorFactor</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-510356366%2FProperties%2F-405091373" anchor-label="frustum" id="-510356366%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="frustum.html"><span><span>frustum</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-510356366%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="frustum.html">frustum</a><span class="token operator">: </span><a href="../../earth.worldwind.geom/-frustum/index.html">Frustum</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="242373712%2FProperties%2F-405091373" anchor-label="fullFogDistance" id="242373712%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="full-fog-distance.html"><span>full</span><wbr></wbr><span>Fog</span><wbr></wbr><span><span>Distance</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="242373712%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="full-fog-distance.html">fullFogDistance</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></div><div class="brief "><p class="paragraph">Distance beyond which a tile is fully fogged and may be culled from assembly.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-987799545%2FProperties%2F-405091373" anchor-label="globe" id="-987799545%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="globe.html"><span><span>globe</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-987799545%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">lateinit </span><span class="token keyword">var </span><a href="globe.html">globe</a><span class="token operator">: </span><a href="../../earth.worldwind.globe/-globe/index.html">Globe</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="589849186%2FProperties%2F-405091373" anchor-label="globeState" id="589849186%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="globe-state.html"><span>globe</span><wbr></wbr><span><span>State</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="589849186%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="globe-state.html">globeState</a><span class="token operator">: </span><a href="../../earth.worldwind.globe/-globe/-state/index.html">Globe.State</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1101352732%2FProperties%2F-405091373" anchor-label="groundCoverageRegions" id="-1101352732%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="ground-coverage-regions.html"><span>ground</span><wbr></wbr><span>Coverage</span><wbr></wbr><span><span>Regions</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1101352732%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="ground-coverage-regions.html">groundCoverageRegions</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-list/index.html">MutableList</a><span class="token operator">&lt;</span><a href="../../earth.worldwind.geom/-sector/index.html">Sector</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">Per-frame coverage sectors published by 3D-Tile mesh layers — terrain tiles outside every region skip the GROUND_COVERED_BIT stencil test so distant mountains still occlude mesh content via depth test.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1426031387%2FProperties%2F-405091373" anchor-label="groundOverlaySurfaces" id="-1426031387%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="ground-overlay-surfaces.html"><span>ground</span><wbr></wbr><span>Overlay</span><wbr></wbr><span><span>Surfaces</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1426031387%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="ground-overlay-surfaces.html">groundOverlaySurfaces</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-list/index.html">MutableList</a><span class="token operator">&lt;</span><a href="../../earth.worldwind.draw/-ground-overlay-surface/index.html">GroundOverlaySurface</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">Per-frame 3D-Tile mesh drawables registered for surface-shape draping. Propagated to <a href="../../earth.worldwind.draw/-draw-context/ground-overlay-surfaces.html">DrawContext.groundOverlaySurfaces</a> via <a href="../../earth.worldwind.frame/-frame/index.html">earth.worldwind.frame.Frame</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-711340043%2FProperties%2F-405091373" anchor-label="hasActiveSightline" id="-711340043%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="has-active-sightline.html"><span>has</span><wbr></wbr><span>Active</span><wbr></wbr><span><span>Sightline</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-711340043%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="has-active-sightline.html">hasActiveSightline</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div><div class="brief "><p class="paragraph">Per-frame flag set by <span data-unresolved-link="earth.worldwind.shape/RealtimeSightline/makeDrawable/#earth.worldwind.render.RenderContext/PointingToDeclaration/">earth.worldwind.shape.RealtimeSightline.makeDrawable</span> when a visible sightline is enqueued. Read by <code class="lang-kotlin">Ogc3dTilesProgram.get</code> (and any other program that splices <a href="../../earth.worldwind.layer.sightline/-sightline-receiver-glsl/index.html">earth.worldwind.layer.sightline.SightlineReceiverGlsl</a>) to pick the sightline-aware variant up front. Independent of <a href="../../earth.worldwind.draw/-draw-context/sightline-state.html">DrawContext.sightlineState</a>, which is populated later during the depth pass.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2079661215%2FProperties%2F-405091373" anchor-label="hasGroundCoverageMask" id="2079661215%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="has-ground-coverage-mask.html"><span>has</span><wbr></wbr><span>Ground</span><wbr></wbr><span>Coverage</span><wbr></wbr><span><span>Mask</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2079661215%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="has-ground-coverage-mask.html">hasGroundCoverageMask</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div><div class="brief "><p class="paragraph">Set by <span data-unresolved-link="earth.worldwind.layer.ogc3d/Ogc3dTilesLayer/doRender/#earth.worldwind.render.RenderContext/PointingToDeclaration/">earth.worldwind.layer.ogc3d.Ogc3dTilesLayer.doRender</span> when a mesh layer is active this frame. Propagated to <a href="../../earth.worldwind.draw/-draw-context/has-ground-coverage-mask.html">DrawContext.hasGroundCoverageMask</a> via <a href="../../earth.worldwind.frame/-frame/index.html">earth.worldwind.frame.Frame</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-869350705%2FProperties%2F-405091373" anchor-label="hasShadowLayer" id="-869350705%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="has-shadow-layer.html"><span>has</span><wbr></wbr><span>Shadow</span><wbr></wbr><span><span>Layer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-869350705%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="has-shadow-layer.html">hasShadowLayer</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div><div class="brief "><p class="paragraph"><code class="lang-kotlin">true</code> when an enabled <a href="../../earth.worldwind.layer.shadow/-shadow-layer/index.html">earth.worldwind.layer.shadow.ShadowLayer</a> is present in <a href="layers.html">layers</a> for this frame. Computed once at the start of <a href="../../earth.worldwind/-world-wind/render-frame.html">earth.worldwind.WorldWind.renderFrame</a> before any <a href="../../earth.worldwind.layer/-layer/render.html">Layer.render</a> runs, so receivers that touch every visible fragment (surface tiles, atmosphere ground) can pick the smaller-binary no-shadow shader variant up-front. Independent of <a href="shadow-state.html">shadowState</a>, which is populated later by <span data-unresolved-link="earth.worldwind.layer.shadow/ShadowLayer/doRender/#earth.worldwind.render.RenderContext/PointingToDeclaration/">earth.worldwind.layer.shadow.ShadowLayer.doRender</span>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1549167588%2FProperties%2F-405091373" anchor-label="horizonDistance" id="1549167588%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="horizon-distance.html"><span>horizon</span><wbr></wbr><span><span>Distance</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1549167588%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="horizon-distance.html">horizonDistance</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1249528728%2FProperties%2F-405091373" anchor-label="isPickMode" id="1249528728%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="is-pick-mode.html"><span>is</span><wbr></wbr><span>Pick</span><wbr></wbr><span><span>Mode</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1249528728%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="is-pick-mode.html">isPickMode</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="146997959%2FProperties%2F-405091373" anchor-label="isRedrawRequested" id="146997959%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="is-redraw-requested.html"><span>is</span><wbr></wbr><span>Redraw</span><wbr></wbr><span><span>Requested</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="146997959%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="is-redraw-requested.html">isRedrawRequested</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1817218337%2FProperties%2F-405091373" anchor-label="isTerrainReliefEnabled" id="1817218337%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="is-terrain-relief-enabled.html"><span>is</span><wbr></wbr><span>Terrain</span><wbr></wbr><span>Relief</span><wbr></wbr><span><span>Enabled</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1817218337%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="is-terrain-relief-enabled.html">isTerrainReliefEnabled</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div><div class="brief "><p class="paragraph"><code class="lang-kotlin">true</code> when the frame's <a href="../../earth.worldwind.layer.shadow/-shadow-layer/index.html">earth.worldwind.layer.shadow.ShadowLayer</a> has <code class="lang-kotlin">terrainLambert &gt; 0</code>. Gates per-tile terrain normal buffers in the tessellator, so shadow-only scenes (relief off) never pay the normals pipeline. Snapshotted alongside <a href="has-shadow-layer.html">hasShadowLayer</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="733141290%2FProperties%2F-405091373" anchor-label="lastGLFrameWorkNanos" id="733141290%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="last-g-l-frame-work-nanos.html"><span>last</span><wbr></wbr><span>GLFrame</span><wbr></wbr><span>Work</span><wbr></wbr><span><span>Nanos</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="733141290%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.concurrent/-volatile/index.html"><span class="token annotation builtin">Volatile</span></a></div></div><span class="token keyword">var </span><a href="last-g-l-frame-work-nanos.html">lastGLFrameWorkNanos</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a></div><div class="brief "><p class="paragraph">Wall-time nanos of the previous GL-thread frame (set by <a href="../../earth.worldwind/-world-wind/draw-frame.html">earth.worldwind.WorldWind.drawFrame</a>). Generic GL-pressure signal for producers that emit GL-bound work and want to throttle when the GL thread ran long.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-168284668%2FProperties%2F-405091373" anchor-label="layers" id="-168284668%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="layers.html"><span><span>layers</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-168284668%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">lateinit </span><span class="token keyword">var </span><a href="layers.html">layers</a><span class="token operator">: </span><a href="../../earth.worldwind.layer/-layer-list/index.html">LayerList</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1547214109%2FProperties%2F-405091373" anchor-label="lightDirection" id="1547214109%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="light-direction.html"><span>light</span><wbr></wbr><span><span>Direction</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1547214109%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="light-direction.html">lightDirection</a><span class="token operator">: </span><a href="../../earth.worldwind.geom/-vec3/index.html">Vec3</a></div><div class="brief "><p class="paragraph">World-space (Cartesian) unit vector pointing <strong>toward</strong> the light source. Resolved by <a href="../../earth.worldwind/-world-wind/index.html">earth.worldwind.WorldWind</a> each frame before any layer renders: the sun position when <code class="lang-kotlin">WorldWind.time</code> is set, a custom <code class="lang-kotlin">WorldWind.lightDirectionProvider</code> direction, or the surface normal at the camera's geographic position (a &quot;light from above the user's foot point&quot;) as the default. Shape lighting, shadows and atmospheric scattering all read the same vector.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-586154517%2FProperties%2F-405091373" anchor-label="lookAtPosition" id="-586154517%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="look-at-position.html"><span>look</span><wbr></wbr><span>At</span><wbr></wbr><span><span>Position</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-586154517%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="look-at-position.html">lookAtPosition</a><span class="token operator">: </span><a href="../../earth.worldwind.geom/-position/index.html">Position</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1037378490%2FProperties%2F-405091373" anchor-label="modelview" id="-1037378490%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="modelview.html"><span><span>modelview</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1037378490%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="modelview.html">modelview</a><span class="token operator">: </span><a href="../../earth.worldwind.geom/-matrix4/index.html">Matrix4</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1650698615%2FProperties%2F-405091373" anchor-label="modelviewProjection" id="1650698615%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="modelview-projection.html"><span>modelview</span><wbr></wbr><span><span>Projection</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1650698615%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="modelview-projection.html">modelviewProjection</a><span class="token operator">: </span><a href="../../earth.worldwind.geom/-matrix4/index.html">Matrix4</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="813409062%2FProperties%2F-405091373" anchor-label="pickDeferred" id="813409062%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="pick-deferred.html"><span>pick</span><wbr></wbr><span><span>Deferred</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="813409062%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="pick-deferred.html">pickDeferred</a><span class="token operator">: </span><span data-unresolved-link="kotlinx.coroutines/CompletableDeferred///PointingToDeclaration/">CompletableDeferred</span><span class="token operator">&lt;</span><a href="../../earth.worldwind/-picked-object-list/index.html">PickedObjectList</a><span class="token operator">&gt;</span><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1182833568%2FProperties%2F-405091373" anchor-label="pickedObjects" id="-1182833568%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="picked-objects.html"><span>picked</span><wbr></wbr><span><span>Objects</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1182833568%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="picked-objects.html">pickedObjects</a><span class="token operator">: </span><a href="../../earth.worldwind/-picked-object-list/index.html">PickedObjectList</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1174129349%2FProperties%2F-405091373" anchor-label="pickPoint" id="1174129349%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="pick-point.html"><span>pick</span><wbr></wbr><span><span>Point</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1174129349%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="pick-point.html">pickPoint</a><span class="token operator">: </span><a href="../../earth.worldwind.geom/-vec2/index.html">Vec2</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1061392533%2FProperties%2F-405091373" anchor-label="pickRay" id="-1061392533%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="pick-ray.html"><span>pick</span><wbr></wbr><span><span>Ray</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1061392533%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="pick-ray.html">pickRay</a><span class="token operator">: </span><a href="../../earth.worldwind.geom/-line/index.html">Line</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="54743103%2FProperties%2F-405091373" anchor-label="pickViewport" id="54743103%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="pick-viewport.html"><span>pick</span><wbr></wbr><span><span>Viewport</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="54743103%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="pick-viewport.html">pickViewport</a><span class="token operator">: </span><a href="../../earth.worldwind.geom/-viewport/index.html">Viewport</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="380831757%2FProperties%2F-405091373" anchor-label="pixelSize" id="380831757%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="pixel-size.html"><span>pixel</span><wbr></wbr><span><span>Size</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="380831757%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="pixel-size.html">pixelSize</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-194427625%2FProperties%2F-405091373" anchor-label="projection" id="-194427625%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="projection.html"><span><span>projection</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-194427625%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="projection.html">projection</a><span class="token operator">: </span><a href="../../earth.worldwind.geom/-matrix4/index.html">Matrix4</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1662511286%2FProperties%2F-405091373" anchor-label="renderResourceCache" id="1662511286%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="render-resource-cache.html"><span>render</span><wbr></wbr><span>Resource</span><wbr></wbr><span><span>Cache</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1662511286%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">lateinit </span><span class="token keyword">var </span><a href="render-resource-cache.html">renderResourceCache</a><span class="token operator">: </span><a href="../-render-resource-cache/index.html">RenderResourceCache</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-969501485%2FProperties%2F-405091373" anchor-label="shadowSceneBounds" id="-969501485%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="shadow-scene-bounds.html"><span>shadow</span><wbr></wbr><span>Scene</span><wbr></wbr><span><span>Bounds</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-969501485%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="shadow-scene-bounds.html">shadowSceneBounds</a><span class="token operator">: </span><a href="../../earth.worldwind.layer.shadow/-shadow-scene-bounds/index.html">ShadowSceneBounds</a></div><div class="brief "><p class="paragraph">View-depth extent of shadow-relevant content accumulated while the <strong>previous</strong> regular frame's drawables were offered. Consumed by <a href="../../earth.worldwind.layer.shadow/-shadow-layer/index.html">earth.worldwind.layer.shadow.ShadowLayer</a> to fit cascade splits — the shadow layer renders before content layers, so the current frame's own accumulation (<a href="shadow-scene-bounds-current.html">shadowSceneBoundsCurrent</a>) is still empty at that point. One frame of latency is invisible in practice.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1066704558%2FProperties%2F-405091373" anchor-label="shadowSceneBoundsCurrent" id="1066704558%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="shadow-scene-bounds-current.html"><span>shadow</span><wbr></wbr><span>Scene</span><wbr></wbr><span>Bounds</span><wbr></wbr><span><span>Current</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1066704558%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="shadow-scene-bounds-current.html">shadowSceneBoundsCurrent</a><span class="token operator">: </span><a href="../../earth.worldwind.layer.shadow/-shadow-scene-bounds/index.html">ShadowSceneBounds</a></div><div class="brief "><p class="paragraph">Accumulation target for the frame being rendered — rolled into <a href="shadow-scene-bounds.html">shadowSceneBounds</a> on <a href="reset.html">reset</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1167469085%2FProperties%2F-405091373" anchor-label="shadowState" id="-1167469085%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="shadow-state.html"><span>shadow</span><wbr></wbr><span><span>State</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1167469085%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="shadow-state.html">shadowState</a><span class="token operator">: </span><a href="../../earth.worldwind.layer.shadow/-shadow-state/index.html">ShadowState</a><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Per-frame state for the directional sun-shadow pipeline. Non-null when a <a href="../../earth.worldwind.layer.shadow/-shadow-layer/index.html">earth.worldwind.layer.shadow.ShadowLayer</a> is in the layer list and has computed cascades for this frame; null otherwise. Snapshotted into <a href="../../earth.worldwind.frame/-frame/index.html">earth.worldwind.frame.Frame</a> at the end of render and propagated to <a href="../../earth.worldwind.draw/-draw-context/shadow-state.html">earth.worldwind.draw.DrawContext.shadowState</a> for the draw phase.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="283682350%2FProperties%2F-405091373" anchor-label="sightlineBounds" id="283682350%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="sightline-bounds.html"><span>sightline</span><wbr></wbr><span><span>Bounds</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="283682350%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="sightline-bounds.html">sightlineBounds</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-list/index.html">MutableList</a><span class="token operator">&lt;</span><a href="../../earth.worldwind.geom/-bounding-sphere/index.html">BoundingSphere</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">Bounds of sightlines registered this frame. Populated by Omni|DirectionalSightline.doRender, consulted by AbstractShape to keep off-camera shapes alive as occluders. Order matters: a shape's doRender only sees sightlines whose doRender has already run, so place sightlines earlier in layer order than the shapes they should shadow.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-13391040%2FProperties%2F-405091373" anchor-label="supportsSharedElementArrayBuffer" id="-13391040%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="supports-shared-element-array-buffer.html"><span>supports</span><wbr></wbr><span>Shared</span><wbr></wbr><span>Element</span><wbr></wbr><span>Array</span><wbr></wbr><span><span>Buffer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-13391040%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="supports-shared-element-array-buffer.html">supportsSharedElementArrayBuffer</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div><div class="brief "><p class="paragraph">Mirrors <a href="../../earth.worldwind.util.kgl/-kgl/supports-shared-element-array-buffer.html">earth.worldwind.util.kgl.Kgl.supportsSharedElementArrayBuffer</a> for this frame's GL context — render-thread upload paths (no GL <code class="lang-kotlin">Kgl</code> in reach) read it to decide whether index data shares the vertex buffer or needs its own EBO. See <code class="lang-kotlin">uploadMeshContent</code>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1952907777%2FProperties%2F-405091373" anchor-label="terrain" id="-1952907777%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="terrain.html"><span><span>terrain</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1952907777%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">lateinit </span><span class="token keyword">var </span><a href="terrain.html">terrain</a><span class="token operator">: </span><a href="../../earth.worldwind.globe.terrain/-terrain/index.html">Terrain</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1277711919%2FProperties%2F-405091373" anchor-label="terrainTessellator" id="-1277711919%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="terrain-tessellator.html"><span>terrain</span><wbr></wbr><span><span>Tessellator</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1277711919%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">lateinit </span><span class="token keyword">var </span><a href="terrain-tessellator.html">terrainTessellator</a><span class="token operator">: </span><a href="../../earth.worldwind.globe.terrain/-tessellator/index.html">Tessellator</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1191297418%2FProperties%2F-405091373" anchor-label="tessellator" id="1191297418%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="tessellator.html"><span><span>tessellator</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1191297418%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="tessellator.html">tessellator</a><span class="token operator">: </span><a href="../../earth.worldwind.util.glu/-g-l-utessellator/index.html">GLUtessellator</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1918447897%2FProperties%2F-405091373" anchor-label="time" id="1918447897%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="time.html"><span><span>time</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1918447897%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="time.html">time</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.time/-instant/index.html">Instant</a><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Scene time mirrored from <a href="../../earth.worldwind/-world-wind/time.html">earth.worldwind.WorldWind.time</a> each frame, or null when no scene time is set. Drives every time-dependent feature: the sun-from-time <a href="light-direction.html">lightDirection</a>, the atmosphere day/night terminator and night texture, and star/sun positions in the star field.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="116532868%2FProperties%2F-405091373" anchor-label="uploadQueue" id="116532868%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="upload-queue.html"><span>upload</span><wbr></wbr><span><span>Queue</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="116532868%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="upload-queue.html">uploadQueue</a><span class="token operator">: </span><a href="../../earth.worldwind.draw/-upload-queue/index.html">UploadQueue</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1056600414%2FProperties%2F-405091373" anchor-label="viewingDistance" id="-1056600414%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="viewing-distance.html"><span>viewing</span><wbr></wbr><span><span>Distance</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1056600414%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="viewing-distance.html">viewingDistance</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1284617440%2FProperties%2F-405091373" anchor-label="viewport" id="1284617440%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="viewport.html"><span><span>viewport</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1284617440%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="viewport.html">viewport</a><span class="token operator">: </span><a href="../../earth.worldwind.geom/-viewport/index.html">Viewport</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="-1401726144%2FFunctions%2F-405091373" anchor-label="canAssembleGeometry" id="-1401726144%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="can-assemble-geometry.html"><span>can</span><wbr></wbr><span>Assemble</span><wbr></wbr><span><span>Geometry</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1401726144%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="can-assemble-geometry.html"><span class="token function">canAssembleGeometry</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1042582381%2FFunctions%2F-405091373" anchor-label="geographicToCartesian" id="-1042582381%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="geographic-to-cartesian.html"><span>geographic</span><wbr></wbr><span>To</span><wbr></wbr><span><span>Cartesian</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1042582381%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="geographic-to-cartesian.html"><span class="token function">geographicToCartesian</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">position<span class="token operator">: </span><a href="../../earth.worldwind.geom/-position/index.html">Position</a><span class="token punctuation">, </span></span><span class="parameter ">altitudeMode<span class="token operator">: </span><a href="../../earth.worldwind.geom/-altitude-mode/index.html">AltitudeMode</a><span class="token punctuation">, </span></span><span class="parameter ">result<span class="token operator">: </span><a href="../../earth.worldwind.geom/-vec3/index.html">Vec3</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../earth.worldwind.geom/-vec3/index.html">Vec3</a></div><div class="brief "><p class="paragraph">Converts a geographic <a href="../../earth.worldwind.geom/-position/index.html">Position</a> to Cartesian coordinates according to an <a href="geographic-to-cartesian.html">altitudeMode</a>. The Cartesian coordinate system is a function of this render context's current globe and its terrain surface, depending on the altitude mode. In general, it is not safe to cache the Cartesian coordinates, as many factors contribute to the value returned, and may change from one frame to the next.</p></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="geographic-to-cartesian.html"><span class="token function">geographicToCartesian</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">latitude<span class="token operator">: </span><a href="../../earth.worldwind.geom/-angle/index.html">Angle</a><span class="token punctuation">, </span></span><span class="parameter ">longitude<span class="token operator">: </span><a href="../../earth.worldwind.geom/-angle/index.html">Angle</a><span class="token punctuation">, </span></span><span class="parameter ">altitude<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">altitudeMode<span class="token operator">: </span><a href="../../earth.worldwind.geom/-altitude-mode/index.html">AltitudeMode</a><span class="token punctuation">, </span></span><span class="parameter ">result<span class="token operator">: </span><a href="../../earth.worldwind.geom/-vec3/index.html">Vec3</a><span class="token punctuation">, </span></span><span class="parameter ">useEM<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">false</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../earth.worldwind.geom/-vec3/index.html">Vec3</a></div><div class="brief "><p class="paragraph">Converts a geographic position to Cartesian coordinates according to an <a href="geographic-to-cartesian.html">altitudeMode</a>. The Cartesian coordinate system is a function of this render context's current globe and its terrain surface, depending on the altitude mode. In general, it is not safe to cache the Cartesian coordinates, as many factors contribute to the value returned, and may change from one frame to the next.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1874369951%2FFunctions%2F-405091373" anchor-label="getBufferObject" id="1874369951%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-buffer-object.html"><span>get</span><wbr></wbr><span>Buffer</span><wbr></wbr><span><span>Object</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1874369951%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="get-buffer-object.html"><span class="token function">getBufferObject</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token punctuation">, </span></span><span class="parameter ">builder<span class="token operator">: </span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="../../earth.worldwind.render.buffer/-buffer-object/index.html">BufferObject</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../earth.worldwind.render.buffer/-buffer-object/index.html">BufferObject</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-38381429%2FFunctions%2F-405091373" anchor-label="getDrawablePool" id="-38381429%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-drawable-pool.html"><span>get</span><wbr></wbr><span>Drawable</span><wbr></wbr><span><span>Pool</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-38381429%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="get-drawable-pool.html">T</a><span class="token operator"> : </span><a href="../../earth.worldwind.draw/-drawable/index.html">Drawable</a><span class="token operator">&gt; </span><a href="get-drawable-pool.html"><span class="token function">getDrawablePool</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-class/index.html">KClass</a><span class="token operator">&lt;</span><a href="get-drawable-pool.html">T</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../earth.worldwind.util/-pool/index.html">Pool</a><span class="token operator">&lt;</span><a href="get-drawable-pool.html">T</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-258188251%2FFunctions%2F-405091373" anchor-label="getShaderProgram" id="-258188251%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-shader-program.html"><span>get</span><wbr></wbr><span>Shader</span><wbr></wbr><span><span>Program</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-258188251%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">inline </span><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="get-shader-program.html">P</a><span class="token operator"> : </span><a href="../../earth.worldwind.render.program/-abstract-shader-program/index.html">AbstractShaderProgram</a><span class="token operator">&gt; </span><a href="get-shader-program.html"><span class="token function">getShaderProgram</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">noinline </span>create<span class="token operator">: </span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="get-shader-program.html">P</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="get-shader-program.html">P</a></div><div class="symbol monospace"><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="get-shader-program.html">P</a><span class="token operator"> : </span><a href="../../earth.worldwind.render.program/-abstract-shader-program/index.html">AbstractShaderProgram</a><span class="token operator">&gt; </span><a href="get-shader-program.html"><span class="token function">getShaderProgram</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-class/index.html">KClass</a><span class="token operator">&lt;</span><a href="get-shader-program.html">P</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">builder<span class="token operator">: </span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="get-shader-program.html">P</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="get-shader-program.html">P</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="948329662%2FFunctions%2F-405091373" anchor-label="getText" id="948329662%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-text.html"><span>get</span><wbr></wbr><span><span>Text</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="948329662%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="get-text.html"><span class="token function">getText</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">text<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token punctuation">, </span></span><span class="parameter ">attributes<span class="token operator">: </span><a href="../../earth.worldwind.shape/-text-attributes/index.html">TextAttributes</a><span class="token punctuation">, </span></span><span class="parameter ">render<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">true</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-texture/index.html">Texture</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1436644468%2FFunctions%2F-405091373" anchor-label="getTexture" id="-1436644468%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-texture.html"><span>get</span><wbr></wbr><span><span>Texture</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1436644468%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="get-texture.html"><span class="token function">getTexture</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">imageSource<span class="token operator">: </span><a href="../../earth.worldwind.render.image/-image-source/index.html">ImageSource</a><span class="token punctuation">, </span></span><span class="parameter ">imageOptions<span class="token operator">: </span><a href="../../earth.worldwind.render.image/-image-options/index.html">ImageOptions</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter ">retrieve<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">true</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-texture/index.html">Texture</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-19909217%2FFunctions%2F-405091373" anchor-label="getUserProperty" id="-19909217%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-user-property.html"><span>get</span><wbr></wbr><span>User</span><wbr></wbr><span><span>Property</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-19909217%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="get-user-property.html">T</a><span class="token operator">&gt; </span><a href="get-user-property.html"><span class="token function">getUserProperty</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="get-user-property.html">T</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1198992933%2FFunctions%2F-405091373" anchor-label="hasUserProperty" id="-1198992933%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="has-user-property.html"><span>has</span><wbr></wbr><span>User</span><wbr></wbr><span><span>Property</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1198992933%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="has-user-property.html"><span class="token function">hasUserProperty</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="294024796%2FFunctions%2F-405091373" anchor-label="intersectsShadowCasterRegion" id="294024796%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="intersects-shadow-caster-region.html"><span>intersects</span><wbr></wbr><span>Shadow</span><wbr></wbr><span>Caster</span><wbr></wbr><span><span>Region</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="294024796%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="intersects-shadow-caster-region.html"><span class="token function">intersectsShadowCasterRegion</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">center<span class="token operator">: </span><a href="../../earth.worldwind.geom/-vec3/index.html">Vec3</a><span class="token punctuation">, </span></span><span class="parameter ">radius<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div><div class="brief "><p class="paragraph">True when a shadow-casting bounding sphere outside the view frustum still intersects a valid cascade's light-space box - its shadow can reach visible ground. Requires the shadow layer to have rendered earlier in the layer list (<a href="shadow-state.html">shadowState</a> set). Only the first <a href="../../earth.worldwind.layer.shadow/-shadow-state/offscreen-caster-cascades.html">ShadowState.offscreenCasterCascades</a> cascades recruit (app-tunable via <a href="../../earth.worldwind.layer.shadow/-shadow-layer/offscreen-caster-cascades.html">earth.worldwind.layer.shadow.ShadowLayer.offscreenCasterCascades</a>): the coarse cascades' texels span metres, so an off-screen caster's shadow there is sub-texel noise, and their huge light boxes would keep distant content alive wholesale. Visible casters still draw into every cascade.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="924472569%2FFunctions%2F-405091373" anchor-label="nextPickedObjectId" id="924472569%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="next-picked-object-id.html"><span>next</span><wbr></wbr><span>Picked</span><wbr></wbr><span>Object</span><wbr></wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="924472569%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="next-picked-object-id.html"><span class="token function">nextPickedObjectId</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1522036570%2FFunctions%2F-405091373" anchor-label="offerBackgroundDrawable" id="-1522036570%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="offer-background-drawable.html"><span>offer</span><wbr></wbr><span>Background</span><wbr></wbr><span><span>Drawable</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1522036570%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="offer-background-drawable.html"><span class="token function">offerBackgroundDrawable</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">drawable<span class="token operator">: </span><a href="../../earth.worldwind.draw/-drawable/index.html">Drawable</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-33149429%2FFunctions%2F-405091373" anchor-label="offerDrawableTerrain" id="-33149429%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="offer-drawable-terrain.html"><span>offer</span><wbr></wbr><span>Drawable</span><wbr></wbr><span><span>Terrain</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-33149429%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="offer-drawable-terrain.html"><span class="token function">offerDrawableTerrain</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">drawable<span class="token operator">: </span><a href="../../earth.worldwind.draw/-drawable-terrain/index.html">DrawableTerrain</a><span class="token punctuation">, </span></span><span class="parameter ">sortOrder<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1448028040%2FFunctions%2F-405091373" anchor-label="offerGLBufferUpload" id="1448028040%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="offer-g-l-buffer-upload.html"><span>offer</span><wbr></wbr><span>GLBuffer</span><wbr></wbr><span><span>Upload</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1448028040%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">inline </span><span class="token keyword">fun </span><a href="offer-g-l-buffer-upload.html"><span class="token function">offerGLBufferUpload</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token punctuation">, </span></span><span class="parameter ">newVersion<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">noinline </span>onUploaded<span class="token operator">: </span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter ">arrayBuilder<span class="token operator">: </span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="../../earth.worldwind.util/-numeric-array/index.html">NumericArray</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Queue a buffer upload when the cached <a href="../../earth.worldwind.render.buffer/-buffer-object/index.html">BufferObject</a>'s version trails <a href="offer-g-l-buffer-upload.html">newVersion</a>. <a href="offer-g-l-buffer-upload.html">onUploaded</a> fires exactly once — async after the GL write, or sync here when no upload was queued. Pass nothing to skip; <code class="lang-kotlin">noinline</code> is allocation-free at null.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1337818114%2FFunctions%2F-405091373" anchor-label="offerPickedObject" id="1337818114%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="offer-picked-object.html"><span>offer</span><wbr></wbr><span>Picked</span><wbr></wbr><span><span>Object</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1337818114%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="offer-picked-object.html"><span class="token function">offerPickedObject</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">pickedObject<span class="token operator">: </span><a href="../../earth.worldwind/-picked-object/index.html">PickedObject</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2071886857%2FFunctions%2F-405091373" anchor-label="offerScreenDrawable" id="2071886857%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="offer-screen-drawable.html"><span>offer</span><wbr></wbr><span>Screen</span><wbr></wbr><span><span>Drawable</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2071886857%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="offer-screen-drawable.html"><span class="token function">offerScreenDrawable</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">drawable<span class="token operator">: </span><a href="../../earth.worldwind.draw/-drawable/index.html">Drawable</a><span class="token punctuation">, </span></span><span class="parameter ">zOrder<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1070728300%2FFunctions%2F-405091373" anchor-label="offerShapeDrawable" id="-1070728300%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="offer-shape-drawable.html"><span>offer</span><wbr></wbr><span>Shape</span><wbr></wbr><span><span>Drawable</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1070728300%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="offer-shape-drawable.html"><span class="token function">offerShapeDrawable</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">drawable<span class="token operator">: </span><a href="../../earth.worldwind.draw/-drawable/index.html">Drawable</a><span class="token punctuation">, </span></span><span class="parameter ">cameraDistanceSq<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="229444576%2FFunctions%2F-405091373" anchor-label="offerSurfaceDrawable" id="229444576%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="offer-surface-drawable.html"><span>offer</span><wbr></wbr><span>Surface</span><wbr></wbr><span><span>Drawable</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="229444576%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="offer-surface-drawable.html"><span class="token function">offerSurfaceDrawable</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">drawable<span class="token operator">: </span><a href="../../earth.worldwind.draw/-drawable/index.html">Drawable</a><span class="token punctuation">, </span></span><span class="parameter ">zOrder<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1143422399%2FFunctions%2F-405091373" anchor-label="pixelSizeAtDistance" id="1143422399%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="pixel-size-at-distance.html"><span>pixel</span><wbr></wbr><span>Size</span><wbr></wbr><span>At</span><wbr></wbr><span><span>Distance</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1143422399%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="pixel-size-at-distance.html"><span class="token function">pixelSizeAtDistance</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">distance<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></div><div class="brief "><p class="paragraph">Returns the height of a pixel at a given distance from the eye point. This method assumes the model of a screen composed of rectangular pixels, where pixel coordinates denote infinitely thin space between pixels. The units of the returned size are in meters per pixel. <br> The result of this method is undefined if the distance is negative.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-734885128%2FFunctions%2F-405091373" anchor-label="project" id="-734885128%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="project.html"><span><span>project</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-734885128%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="project.html"><span class="token function">project</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">modelPoint<span class="token operator">: </span><a href="../../earth.worldwind.geom/-vec3/index.html">Vec3</a><span class="token punctuation">, </span></span><span class="parameter ">result<span class="token operator">: </span><a href="../../earth.worldwind.geom/-vec3/index.html">Vec3</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div><div class="brief "><p class="paragraph">Projects a Cartesian point to screen coordinates. The resultant screen point is in OpenGL screen coordinates, with the origin in the bottom-left corner and axes that extend up and to the right from the origin. <br> This stores the projected point in the result argument, and returns a boolean value indicating whether or not the projection is successful. This returns false if the Cartesian point is clipped by the near clipping plane or the far clipping plane.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-398286058%2FFunctions%2F-405091373" anchor-label="projectWithDepth" id="-398286058%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="project-with-depth.html"><span>project</span><wbr></wbr><span>With</span><wbr></wbr><span><span>Depth</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-398286058%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="project-with-depth.html"><span class="token function">projectWithDepth</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">modelPoint<span class="token operator">: </span><a href="../../earth.worldwind.geom/-vec3/index.html">Vec3</a><span class="token punctuation">, </span></span><span class="parameter ">depthOffset<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">result<span class="token operator">: </span><a href="../../earth.worldwind.geom/-vec3/index.html">Vec3</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div><div class="brief "><p class="paragraph">Projects a Cartesian point to screen coordinates, applying an offset to the point's projected depth value. The resultant screen point is in OpenGL screen coordinates, with the origin in the bottom-left corner and axes that extend up and to the right from the origin. <br> This stores the projected point in the result argument, and returns a boolean value indicating whether or not the projection is successful. This returns false if the Cartesian point is clipped by the near clipping plane or the far clipping plane. <br> The depth offset may be any real number and is typically used to move the screenPoint slightly closer to the user's eye in order to give it visual priority over nearby objects or terrain. An offset of zero has no effect. An offset less than zero brings the screenPoint closer to the eye, while an offset greater than zero pushes the projected screen point away from the eye. <br> Applying a non-zero depth offset has no effect on whether the model point is clipped by this method or by WebGL. Clipping is performed on the original model point, ignoring the depth offset. The final depth value after applying the offset is clamped to the range 0,1.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1568377402%2FFunctions%2F-405091373" anchor-label="putUserProperty" id="1568377402%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="put-user-property.html"><span>put</span><wbr></wbr><span>User</span><wbr></wbr><span><span>Property</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1568377402%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="put-user-property.html"><span class="token function">putUserProperty</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token punctuation">, </span></span><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1746311863%2FFunctions%2F-405091373" anchor-label="recordAssemblyTime" id="1746311863%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="record-assembly-time.html"><span>record</span><wbr></wbr><span>Assembly</span><wbr></wbr><span><span>Time</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1746311863%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="record-assembly-time.html"><span class="token function">recordAssemblyTime</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">nanos<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Charges <a href="record-assembly-time.html">nanos</a> of actual geometry assembly time against this frame's <a href="-companion/max-assembly-time-millis.html">maxAssemblyTimeMillis</a> budget.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1514877120%2FFunctions%2F-405091373" anchor-label="releaseShaderPrograms" id="-1514877120%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="release-shader-programs.html"><span>release</span><wbr></wbr><span>Shader</span><wbr></wbr><span><span>Programs</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1514877120%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="release-shader-programs.html"><span class="token function">releaseShaderPrograms</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">dc<span class="token operator">: </span><a href="../../earth.worldwind.draw/-draw-context/index.html">DrawContext</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Drops all shader programs, releasing each one's GL handles. Called after a GL context loss.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1001445155%2FFunctions%2F-405091373" anchor-label="removeUserProperty" id="1001445155%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="remove-user-property.html"><span>remove</span><wbr></wbr><span>User</span><wbr></wbr><span><span>Property</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1001445155%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="remove-user-property.html"><span class="token function">removeUserProperty</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="57924526%2FFunctions%2F-405091373" anchor-label="requestRedraw" id="57924526%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="request-redraw.html"><span>request</span><wbr></wbr><span><span>Redraw</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="57924526%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="request-redraw.html"><span class="token function">requestRedraw</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="911126245%2FFunctions%2F-405091373" anchor-label="reset" id="911126245%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="reset.html"><span><span>reset</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="911126245%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="reset.html"><span class="token function">reset</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1518225763%2FFunctions%2F-405091373" anchor-label="sortDrawables" id="-1518225763%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="sort-drawables.html"><span>sort</span><wbr></wbr><span><span>Drawables</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1518225763%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="sort-drawables.html"><span class="token function">sortDrawables</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>(c) WorldWind Earth</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>ContentManager</title>
+    <link href="../../../images/logo-icon.svg" rel="icon" type="image/svg">
+        <script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async="async"></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async="async"></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async="async"></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer="defer"></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async="async"></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer="defer"></script>
+</head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+            <a class="library-name--link" href="../../../index.html" tabindex="1">
+                    WorldWind Kotlin
+            </a>
+        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle"
+                type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+2.1.0        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector common-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/commonMain">common</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox"
+                        data-role="dropdown-toggle"
+                        aria-controls="platform-tags-listbox"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-label="Toggle source sets"
+                ></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/commonMain"
+                                       data-filter=":worldwind/commonMain"/>
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button"
+                    type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config='{"defaultSize": 280, "minSize": 200, "maxSize": 400}'>
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list"
+                    data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    WorldWind Kotlin
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="classlike" id="content" pageIds="WorldWind Kotlin::earth.worldwind.util/ContentManager///PointingToDeclaration//-405091373">
+  <div class="breadcrumbs"><a href="../../../index.html">WorldWind Kotlin</a><span class="delimiter">/</span><a href="../index.html">earth.worldwind.util</a><span class="delimiter">/</span><span class="current">ContentManager</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Content</span><wbr></wbr><span><span>Manager</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">interface </span><a href="index.html">ContentManager</a></div><p class="paragraph">Persistent cache for vector-data and tile-pyramid layers. One <a href="index.html">ContentManager</a> instance manages many independent content entries (each keyed by <code class="lang-kotlin">contentKey</code>), each backed by one GeoPackage table or table set.</p><p class="paragraph">The manager is a substitute for the originating network source — it stores what the server returned (bytes or feature rows) and nothing more. Styling, layer-state, and sprite atlases live on the caller's side and never enter the cache.</p><p class="paragraph">Typical caller flow:</p><ol><li><p class="paragraph"><code class="lang-kotlin">openXxxStore(contentKey, …)</code> to obtain a store bound to a GPKG table.</p></li><li><p class="paragraph">Build a <a href="../../earth.worldwind.layer.cache/-cached-tile-source/index.html">earth.worldwind.layer.cache.CachedTileSource</a> /       <a href="../../earth.worldwind.layer.cache/-cached-bulk-feature-source/index.html">earth.worldwind.layer.cache.CachedBulkFeatureSource</a> /       <a href="../../earth.worldwind.layer.cache/-cached-tiled-feature-source/index.html">earth.worldwind.layer.cache.CachedTiledFeatureSource</a> over the store + the       network source.</p></li><li><p class="paragraph">Construct a layer over that cached source with the desired styling.</p></li></ol><p class="paragraph">For elevation coverages, prefer <a href="create-elevation-source-factory.html">createElevationSourceFactory</a> over <code class="lang-kotlin">openCoverageStore</code> directly — the factory owns the source-format → storage-format transcoding (Float32 ↔ Int16) so callers don't have to know how their network output format relates to the disk storage layout. The returned factory plugs directly into <a href="../../earth.worldwind.globe.elevation.coverage/-tiled-elevation-coverage/index.html">earth.worldwind.globe.elevation.coverage.TiledElevationCoverage</a>.</p><p class="paragraph">To recreate the layer on a subsequent launch <i>without</i> contacting the server, store web-service metadata via <a href="register-web-service.html">registerWebService</a> and read it back via <a href="find-entry.html">findEntry</a> / <a href="list-entries.html">listEntries</a> — capabilities XML/JSON in <a href="../../earth.worldwind.layer.cache/-web-service-info/metadata.html">WebServiceInfo.metadata</a> survives across launches.</p><h4 class="tableheader">Inheritors</h4><div class="table"><div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="../../earth.worldwind.layer.cache/-ios-content-manager/index.html#1494440370%2FMain%2F-405091373">IosContentManager</a></div></span></div><div></div></div></div><div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="../../earth.worldwind.layer.cache/-web-content-manager/index.html#2036176011%2FMain%2F-405091373">WebContentManager</a></div></span></div><div></div></div></div><div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="../../earth.worldwind.formats.gpkg/-gpkg-content-manager/index.html#-456169960%2FMain%2F-405091373">GpkgContentManager</a></div></span></div><div></div></div></div></div></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button><button class="section-tab" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION,EXTENSION_PROPERTY,EXTENSION_FUNCTION">Members &amp; Extensions</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="-867908735%2FProperties%2F-405091373" anchor-label="isClosed" id="-867908735%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="is-closed.html"><span>is</span><wbr></wbr><span><span>Closed</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-867908735%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">val </span><a href="is-closed.html">isClosed</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div><div class="brief "><p class="paragraph">True after <a href="close.html">close</a> has been called. Subsequent suspend calls on a closed manager throw — the underlying connection is gone.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1177364299%2FProperties%2F-405091373" anchor-label="isReadOnly" id="1177364299%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="is-read-only.html"><span>is</span><wbr></wbr><span>Read</span><wbr></wbr><span><span>Only</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1177364299%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">val </span><a href="is-read-only.html">isReadOnly</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div><div class="brief "><p class="paragraph">When true, every write throws.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="839184295%2FProperties%2F-405091373" anchor-label="pathName" id="839184295%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="path-name.html"><span>path</span><wbr></wbr><span><span>Name</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="839184295%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">val </span><a href="path-name.html">pathName</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><p class="paragraph">Filesystem path / database file of the underlying cache.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="-934160371%2FFunctions%2F-405091373" anchor-label="attachCache" id="-934160371%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../earth.worldwind.layer.cache/attach-cache.html"><span>attach</span><wbr></wbr><span><span>Cache</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-934160371%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="index.html">ContentManager</a><span class="token punctuation">.</span><a href="../../earth.worldwind.layer.cache/attach-cache.html"><span class="token function">attachCache</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">layer<span class="token operator">: </span><a href="../../earth.worldwind.layer/-tiled-image-layer/index.html">TiledImageLayer</a><span class="token punctuation">, </span></span><span class="parameter ">contentKey<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">cachePolicy<span class="token operator">: </span><a href="../../earth.worldwind.layer.cache/-cache-policy/index.html">CachePolicy</a><span class="token operator"> = </span>CachePolicy.UNBOUNDED</span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Register a tiled image layer (WMS / WMTS / WebMercator).</p></div><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="index.html">ContentManager</a><span class="token punctuation">.</span><a href="../../earth.worldwind.layer.cache/attach-cache.html"><span class="token function">attachCache</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">layer<span class="token operator">: </span><a href="../../earth.worldwind.layer/-vector-layer/index.html">VectorLayer</a><span class="token punctuation">, </span></span><span class="parameter ">contentKey<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">cachePolicy<span class="token operator">: </span><a href="../../earth.worldwind.layer.cache/-cache-policy/index.html">CachePolicy</a><span class="token operator"> = </span>CachePolicy.UNBOUNDED</span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Register a vector layer. Dispatches by concrete subtype to record the right service-identity row:</p></div><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="index.html">ContentManager</a><span class="token punctuation">.</span><a href="../../earth.worldwind.layer.cache/attach-cache.html"><span class="token function">attachCache</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">coverage<span class="token operator">: </span><a href="../../earth.worldwind.globe.elevation.coverage/-tiled-elevation-coverage/index.html">TiledElevationCoverage</a><span class="token punctuation">, </span></span><span class="parameter ">contentKey<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">cachePolicy<span class="token operator">: </span><a href="../../earth.worldwind.layer.cache/-cache-policy/index.html">CachePolicy</a><span class="token operator"> = </span>CachePolicy.UNBOUNDED<span class="token punctuation">, </span></span><span class="parameter ">isFloat<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">false</span></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Register a tiled elevation coverage.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1434277550%2FFunctions%2F-405091373" anchor-label="clearEntry" id="-1434277550%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="clear-entry.html"><span>clear</span><wbr></wbr><span><span>Entry</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1434277550%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="clear-entry.html"><span class="token function">clearEntry</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">contentKey<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Truncate one content entry's tile / feature payload while keeping its registration intact — the <a href="../../earth.worldwind.layer.cache/-web-service-info/index.html">WebServiceInfo</a> row, the persisted level-set / tile-matrix-set, the display name, the <code class="lang-kotlin">isFloat</code> choice, and any other per-content metadata stay so the caller can re-download tiles without re-configuring the layer.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="950836427%2FFunctions%2F-405091373" anchor-label="close" id="950836427%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="close.html"><span><span>close</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="950836427%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="close.html"><span class="token function">close</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Release the underlying connection (SQLite handle on JVM, IDB on JS, no-op on iOS). Idempotent. After <a href="close.html">close</a> returns, <a href="is-closed.html">isClosed</a> is <code class="lang-kotlin">true</code> and every other suspend method on this manager throws.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="535656535%2FFunctions%2F-405091373" anchor-label="contentEntry" id="535656535%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../earth.worldwind.layer.cache/content-entry.html"><span>content</span><wbr></wbr><span><span>Entry</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="535656535%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="index.html">ContentManager</a><span class="token punctuation">.</span><a href="../../earth.worldwind.layer.cache/content-entry.html"><span class="token function">contentEntry</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">contentKey<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../earth.worldwind.layer.cache/-content-entry/index.html">ContentEntry</a></div><div class="brief "><p class="paragraph">Wrap one <a href="../../earth.worldwind.layer.cache/content-entry.html">contentKey</a> inside this <a href="index.html">ContentManager</a> as a <a href="../../earth.worldwind.layer.cache/-content-entry/index.html">ContentEntry</a>. Mirrors <code class="lang-kotlin">findEntry(key)</code> for read-only inspection plus <code class="lang-kotlin">clearEntry</code> / <code class="lang-kotlin">deleteEntry</code> for lifecycle, behind one uniform surface.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1821506455%2FFunctions%2F-405091373" anchor-label="contentSize" id="-1821506455%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="content-size.html"><span>content</span><wbr></wbr><span><span>Size</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1821506455%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="content-size.html"><span class="token function">contentSize</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a></div><div class="brief "><p class="paragraph">Total on-disk size of the cache database.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="326666475%2FFunctions%2F-405091373" anchor-label="createElevationSourceFactory" id="326666475%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="create-elevation-source-factory.html"><span>create</span><wbr></wbr><span>Elevation</span><wbr></wbr><span>Source</span><wbr></wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="326666475%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="create-elevation-source-factory.html"><span class="token function">createElevationSourceFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">contentKey<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">tileMatrixSet<span class="token operator">: </span><a href="../../earth.worldwind.geom/-tile-matrix-set/index.html">TileMatrixSet</a><span class="token punctuation">, </span></span><span class="parameter ">networkSource<span class="token operator">: </span><a href="../../earth.worldwind.layer.source/-tile-source/index.html">TileSource</a><span class="token operator">?</span><span class="token punctuation">, </span></span><span class="parameter ">outputFormat<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">isFloat<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">false</span><span class="token punctuation">, </span></span><span class="parameter ">cachePolicy<span class="token operator">: </span><a href="../../earth.worldwind.layer.cache/-cache-policy/index.html">CachePolicy</a><span class="token operator"> = </span>CachePolicy.UNBOUNDED<span class="token punctuation">, </span></span><span class="parameter ">displayName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../earth.worldwind.globe.elevation/-elevation-source-factory/index.html">ElevationSourceFactory</a></div><div class="brief "><p class="paragraph">Build an <a href="../../earth.worldwind.globe.elevation/-elevation-source-factory/index.html">ElevationSourceFactory</a> backed by this content manager's elevation cache. The factory owns the source-format → storage-format transcoding for every tile — callers just supply the network source (or <code class="lang-kotlin">null</code> for offline replay) and the desired storage layout via <a href="create-elevation-source-factory.html">isFloat</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2113894680%2FFunctions%2F-405091373" anchor-label="deleteEntry" id="-2113894680%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="delete-entry.html"><span>delete</span><wbr></wbr><span><span>Entry</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2113894680%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="delete-entry.html"><span class="token function">deleteEntry</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">contentKey<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Delete one content entry — drops the table(s), the web-service row, and the contents-table row. Use <a href="clear-entry.html">clearEntry</a> instead when the caller wants to keep the layer registered for a re-download.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="731062426%2FFunctions%2F-405091373" anchor-label="findEntry" id="731062426%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="find-entry.html"><span>find</span><wbr></wbr><span><span>Entry</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="731062426%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="find-entry.html"><span class="token function">findEntry</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">contentKey<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../earth.worldwind.layer.cache/-cache-entry/index.html">CacheEntry</a><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Look up a single content entry by <a href="find-entry.html">contentKey</a>, or <code class="lang-kotlin">null</code> if absent. Lightweight — same shape as one element of <a href="list-entries.html">listEntries</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-367938358%2FFunctions%2F-405091373" anchor-label="lastModifiedDate" id="-367938358%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="last-modified-date.html"><span>last</span><wbr></wbr><span>Modified</span><wbr></wbr><span><span>Date</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-367938358%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="last-modified-date.html"><span class="token function">lastModifiedDate</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.time/-instant/index.html">Instant</a><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Most-recent modification across all content. <code class="lang-kotlin">null</code> if the cache is empty.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-753782415%2FFunctions%2F-405091373" anchor-label="listEntries" id="-753782415%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="list-entries.html"><span>list</span><wbr></wbr><span><span>Entries</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-753782415%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="list-entries.html"><span class="token function">listEntries</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="../../earth.worldwind.layer.cache/-cache-entry/index.html">CacheEntry</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">Enumerate every cached content entry. Lightweight — does not construct layers or read row data, only metadata.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1304434439%2FFunctions%2F-405091373" anchor-label="open" id="-1304434439%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../open.html"><span><span>open</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1304434439%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="../open.html">T</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt; </span><a href="index.html">ContentManager</a><span class="token punctuation">.</span><a href="../open.html"><span class="token function">open</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">category<span class="token operator">: </span><a href="../../earth.worldwind.layer.cache/-cache-category/index.html">CacheCategory</a><span class="token operator">&lt;</span><a href="../open.html">T</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">cachePolicy<span class="token operator">: </span><a href="../../earth.worldwind.layer.cache/-cache-policy/index.html">CachePolicy</a><span class="token operator"> = </span>CachePolicy.UNBOUNDED</span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="../open.html">T</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">Bulk-open every cached entry whose <a href="../../earth.worldwind.layer.cache/-cache-entry/data-type.html">CacheEntry.dataType</a> matches <a href="../open.html">category</a>. Return type follows the category's phantom witness:</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1879058547%2FFunctions%2F-405091373" anchor-label="openBlobStore" id="1879058547%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="open-blob-store.html"><span>open</span><wbr></wbr><span>Blob</span><wbr></wbr><span><span>Store</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1879058547%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="open-blob-store.html"><span class="token function">openBlobStore</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">contentKey<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">evictionPolicy<span class="token operator">: </span><a href="../../earth.worldwind.layer.cache/-cache-policy/index.html">CachePolicy</a><span class="token operator"> = </span>CachePolicy.UNBOUNDED<span class="token punctuation">, </span></span><span class="parameter ">displayName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../earth.worldwind.layer.cache/-blob-store/index.html">BlobStore</a></div><div class="brief "><p class="paragraph">Open (or create) a URI-keyed <a href="../../earth.worldwind.layer.cache/-blob-store/index.html">BlobStore</a> — a flat key/value store for arbitrary HTTP payloads. Distinct from <a href="open-image-tile-store.html">openImageTileStore</a> / <a href="open-feature-store.html">openFeatureStore</a> in that entries are keyed by string URI rather than by <code class="lang-kotlin">(z, x, y)</code> or a feature id, which makes it the right shape for caches whose entries are independent URLs.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-102863636%2FFunctions%2F-405091373" anchor-label="openElevationCoverage" id="-102863636%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../open-elevation-coverage.html"><span>open</span><wbr></wbr><span>Elevation</span><wbr></wbr><span><span>Coverage</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-102863636%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">inline suspend </span><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="../open-elevation-coverage.html">T</a><span class="token operator"> : </span><a href="../../earth.worldwind.globe.elevation.coverage/-elevation-coverage/index.html">ElevationCoverage</a><span class="token operator">&gt; </span><a href="index.html">ContentManager</a><span class="token punctuation">.</span><a href="../open-elevation-coverage.html"><span class="token function">openElevationCoverage</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">contentKey<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">cachePolicy<span class="token operator">: </span><a href="../../earth.worldwind.layer.cache/-cache-policy/index.html">CachePolicy</a><span class="token operator"> = </span>CachePolicy.UNBOUNDED</span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../open-elevation-coverage.html">T</a><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Open <a href="../open-elevation-coverage.html">contentKey</a> as an elevation coverage narrowed to <a href="../open-elevation-coverage.html">T</a>. Returns <code class="lang-kotlin">null</code> when the key is absent, registered as a layer (use <a href="../open-layer.html">openLayer</a>), or the materialized type doesn't match <a href="../open-elevation-coverage.html">T</a>. Bound is the broad <a href="../../earth.worldwind.globe.elevation.coverage/-elevation-coverage/index.html">ElevationCoverage</a> interface for symmetry with <a href="../open-layer.html">openLayer</a>'s <a href="../../earth.worldwind.layer/-layer/index.html">Layer</a> bound; today only <a href="../../earth.worldwind.globe.elevation.coverage/-tiled-elevation-coverage/index.html">TiledElevationCoverage</a> subtypes are reachable from cache, so non-tiled-typed callers always get <code class="lang-kotlin">null</code>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1606366292%2FFunctions%2F-405091373" anchor-label="openFeatureStore" id="-1606366292%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="open-feature-store.html"><span>open</span><wbr></wbr><span>Feature</span><wbr></wbr><span><span>Store</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1606366292%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="open-feature-store.html"><span class="token function">openFeatureStore</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">contentKey<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">cachePolicy<span class="token operator">: </span><a href="../../earth.worldwind.layer.cache/-cache-policy/index.html">CachePolicy</a><span class="token operator"> = </span>CachePolicy.UNBOUNDED<span class="token punctuation">, </span></span><span class="parameter ">displayName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../earth.worldwind.layer.cache/-feature-store/index.html">FeatureStore</a></div><div class="brief "><p class="paragraph">Open (or create) a <a href="../../earth.worldwind.layer.cache/-feature-store/index.html">FeatureStore</a> for vector-feature data — backed by <code class="lang-kotlin">data_type='features'</code> in the GPKG schema. Used by WFS, Shapefile (bulk rows) and OsmBuildings (tile-addressed rows) in the same store shape.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1093834703%2FFunctions%2F-405091373" anchor-label="openImageTileStore" id="1093834703%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="open-image-tile-store.html"><span>open</span><wbr></wbr><span>Image</span><wbr></wbr><span>Tile</span><wbr></wbr><span><span>Store</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1093834703%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="open-image-tile-store.html"><span class="token function">openImageTileStore</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">contentKey<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">levelSet<span class="token operator">: </span><a href="../-level-set/index.html">LevelSet</a><span class="token punctuation">, </span></span><span class="parameter ">imageFormat<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span><span class="token string">&quot;image/png&quot;</span><span class="token punctuation">, </span></span><span class="parameter ">isTransparent<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">false</span><span class="token punctuation">, </span></span><span class="parameter ">cachePolicy<span class="token operator">: </span><a href="../../earth.worldwind.layer.cache/-cache-policy/index.html">CachePolicy</a><span class="token operator"> = </span>CachePolicy.UNBOUNDED<span class="token punctuation">, </span></span><span class="parameter ">displayName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../earth.worldwind.layer.cache/-tile-store/index.html">TileStore</a></div><div class="brief "><p class="paragraph">Open (or create) a <a href="../../earth.worldwind.layer.cache/-tile-store/index.html">TileStore</a> for image-tile data — backed by <code class="lang-kotlin">data_type='tiles'</code> in the GPKG schema. Used by WMS/WMTS/WebMercator and any other raster layer that fetches PNG/JPEG/WebP bytes. Re-opening the same <a href="open-image-tile-store.html">contentKey</a> returns a store compatible with the previously persisted <a href="../-level-set/index.html">LevelSet</a> (validates compatibility).</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1456562560%2FFunctions%2F-405091373" anchor-label="openLayer" id="-1456562560%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../open-layer.html"><span>open</span><wbr></wbr><span><span>Layer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1456562560%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">inline suspend </span><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="../open-layer.html">T</a><span class="token operator"> : </span><a href="../../earth.worldwind.layer/-layer/index.html">Layer</a><span class="token operator">&gt; </span><a href="index.html">ContentManager</a><span class="token punctuation">.</span><a href="../open-layer.html"><span class="token function">openLayer</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">contentKey<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">cachePolicy<span class="token operator">: </span><a href="../../earth.worldwind.layer.cache/-cache-policy/index.html">CachePolicy</a><span class="token operator"> = </span>CachePolicy.UNBOUNDED</span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../open-layer.html">T</a><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Open <a href="../open-layer.html">contentKey</a> as a layer narrowed to <a href="../open-layer.html">T</a>. Returns <code class="lang-kotlin">null</code> when the key is absent, unregistered, backed by an elevation coverage (use <a href="../open-elevation-coverage.html">openElevationCoverage</a>), or the materialized type doesn't match <a href="../open-layer.html">T</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1492353048%2FFunctions%2F-405091373" anchor-label="openOgc3dTilesLayer" id="-1492353048%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../earth.worldwind.layer.ogc3d/open-ogc3d-tiles-layer.html"><span>open</span><wbr></wbr><span>Ogc3d</span><wbr></wbr><span>Tiles</span><wbr></wbr><span><span>Layer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1492353048%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="index.html">ContentManager</a><span class="token punctuation">.</span><a href="../../earth.worldwind.layer.ogc3d/open-ogc3d-tiles-layer.html"><span class="token function">openOgc3dTilesLayer</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">contentKey<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">authOverride<span class="token operator">: </span><a href="../../earth.worldwind.layer.ogc3d.auth/-tileset-auth-provider/index.html">TilesetAuthProvider</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter ">evictionPolicy<span class="token operator">: </span><a href="../../earth.worldwind.layer.cache/-cache-policy/index.html">CachePolicy</a><span class="token operator"> = </span>CachePolicy.UNBOUNDED</span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../earth.worldwind.layer.ogc3d/-ogc3d-tiles-layer/index.html">Ogc3dTilesLayer</a><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Reopen an <a href="../../earth.worldwind.layer.ogc3d/-ogc3d-tiles-layer/index.html">Ogc3dTilesLayer</a> from a <a href="index.html">ContentManager</a> entry registered by an earlier <code class="lang-kotlin">openBlobStore(...)</code> + <code class="lang-kotlin">registerWebService(...)</code> pair. Reads the persisted <a href="../../earth.worldwind.layer.cache/-web-service-info/index.html">earth.worldwind.layer.cache.WebServiceInfo</a> (root URI in <code class="lang-kotlin">.address</code>, auth-provider class name in <code class="lang-kotlin">.layerName</code>, credentials JSON in <code class="lang-kotlin">.metadata</code>) and rebuilds the layer end-to-end so the caller only has to do <code class="lang-kotlin">engine.layers.addLayer(layer)</code>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1412305462%2FFunctions%2F-405091373" anchor-label="openVectorTileStore" id="1412305462%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="open-vector-tile-store.html"><span>open</span><wbr></wbr><span>Vector</span><wbr></wbr><span>Tile</span><wbr></wbr><span><span>Store</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1412305462%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="open-vector-tile-store.html"><span class="token function">openVectorTileStore</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">contentKey<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">levelSet<span class="token operator">: </span><a href="../-level-set/index.html">LevelSet</a><span class="token punctuation">, </span></span><span class="parameter ">cachePolicy<span class="token operator">: </span><a href="../../earth.worldwind.layer.cache/-cache-policy/index.html">CachePolicy</a><span class="token operator"> = </span>CachePolicy.UNBOUNDED<span class="token punctuation">, </span></span><span class="parameter ">displayName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../earth.worldwind.layer.cache/-tile-store/index.html">TileStore</a></div><div class="brief "><p class="paragraph">Open (or create) a <a href="../../earth.worldwind.layer.cache/-tile-store/index.html">TileStore</a> for vector-tile data — backed by <code class="lang-kotlin">data_type='vector-tiles'</code> (<code class="lang-kotlin">im_vector_tiles_mapbox</code> extension). Used by MVT layers that store raw protobuf bytes per tile.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-17828834%2FFunctions%2F-405091373" anchor-label="registerWebService" id="-17828834%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="register-web-service.html"><span>register</span><wbr></wbr><span>Web</span><wbr></wbr><span><span>Service</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-17828834%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="register-web-service.html"><span class="token function">registerWebService</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">contentKey<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">info<span class="token operator">: </span><a href="../../earth.worldwind.layer.cache/-web-service-info/index.html">WebServiceInfo</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Persist web-service metadata for <a href="register-web-service.html">contentKey</a> in the GPKG <code class="lang-kotlin">gpkg_web_service</code> extension table. Capabilities XML/JSON in <a href="../../earth.worldwind.layer.cache/-web-service-info/metadata.html">WebServiceInfo.metadata</a> survives across launches so the layer can be reconstructed without an online capabilities request.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-359329987%2FFunctions%2F-405091373" anchor-label="setDisplayName" id="-359329987%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="set-display-name.html"><span>set</span><wbr></wbr><span>Display</span><wbr></wbr><span><span>Name</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-359329987%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="set-display-name.html"><span class="token function">setDisplayName</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">contentKey<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">displayName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Overwrite the user-visible display name for <a href="set-display-name.html">contentKey</a>. No-op when the content key doesn't exist or the manager is read-only.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1235578434%2FFunctions%2F-405091373" anchor-label="sizeBytesOf" id="1235578434%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="size-bytes-of.html"><span>size</span><wbr></wbr><span>Bytes</span><wbr></wbr><span><span>Of</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1235578434%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="size-bytes-of.html"><span class="token function">sizeBytesOf</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">contentKey<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a></div><div class="brief "><p class="paragraph">Approximate on-disk byte size of one content entry. Sums tile blobs / feature rows in the store(s) backing <a href="size-bytes-of.html">contentKey</a>; <code class="lang-kotlin">0</code> if no such content is registered.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-282915863%2FFunctions%2F-405091373" anchor-label="tryOpenNativeContent" id="-282915863%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="try-open-native-content.html"><span>try</span><wbr></wbr><span>Open</span><wbr></wbr><span>Native</span><wbr></wbr><span><span>Content</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-282915863%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="try-open-native-content.html"><span class="token function">tryOpenNativeContent</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">entry<span class="token operator">: </span><a href="../../earth.worldwind.layer.cache/-cache-entry/index.html">CacheEntry</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Open a cached layer/coverage for a <a href="../../earth.worldwind.layer.cache/-cache-entry/index.html">CacheEntry</a> that has <i>no</i> registered web service — i.e. the content was imported directly into the cache (e.g. a standalone .gpkg file with no <code class="lang-kotlin">gpkg_web_service</code> row). Returns <code class="lang-kotlin">null</code> when the backend can't construct a layer in this mode.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2044903372%2FFunctions%2F-405091373" anchor-label="tryRecoverLevelSet" id="-2044903372%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="try-recover-level-set.html"><span>try</span><wbr></wbr><span>Recover</span><wbr></wbr><span>Level</span><wbr></wbr><span><span>Set</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2044903372%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="try-recover-level-set.html"><span class="token function">tryRecoverLevelSet</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">contentKey<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-level-set/index.html">LevelSet</a><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Recover the pyramid <a href="../-level-set/index.html">LevelSet</a> for an image / vector-tile cache, or <code class="lang-kotlin">null</code> when the backend can't reconstruct one (e.g. JS / iOS where the schema doesn't persist the level-set descriptors). Used by the cross-platform reopen dispatcher to rebuild a layer's level-set after restart; callers fall back to a sensible default (slippy-map 0..21) when this returns <code class="lang-kotlin">null</code>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1264021835%2FFunctions%2F-405091373" anchor-label="tryRecoverTileMatrixSet" id="1264021835%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="try-recover-tile-matrix-set.html"><span>try</span><wbr></wbr><span>Recover</span><wbr></wbr><span>Tile</span><wbr></wbr><span>Matrix</span><wbr></wbr><span><span>Set</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1264021835%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="try-recover-tile-matrix-set.html"><span class="token function">tryRecoverTileMatrixSet</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">contentKey<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../earth.worldwind.geom/-tile-matrix-set/index.html">TileMatrixSet</a><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Recover the <a href="../../earth.worldwind.geom/-tile-matrix-set/index.html">TileMatrixSet</a> for a coverage cache, or <code class="lang-kotlin">null</code> when the backend can't reconstruct one. Mirrors <a href="try-recover-level-set.html">tryRecoverLevelSet</a> for elevation coverages.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>(c) WorldWind Earth</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

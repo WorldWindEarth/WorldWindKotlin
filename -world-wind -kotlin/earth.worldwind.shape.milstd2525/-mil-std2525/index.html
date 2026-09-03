@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>MilStd2525</title>
+    <link href="../../../images/logo-icon.svg" rel="icon" type="image/svg">
+        <script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async="async"></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async="async"></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async="async"></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer="defer"></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async="async"></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer="defer"></script>
+</head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+            <a class="library-name--link" href="../../../index.html" tabindex="1">
+                    WorldWind Kotlin
+            </a>
+        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle"
+                type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+2.1.0        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/androidMain">android</button>
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/jvmMain">jvm</button>
+                <button class="platform-tag platform-selector common-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/nonIosMain">nonIos</button>
+                <button class="platform-tag platform-selector common-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/webMain">web</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox"
+                        data-role="dropdown-toggle"
+                        aria-controls="platform-tags-listbox"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-label="Toggle source sets"
+                ></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/androidMain"
+                                       data-filter=":worldwind/androidMain"/>
+                                <span class="checkbox--icon"></span>
+                                android
+                            </label>
+                        </li>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/jvmMain"
+                                       data-filter=":worldwind/jvmMain"/>
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/nonIosMain"
+                                       data-filter=":worldwind/nonIosMain"/>
+                                <span class="checkbox--icon"></span>
+                                nonIos
+                            </label>
+                        </li>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/webMain"
+                                       data-filter=":worldwind/webMain"/>
+                                <span class="checkbox--icon"></span>
+                                web
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button"
+                    type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config='{"defaultSize": 280, "minSize": 200, "maxSize": 400}'>
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list"
+                    data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    WorldWind Kotlin
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="classlike" id="content" pageIds="WorldWind Kotlin::earth.worldwind.shape.milstd2525/MilStd2525///PointingToDeclaration//1574678356">
+  <div class="breadcrumbs"><a href="../../../index.html">WorldWind Kotlin</a><span class="delimiter">/</span><a href="../index.html">earth.worldwind.shape.milstd2525</a><span class="delimiter">/</span><span class="current">MilStd2525</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Mil</span><wbr></wbr><span><span>Std2525</span></span></h1>
+    <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+      <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/androidMain" data-filterable-set=":worldwind/androidMain" data-active="" data-toggle=":worldwind/androidMain">android</button><button class="platform-bookmark" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain" data-toggle=":worldwind/jvmMain">jvm</button><button class="platform-bookmark" data-filterable-current=":worldwind/nonIosMain" data-filterable-set=":worldwind/nonIosMain" data-toggle=":worldwind/nonIosMain">nonIos</button><button class="platform-bookmark" data-filterable-current=":worldwind/webMain" data-filterable-set=":worldwind/webMain" data-toggle=":worldwind/webMain">web</button></div>
+<div class="content sourceset-dependent-content" data-togglable=":worldwind/androidMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">object </span><a href="index.html">MilStd2525</a></div><p class="paragraph">This utility class generates MIL-STD-2525 symbols and tactical graphics using the MIL-STD-2525 Symbol Rendering Library</p><h4 class="tableheader">See also</h4><div class="table"><div class="table-row table-row_content" data-filterable-current=":worldwind/androidMain" data-filterable-set=":worldwind/androidMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div></div></span></div><div><div class="title"><p class="paragraph"><a href="https://github.com/missioncommand/mil-sym-android">https://github.com/missioncommand/mil-sym-android</a></p></div></div></div></div></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/jvmMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">object </span><a href="index.html">MilStd2525</a></div><p class="paragraph">This utility class generates MIL-STD-2525 symbols and tactical graphics using the MIL-STD-2525 Symbol Rendering Library</p><h4 class="tableheader">See also</h4><div class="table"><div class="table-row table-row_content" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div></div></span></div><div><div class="title"><p class="paragraph"><a href="https://github.com/missioncommand/mil-sym-java">https://github.com/missioncommand/mil-sym-java</a></p></div></div></div></div></div></div><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/nonIosMain"><div class="symbol monospace"><span class="token keyword">expect </span><span class="token keyword">object </span><a href="index.html">MilStd2525</a></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/webMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">object </span><a href="index.html">MilStd2525</a></div><p class="paragraph">Generates MIL-STD-2525 point symbols using the MIL-STD-2525 Symbol Rendering Library, reached through the per-target <a href="../-mil-std2525-renderer/index.html">MilStd2525Renderer</a> seam (so this class lives in <code class="lang-kotlin">webMain</code> while the generated mil-sym-ts / canvg bindings stay per-target).</p><h4 class="tableheader">See also</h4><div class="table"><div class="table-row table-row_content" data-filterable-current=":worldwind/webMain" data-filterable-set=":worldwind/webMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div></div></span></div><div><div class="title"><p class="paragraph"><a href="https://github.com/missioncommand/mil-sym-js">https://github.com/missioncommand/mil-sym-js</a></p></div></div></div></div></div></div>    </div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="-2139547624%2FProperties%2F967790503" anchor-label="isInitialized" id="-2139547624%2FProperties%2F967790503" data-filterable-set=":worldwind/androidMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/androidMain" data-filterable-set=":worldwind/androidMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="is-initialized.html"><span>is</span><wbr></wbr><span><span>Initialized</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2139547624%2FProperties%2F967790503"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/androidMain" data-filterable-set=":worldwind/androidMain" data-active="" data-toggle=":worldwind/androidMain">android</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/androidMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.jvm/-jvm-static/index.html"><span class="token annotation builtin">JvmStatic</span></a></div></div><span class="token keyword">var </span><a href="is-initialized.html">isInitialized</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="-365173721%2FFunctions%2F-1943393929" anchor-label="applyTextAttributes" id="-365173721%2FFunctions%2F-1943393929" data-filterable-set=":worldwind/androidMain,:worldwind/jvmMain,:worldwind/webMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/androidMain,:worldwind/jvmMain,:worldwind/webMain" data-filterable-set=":worldwind/androidMain,:worldwind/jvmMain,:worldwind/webMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><span data-unresolved-link="earth.worldwind.shape.milstd2525/MilStd2525/applyTextAttributes/#earth.worldwind.shape.TextAttributes/PointingToDeclaration/"><span>apply</span><wbr></wbr><span>Text</span><wbr></wbr><span><span>Attributes</span></span></span></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-365173721%2FFunctions%2F-1943393929"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/androidMain" data-filterable-set=":worldwind/androidMain" data-active="" data-toggle=":worldwind/androidMain">android</button><button class="platform-bookmark" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain" data-toggle=":worldwind/jvmMain">jvm</button><button class="platform-bookmark" data-filterable-current=":worldwind/webMain" data-filterable-set=":worldwind/webMain" data-toggle=":worldwind/webMain">web</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/androidMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.jvm/-jvm-static/index.html"><span class="token annotation builtin">JvmStatic</span></a></div></div><span class="token keyword">fun </span><a href="[android]apply-text-attributes.html"><span class="token function">applyTextAttributes</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">textAttributes<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.shape/TextAttributes///PointingToDeclaration/">TextAttributes</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="earth.worldwind.shape/TextAttributes///PointingToDeclaration/">TextAttributes</span></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/jvmMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.jvm/-jvm-static/index.html"><span class="token annotation builtin">JvmStatic</span></a></div></div><span class="token keyword">fun </span><a href="[jvm]apply-text-attributes.html"><span class="token function">applyTextAttributes</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">textAttributes<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.shape/TextAttributes///PointingToDeclaration/">TextAttributes</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="earth.worldwind.shape/TextAttributes///PointingToDeclaration/">TextAttributes</span></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/webMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="[web]apply-text-attributes.html"><span class="token function">applyTextAttributes</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">textAttributes<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.shape/TextAttributes///PointingToDeclaration/">TextAttributes</span></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Apply the renderer's current label-font settings to <a href="[web]apply-text-attributes.html">textAttributes</a>.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="469731850%2FFunctions%2F1574678356" anchor-label="getUnfilledAttributes" id="469731850%2FFunctions%2F1574678356" data-filterable-set=":worldwind/nonIosMain,:worldwind/androidMain,:worldwind/jvmMain,:worldwind/webMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/nonIosMain,:worldwind/androidMain,:worldwind/jvmMain,:worldwind/webMain" data-filterable-set=":worldwind/nonIosMain,:worldwind/androidMain,:worldwind/jvmMain,:worldwind/webMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-unfilled-attributes.html"><span>get</span><wbr></wbr><span>Unfilled</span><wbr></wbr><span><span>Attributes</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="469731850%2FFunctions%2F1574678356"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/androidMain" data-filterable-set=":worldwind/androidMain" data-active="" data-toggle=":worldwind/androidMain">android</button><button class="platform-bookmark" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain" data-toggle=":worldwind/jvmMain">jvm</button><button class="platform-bookmark" data-filterable-current=":worldwind/nonIosMain" data-filterable-set=":worldwind/nonIosMain" data-toggle=":worldwind/nonIosMain">nonIos</button><button class="platform-bookmark" data-filterable-current=":worldwind/webMain" data-filterable-set=":worldwind/webMain" data-toggle=":worldwind/webMain">web</button></div>
+<div class="content sourceset-dependent-content" data-togglable=":worldwind/androidMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.jvm/-jvm-static/index.html"><span class="token annotation builtin">JvmStatic</span></a></div></div><span class="token keyword">actual </span><span class="token keyword">fun </span><a href="get-unfilled-attributes.html"><span class="token function">getUnfilledAttributes</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">symbolID<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/jvmMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.jvm/-jvm-static/index.html"><span class="token annotation builtin">JvmStatic</span></a></div></div><span class="token keyword">actual </span><span class="token keyword">fun </span><a href="get-unfilled-attributes.html"><span class="token function">getUnfilledAttributes</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">symbolID<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span></div></div><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/nonIosMain"><div class="symbol monospace"><span class="token keyword">expect </span><span class="token keyword">fun </span><a href="get-unfilled-attributes.html"><span class="token function">getUnfilledAttributes</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">symbolID<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/webMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">fun </span><a href="get-unfilled-attributes.html"><span class="token function">getUnfilledAttributes</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">symbolID<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-116510142%2FFunctions%2F967790503" anchor-label="initializeRenderer" id="-116510142%2FFunctions%2F967790503" data-filterable-set=":worldwind/androidMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/androidMain" data-filterable-set=":worldwind/androidMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="initialize-renderer.html"><span>initialize</span><wbr></wbr><span><span>Renderer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-116510142%2FFunctions%2F967790503"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/androidMain" data-filterable-set=":worldwind/androidMain" data-active="" data-toggle=":worldwind/androidMain">android</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/androidMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.jvm/-jvm-static/index.html"><span class="token annotation builtin">JvmStatic</span></a></div><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.jvm/-synchronized/index.html"><span class="token annotation builtin">Synchronized</span></a></div></div><span class="token keyword">fun </span><a href="initialize-renderer.html"><span class="token function">initializeRenderer</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">context<span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/android/content/Context.html">Context</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Initializes the static MIL-STD-2525 symbol renderer.  This method must be called one time before calling renderImage().</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-322346531%2FFunctions%2F1574678356" anchor-label="isTacticalGraphic" id="-322346531%2FFunctions%2F1574678356" data-filterable-set=":worldwind/nonIosMain,:worldwind/androidMain,:worldwind/jvmMain,:worldwind/webMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/nonIosMain,:worldwind/androidMain,:worldwind/jvmMain,:worldwind/webMain" data-filterable-set=":worldwind/nonIosMain,:worldwind/androidMain,:worldwind/jvmMain,:worldwind/webMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="is-tactical-graphic.html"><span>is</span><wbr></wbr><span>Tactical</span><wbr></wbr><span><span>Graphic</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-322346531%2FFunctions%2F1574678356"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/androidMain" data-filterable-set=":worldwind/androidMain" data-active="" data-toggle=":worldwind/androidMain">android</button><button class="platform-bookmark" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain" data-toggle=":worldwind/jvmMain">jvm</button><button class="platform-bookmark" data-filterable-current=":worldwind/nonIosMain" data-filterable-set=":worldwind/nonIosMain" data-toggle=":worldwind/nonIosMain">nonIos</button><button class="platform-bookmark" data-filterable-current=":worldwind/webMain" data-filterable-set=":worldwind/webMain" data-toggle=":worldwind/webMain">web</button></div>
+<div class="content sourceset-dependent-content" data-togglable=":worldwind/androidMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.jvm/-jvm-static/index.html"><span class="token annotation builtin">JvmStatic</span></a></div></div><span class="token keyword">actual </span><span class="token keyword">fun </span><a href="is-tactical-graphic.html"><span class="token function">isTacticalGraphic</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">symbolID<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/jvmMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.jvm/-jvm-static/index.html"><span class="token annotation builtin">JvmStatic</span></a></div></div><span class="token keyword">actual </span><span class="token keyword">fun </span><a href="is-tactical-graphic.html"><span class="token function">isTacticalGraphic</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">symbolID<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div></div><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/nonIosMain"><div class="symbol monospace"><span class="token keyword">expect </span><span class="token keyword">fun </span><a href="is-tactical-graphic.html"><span class="token function">isTacticalGraphic</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">symbolID<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/webMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">fun </span><a href="is-tactical-graphic.html"><span class="token function">isTacticalGraphic</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">symbolID<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1352363783%2FFunctions%2F1767224158" anchor-label="renderImage" id="1352363783%2FFunctions%2F1767224158" data-filterable-set=":worldwind/androidMain,:worldwind/jvmMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/androidMain,:worldwind/jvmMain" data-filterable-set=":worldwind/androidMain,:worldwind/jvmMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><span data-unresolved-link="earth.worldwind.shape.milstd2525/MilStd2525/renderImage/#kotlin.String#kotlin.collections.Map[kotlin.String,kotlin.String]?#kotlin.collections.Map[kotlin.String,kotlin.String]?/PointingToDeclaration/"><span>render</span><wbr></wbr><span><span>Image</span></span></span></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1352363783%2FFunctions%2F1767224158"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/androidMain" data-filterable-set=":worldwind/androidMain" data-active="" data-toggle=":worldwind/androidMain">android</button><button class="platform-bookmark" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain" data-toggle=":worldwind/jvmMain">jvm</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/androidMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.jvm/-jvm-static/index.html"><span class="token annotation builtin">JvmStatic</span></a></div></div><span class="token keyword">fun </span><a href="[android]render-image.html"><span class="token function">renderImage</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">symbolCode<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">modifiers<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter ">attributes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="armyc2.c5isr.renderer.utilities/ImageInfo///PointingToDeclaration/">ImageInfo</span><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Creates an MIL-STD-2525 symbol from the specified symbol code, modifiers and attributes.</p></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/jvmMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.jvm/-jvm-static/index.html"><span class="token annotation builtin">JvmStatic</span></a></div></div><span class="token keyword">fun </span><a href="[jvm]render-image.html"><span class="token function">renderImage</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">symbolCode<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">modifiers<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter ">attributes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="armyc2.c5isr.renderer.utilities/ImageInfo///PointingToDeclaration/">ImageInfo</span><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Creates an MIL-STD-2525 symbol from the specified symbol code, modifiers and attributes.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="546340954%2FFunctions%2F-449907319" anchor-label="renderSymbol" id="546340954%2FFunctions%2F-449907319" data-filterable-set=":worldwind/webMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/webMain" data-filterable-set=":worldwind/webMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="render-symbol.html"><span>render</span><wbr></wbr><span><span>Symbol</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="546340954%2FFunctions%2F-449907319"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/webMain" data-filterable-set=":worldwind/webMain" data-active="" data-toggle=":worldwind/webMain">web</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/webMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="render-symbol.html"><span class="token function">renderSymbol</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">symbolCode<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">modifiers<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter ">attributes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-mil-std2525-symbol/index.html">MilStd2525Symbol</a><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Render <a href="render-symbol.html">symbolCode</a> to a canvas + offset geometry (<a href="../-mil-std2525-symbol/index.html">MilStd2525Symbol</a>), or null if nothing was produced.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1161389608%2FFunctions%2F-449907319" anchor-label="renderTacticalGraphic" id="-1161389608%2FFunctions%2F-449907319" data-filterable-set=":worldwind/webMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/webMain" data-filterable-set=":worldwind/webMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="render-tactical-graphic.html"><span>render</span><wbr></wbr><span>Tactical</span><wbr></wbr><span><span>Graphic</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1161389608%2FFunctions%2F-449907319"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/webMain" data-filterable-set=":worldwind/webMain" data-active="" data-toggle=":worldwind/webMain">web</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/webMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="render-tactical-graphic.html"><span class="token function">renderTacticalGraphic</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">symbolID<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">controlPoints<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><span data-unresolved-link="earth.worldwind.geom/Location///PointingToDeclaration/">Location</span><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">pointULLon<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">pointULLat<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">scale<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">densityFactor<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-float/index.html">Float</a><span class="token punctuation">, </span></span><span class="parameter ">modifiers<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter ">attributes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="../-mil-std2525-shape/index.html">MilStd2525Shape</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">Render a multipoint tactical graphic to a list of target-agnostic <a href="../-mil-std2525-shape/index.html">MilStd2525Shape</a>s.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>(c) WorldWind Earth</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

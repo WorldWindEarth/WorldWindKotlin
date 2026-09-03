@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>earth.worldwind.util.http</title>
+    <link href="../../images/logo-icon.svg" rel="icon" type="image/svg">
+        <script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async="async"></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async="async"></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async="async"></script>
+<script type="text/javascript" src="../../scripts/main.js" defer="defer"></script>
+<script type="text/javascript" src="../../scripts/prism.js" async="async"></script>
+<script type="text/javascript" src="../../ui-kit/ui-kit.min.js" defer="defer"></script>
+</head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+            <a class="library-name--link" href="../../index.html" tabindex="1">
+                    WorldWind Kotlin
+            </a>
+        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle"
+                type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+2.1.0        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector common-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/commonMain">common</button>
+                <button class="platform-tag platform-selector native-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/iosMain">ios</button>
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/jvmCommonMain">jvmCommon</button>
+                <button class="platform-tag platform-selector common-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/webMain">web</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox"
+                        data-role="dropdown-toggle"
+                        aria-controls="platform-tags-listbox"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-label="Toggle source sets"
+                ></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/commonMain"
+                                       data-filter=":worldwind/commonMain"/>
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                        <li role="option" class="dropdown--option platform-selector-option native-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/iosMain"
+                                       data-filter=":worldwind/iosMain"/>
+                                <span class="checkbox--icon"></span>
+                                ios
+                            </label>
+                        </li>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/jvmCommonMain"
+                                       data-filter=":worldwind/jvmCommonMain"/>
+                                <span class="checkbox--icon"></span>
+                                jvmCommon
+                            </label>
+                        </li>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/webMain"
+                                       data-filter=":worldwind/webMain"/>
+                                <span class="checkbox--icon"></span>
+                                web
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button"
+                    type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config='{"defaultSize": 280, "minSize": 200, "maxSize": 400}'>
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list"
+                    data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    WorldWind Kotlin
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="package" id="content" pageIds="WorldWind Kotlin::earth.worldwind.util.http////PointingToDeclaration//1477485740">
+  <div class="breadcrumbs"><a href="../../index.html">WorldWind Kotlin</a><span class="delimiter">/</span><span class="current">earth.worldwind.util.http</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="FUNCTION,EXTENSION_FUNCTION">Functions</button><button class="section-tab" data-togglable="PROPERTY,EXTENSION_PROPERTY">Properties</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="-2062645185%2FProperties%2F-1022326867" anchor-label="httpClientCustomizer" id="-2062645185%2FProperties%2F-1022326867" data-filterable-set=":worldwind/jvmCommonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="http-client-customizer.html"><span>http</span><wbr></wbr><span>Client</span><wbr></wbr><span><span>Customizer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2062645185%2FProperties%2F-1022326867"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain" data-active="" data-toggle=":worldwind/jvmCommonMain">jvmCommon</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmCommonMain"><div class="symbol monospace"><span class="token keyword">var </span><a href="http-client-customizer.html">httpClientCustomizer</a><span class="token operator">: </span>ERROR CLASS: Symbol not found for HttpClientConfig&lt;ERROR CLASS: Symbol not found for OkHttpConfig&gt;<span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Optional global hook letting platform code customize the OkHttp engine before <a href="-default-http-client.html">DefaultHttpClient</a> builds its client (e.g. tutorial apps installing permissive SSL on outdated JDKs, or production apps wiring a corporate proxy / custom truststore). Applied before any caller-supplied <code class="lang-kotlin">config</code> so callers can still override.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="-613950519%2FFunctions%2F1477485740" anchor-label="DefaultHttpClient" id="-613950519%2FFunctions%2F1477485740" data-filterable-set=":worldwind/commonMain,:worldwind/iosMain,:worldwind/jvmCommonMain,:worldwind/webMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain,:worldwind/iosMain,:worldwind/jvmCommonMain,:worldwind/webMain" data-filterable-set=":worldwind/commonMain,:worldwind/iosMain,:worldwind/jvmCommonMain,:worldwind/webMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-default-http-client.html"><span>Default</span><wbr></wbr><span>Http</span><wbr></wbr><span><span>Client</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-613950519%2FFunctions%2F1477485740"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain" data-active="" data-toggle=":worldwind/commonMain">common</button><button class="platform-bookmark" data-filterable-current=":worldwind/iosMain" data-filterable-set=":worldwind/iosMain" data-toggle=":worldwind/iosMain">ios</button><button class="platform-bookmark" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain" data-toggle=":worldwind/jvmCommonMain">jvmCommon</button><button class="platform-bookmark" data-filterable-current=":worldwind/webMain" data-filterable-set=":worldwind/webMain" data-toggle=":worldwind/webMain">web</button></div>
+<div class="content sourceset-dependent-content" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">expect </span><span class="token keyword">fun </span><a href="-default-http-client.html"><span class="token function">DefaultHttpClient</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">connectTimeout<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token operator"> = </span><span class="token constant">3000</span><span class="token punctuation">, </span></span><span class="parameter ">requestTimeout<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token operator"> = </span><span class="token constant">30000</span><span class="token punctuation">, </span></span><span class="parameter ">config<span class="token operator">: </span><span data-unresolved-link="io.ktor.client/HttpClientConfig///PointingToDeclaration/">HttpClientConfig</span><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a><span class="token operator"> = </span>{}</span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.ktor.client/HttpClient///PointingToDeclaration/">HttpClient</span></div><div class="brief "><p class="paragraph">Returns a platform-configured Ktor <span data-unresolved-link="io.ktor.client/HttpClient///PointingToDeclaration/">HttpClient</span>. JVM and Android use OkHttp; JS uses the Ktor JS engine. Apps can install per-platform engine config (custom SSL, proxies) via the platform-side <code class="lang-kotlin">httpClientCustomizer</code> hook.</p></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/iosMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">fun </span><a href="-default-http-client.html"><span class="token function">DefaultHttpClient</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">connectTimeout<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token punctuation">, </span></span><span class="parameter ">requestTimeout<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token punctuation">, </span></span><span class="parameter ">config<span class="token operator">: </span><span data-unresolved-link="io.ktor.client/HttpClientConfig///PointingToDeclaration/">HttpClientConfig</span><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.ktor.client/HttpClient///PointingToDeclaration/">HttpClient</span></div><div class="brief "><p class="paragraph">Returns a platform-configured Ktor <span data-unresolved-link="io.ktor.client/HttpClient///PointingToDeclaration/">HttpClient</span>. JVM and Android use OkHttp; JS uses the Ktor JS engine. Apps can install per-platform engine config (custom SSL, proxies) via the platform-side <code class="lang-kotlin">httpClientCustomizer</code> hook.</p></div></div><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmCommonMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">fun </span><a href="-default-http-client.html"><span class="token function">DefaultHttpClient</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">connectTimeout<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token punctuation">, </span></span><span class="parameter ">requestTimeout<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token punctuation">, </span></span><span class="parameter ">config<span class="token operator">: </span>ERROR CLASS: Symbol not found for HttpClientConfig&lt;*&gt;<span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span>ERROR CLASS: Unresolved name: HttpClient</div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/webMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">fun </span><a href="-default-http-client.html"><span class="token function">DefaultHttpClient</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">connectTimeout<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token punctuation">, </span></span><span class="parameter ">requestTimeout<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token punctuation">, </span></span><span class="parameter ">config<span class="token operator">: </span><span data-unresolved-link="io.ktor.client/HttpClientConfig///PointingToDeclaration/">HttpClientConfig</span><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.ktor.client/HttpClient///PointingToDeclaration/">HttpClient</span></div><div class="brief "><p class="paragraph">Returns a platform-configured Ktor <span data-unresolved-link="io.ktor.client/HttpClient///PointingToDeclaration/">HttpClient</span>. JVM and Android use OkHttp; JS uses the Ktor JS engine. Apps can install per-platform engine config (custom SSL, proxies) via the platform-side <code class="lang-kotlin">httpClientCustomizer</code> hook.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>(c) WorldWind Earth</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

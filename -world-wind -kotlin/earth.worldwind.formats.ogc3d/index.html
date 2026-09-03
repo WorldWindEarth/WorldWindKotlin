@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>earth.worldwind.formats.ogc3d</title>
+    <link href="../../images/logo-icon.svg" rel="icon" type="image/svg">
+        <script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async="async"></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async="async"></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async="async"></script>
+<script type="text/javascript" src="../../scripts/main.js" defer="defer"></script>
+<script type="text/javascript" src="../../scripts/prism.js" async="async"></script>
+<script type="text/javascript" src="../../ui-kit/ui-kit.min.js" defer="defer"></script>
+</head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+            <a class="library-name--link" href="../../index.html" tabindex="1">
+                    WorldWind Kotlin
+            </a>
+        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle"
+                type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+2.1.0        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector common-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/commonMain">common</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox"
+                        data-role="dropdown-toggle"
+                        aria-controls="platform-tags-listbox"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-label="Toggle source sets"
+                ></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/commonMain"
+                                       data-filter=":worldwind/commonMain"/>
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button"
+                    type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config='{"defaultSize": 280, "minSize": 200, "maxSize": 400}'>
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list"
+                    data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    WorldWind Kotlin
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="package" id="content" pageIds="WorldWind Kotlin::earth.worldwind.formats.ogc3d////PointingToDeclaration//-405091373">
+  <div class="breadcrumbs"><a href="../../index.html">WorldWind Kotlin</a><span class="delimiter">/</span><span class="current">earth.worldwind.formats.ogc3d</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="TYPE">Types</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="411066471%2FClasslikes%2F-405091373" anchor-label="B3dmLoader" id="411066471%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-b3dm-loader/index.html"><span>B3dm</span><wbr></wbr><span><span>Loader</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="411066471%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="-b3dm-loader/index.html">B3dmLoader</a></div><div class="brief "><p class="paragraph">Parses a Batched 3D Model payload. The container wraps a glTF GLB binary; this loader is essentially <a href="-ogc3d-header/index.html">Ogc3dHeader</a> + <a href="-feature-table/index.html">FeatureTable</a> + <a href="-batch-table/index.html">BatchTable</a> + <a href="../earth.worldwind.formats.gltf/-glb-reader/index.html">GlbReader</a> + <a href="../earth.worldwind.formats.gltf/-gltf-reader/index.html">GltfReader</a> glued together with the RTC_CENTER, batch length, and per-feature properties extracted into <a href="-b3dm-payload/index.html">B3dmPayload</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-948470118%2FClasslikes%2F-405091373" anchor-label="B3dmPayload" id="-948470118%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-b3dm-payload/index.html"><span>B3dm</span><wbr></wbr><span><span>Payload</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-948470118%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-b3dm-payload/index.html">B3dmPayload</a></div><div class="brief "><p class="paragraph">Decoded b3dm payload: the embedded glTF + feature table (for RTC_CENTER + optional <code class="lang-kotlin">gltfUpAxis</code> override) + the batch table. The renderer applies <code class="lang-kotlin">rtcCenter</code> as an extra translation when present — per spec, b3dm authors may offset every vertex by a tile- relative center to keep numerical precision tight at city scale.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1855642272%2FClasslikes%2F-405091373" anchor-label="BatchTable" id="1855642272%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-batch-table/index.html"><span>Batch</span><wbr></wbr><span><span>Table</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1855642272%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-batch-table/index.html">BatchTable</a></div><div class="brief "><p class="paragraph">Parsed b3dm / i3dm batch table indexed by <code class="lang-kotlin">batchId</code>. JSON-array columns are decoded; binary accessor columns require the caller to follow <span data-unresolved-link="earth.worldwind.formats.ogc3d/BatchTable//#kotlinx.serialization.json.JsonObject#kotlin.ByteArray#kotlin.Int/PointingToCallableParameters(0)/">jsonRoot</span> / <span data-unresolved-link="earth.worldwind.formats.ogc3d/BatchTable//#kotlinx.serialization.json.JsonObject#kotlin.ByteArray#kotlin.Int/PointingToCallableParameters(1)/">binary</span> by hand.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1650964199%2FClasslikes%2F-405091373" anchor-label="CmptHeader" id="-1650964199%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-cmpt-header/index.html"><span>Cmpt</span><wbr></wbr><span><span>Header</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1650964199%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-cmpt-header/index.html">CmptHeader</a></div><div class="brief "><p class="paragraph">Composite (<code class="lang-kotlin">cmpt</code>) header — 16 bytes, no feature/batch tables. The payload is a concatenation of <span data-unresolved-link="earth.worldwind.formats.ogc3d/CmptHeader//#kotlin.Int#kotlin.Int#kotlin.Int/PointingToCallableParameters(2)/">tilesLength</span> inner tile binaries, each itself a b3dm/i3dm/pnts/cmpt.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2102471784%2FClasslikes%2F-405091373" anchor-label="CmptInnerTile" id="-2102471784%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-cmpt-inner-tile/index.html"><span>Cmpt</span><wbr></wbr><span>Inner</span><wbr></wbr><span><span>Tile</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2102471784%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-cmpt-inner-tile/index.html">CmptInnerTile</a></div><div class="brief "><p class="paragraph">One sub-payload extracted from a Composite container — the magic plus the raw bytes of that sub-payload. Callers route by <span data-unresolved-link="earth.worldwind.formats.ogc3d/CmptInnerTile//#kotlin.String#kotlin.ByteArray/PointingToCallableParameters(0)/">magic</span> to the right loader (b3dm / i3dm / pnts / cmpt; nested cmpt is allowed by the spec and re-enters <a href="-cmpt-loader/parse.html">CmptLoader.parse</a>).</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-134603181%2FClasslikes%2F-405091373" anchor-label="CmptLoader" id="-134603181%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-cmpt-loader/index.html"><span>Cmpt</span><wbr></wbr><span><span>Loader</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-134603181%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="-cmpt-loader/index.html">CmptLoader</a></div><div class="brief "><p class="paragraph">Splits a Composite (cmpt) container into its inner tiles. The format is:</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2062929764%2FClasslikes%2F-405091373" anchor-label="FeatureTable" id="-2062929764%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-feature-table/index.html"><span>Feature</span><wbr></wbr><span><span>Table</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2062929764%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-feature-table/index.html">FeatureTable</a></div><div class="brief "><p class="paragraph">Parsed feature + batch tables from a 3D Tiles container. Each table has a JSON section describing per-feature scalars (or accessor references) and a binary section holding the raw values referenced by the JSON.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-395469138%2FClasslikes%2F-405091373" anchor-label="I3dmLoader" id="-395469138%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-i3dm-loader/index.html"><span>I3dm</span><wbr></wbr><span><span>Loader</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-395469138%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="-i3dm-loader/index.html">I3dmLoader</a></div><div class="brief "><p class="paragraph">Parses an Instanced 3D Model payload. The i3dm header is 32 bytes (the standard 28-byte 3D Tiles header plus a uint32 <code class="lang-kotlin">gltfFormat</code> field at offset 28). Only the embedded-GLB form (<code class="lang-kotlin">gltfFormat == 1</code>) is supported — the legacy URL form is rejected.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-181270221%2FClasslikes%2F-405091373" anchor-label="I3dmPayload" id="-181270221%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-i3dm-payload/index.html"><span>I3dm</span><wbr></wbr><span><span>Payload</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-181270221%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-i3dm-payload/index.html">I3dmPayload</a></div><div class="brief "><p class="paragraph">Decoded i3dm payload: a shared glTF mesh + a flat list of per-instance transforms. Renderer emits one instanced draw call (or <span data-unresolved-link="earth.worldwind.formats.ogc3d/I3dmPayload//#earth.worldwind.formats.gltf.GltfModel#kotlin.Int#kotlin.FloatArray#kotlin.FloatArray?#kotlin.DoubleArray?/PointingToCallableParameters(1)/">instancesLength</span> non-instanced draws on platforms without <code class="lang-kotlin">glDrawElementsInstanced</code>).</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1039967493%2FClasslikes%2F-405091373" anchor-label="Ogc3dHeader" id="1039967493%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-ogc3d-header/index.html"><span>Ogc3d</span><wbr></wbr><span><span>Header</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1039967493%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-ogc3d-header/index.html">Ogc3dHeader</a></div><div class="brief "><p class="paragraph">Common header shared by every binary 3D Tiles container (b3dm / i3dm / pnts). 28 bytes:</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-582332572%2FClasslikes%2F-405091373" anchor-label="PntsLoader" id="-582332572%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-pnts-loader/index.html"><span>Pnts</span><wbr></wbr><span><span>Loader</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-582332572%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="-pnts-loader/index.html">PntsLoader</a></div><div class="brief "><p class="paragraph">Parses a Point Cloud (pnts) payload. Header is the standard 28-byte <a href="-ogc3d-header/index.html">Ogc3dHeader</a>; the format-specific body is the feature-table-described point cloud.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1679069379%2FClasslikes%2F-405091373" anchor-label="PntsPayload" id="-1679069379%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-pnts-payload/index.html"><span>Pnts</span><wbr></wbr><span><span>Payload</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1679069379%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-pnts-payload/index.html">PntsPayload</a></div><div class="brief "><p class="paragraph">Decoded pnts (Point Cloud) payload. All position arrays are flattened tile-local <code class="lang-kotlin">[x0, y0, z0, x1, y1, z1, ...]</code> Float32. Colors are flattened RGBA Uint8 (4 bytes per point) regardless of the wire format (RGB / RGBA / CONSTANT_RGBA all normalise to RGBA).</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>(c) WorldWind Earth</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

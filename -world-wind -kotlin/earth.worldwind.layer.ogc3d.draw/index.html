@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>earth.worldwind.layer.ogc3d.draw</title>
+    <link href="../../images/logo-icon.svg" rel="icon" type="image/svg">
+        <script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async="async"></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async="async"></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async="async"></script>
+<script type="text/javascript" src="../../scripts/main.js" defer="defer"></script>
+<script type="text/javascript" src="../../scripts/prism.js" async="async"></script>
+<script type="text/javascript" src="../../ui-kit/ui-kit.min.js" defer="defer"></script>
+</head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+            <a class="library-name--link" href="../../index.html" tabindex="1">
+                    WorldWind Kotlin
+            </a>
+        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle"
+                type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+2.1.0        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector common-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/commonMain">common</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox"
+                        data-role="dropdown-toggle"
+                        aria-controls="platform-tags-listbox"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-label="Toggle source sets"
+                ></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/commonMain"
+                                       data-filter=":worldwind/commonMain"/>
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button"
+                    type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config='{"defaultSize": 280, "minSize": 200, "maxSize": 400}'>
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list"
+                    data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    WorldWind Kotlin
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="package" id="content" pageIds="WorldWind Kotlin::earth.worldwind.layer.ogc3d.draw////PointingToDeclaration//-405091373">
+  <div class="breadcrumbs"><a href="../../index.html">WorldWind Kotlin</a><span class="delimiter">/</span><span class="current">earth.worldwind.layer.ogc3d.draw</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="TYPE">Types</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="-461413853%2FClasslikes%2F-405091373" anchor-label="DrawableGaussianPass" id="-461413853%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-drawable-gaussian-pass/index.html"><span>Drawable</span><wbr></wbr><span>Gaussian</span><wbr></wbr><span><span>Pass</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-461413853%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">class </span><a href="-drawable-gaussian-pass/index.html">DrawableGaussianPass</a> : <a href="../earth.worldwind.draw/-drawable/index.html">Drawable</a>, <a href="../earth.worldwind.layer.shadow/-shadow-caster/index.html">ShadowCaster</a></div><div class="brief "><p class="paragraph">Reduced-resolution offscreen pass for the frame's Gaussian-splat tiles. Splat rendering is blended-fill-rate bound — the same splats at half resolution cost ~4x less fragment work — so all <a href="-drawable-tile-gaussian/index.html">DrawableTileGaussian</a>s of one layer render back-to-front into a <code class="lang-kotlin">renderScale</code>-sized offscreen target and composite over the scene as a single premultiplied full-screen quad.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1864287910%2FClasslikes%2F-405091373" anchor-label="DrawableTileGaussian" id="1864287910%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-drawable-tile-gaussian/index.html"><span>Drawable</span><wbr></wbr><span>Tile</span><wbr></wbr><span><span>Gaussian</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1864287910%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">class </span><a href="-drawable-tile-gaussian/index.html">DrawableTileGaussian</a> : <a href="../earth.worldwind.draw/-drawable/index.html">Drawable</a>, <a href="../earth.worldwind.layer.shadow/-shadow-caster/index.html">ShadowCaster</a></div><div class="brief "><p class="paragraph">Colour-pass drawable for one 3D Tiles Gaussian-splat tile. Holds references to the tile's per-attribute GPU buffers (centres / scales / rotations / rgba) + a static back-to-front index buffer computed once at upload time, and dispatches a single <code class="lang-kotlin">glDrawElements(GL_POINTS)</code> per tile.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1526635252%2FClasslikes%2F-405091373" anchor-label="DrawableTileMesh" id="1526635252%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-drawable-tile-mesh/index.html"><span>Drawable</span><wbr></wbr><span>Tile</span><wbr></wbr><span><span>Mesh</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1526635252%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">class </span><a href="-drawable-tile-mesh/index.html">DrawableTileMesh</a> : <a href="../earth.worldwind.draw/-drawable/index.html">Drawable</a>, <a href="../earth.worldwind.layer.shadow/-shadow-caster/index.html">ShadowCaster</a>, <a href="../earth.worldwind.draw/-sightline-occluder/index.html">SightlineOccluder</a>, <a href="../earth.worldwind.draw/-ground-overlay-surface/index.html">GroundOverlaySurface</a></div><div class="brief "><p class="paragraph">Color-pass drawable for one mesh tile. Pool-recycled. <a href="../earth.worldwind.layer.shadow/-shadow-caster/index.html">ShadowCaster</a> + <a href="../earth.worldwind.draw/-sightline-occluder/index.html">SightlineOccluder</a> gate on <code class="lang-kotlin">shadowMode.castsShadows</code>. The sightline visibility tint is applied per-fragment by <code class="lang-kotlin">Ogc3dTilesProgram</code>'s embedded <code class="lang-kotlin">SightlineReceiverGlsl</code> splice; the SURFACE-grouped sightline overlay only tints terrain.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2120437570%2FClasslikes%2F-405091373" anchor-label="DrawableTilePoints" id="-2120437570%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-drawable-tile-points/index.html"><span>Drawable</span><wbr></wbr><span>Tile</span><wbr></wbr><span><span>Points</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2120437570%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">class </span><a href="-drawable-tile-points/index.html">DrawableTilePoints</a> : <a href="../earth.worldwind.draw/-drawable/index.html">Drawable</a>, <a href="../earth.worldwind.layer.shadow/-shadow-caster/index.html">ShadowCaster</a></div><div class="brief "><p class="paragraph">Color-pass drawable for one 3D Tiles point cloud tile. Holds a reference to the pre-uploaded <a href="../earth.worldwind.layer.ogc3d.content/-point-cloud-content/index.html">PointCloudContent</a>, the tile-to-world transform, and per-frame state for the shadow + sightline receiver paths. Pool-recycled.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>(c) WorldWind Earth</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

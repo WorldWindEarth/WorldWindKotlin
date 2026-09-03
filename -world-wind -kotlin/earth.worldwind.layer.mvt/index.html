@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>earth.worldwind.layer.mvt</title>
+    <link href="../../images/logo-icon.svg" rel="icon" type="image/svg">
+        <script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async="async"></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async="async"></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async="async"></script>
+<script type="text/javascript" src="../../scripts/main.js" defer="defer"></script>
+<script type="text/javascript" src="../../scripts/prism.js" async="async"></script>
+<script type="text/javascript" src="../../ui-kit/ui-kit.min.js" defer="defer"></script>
+</head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+            <a class="library-name--link" href="../../index.html" tabindex="1">
+                    WorldWind Kotlin
+            </a>
+        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle"
+                type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+2.1.0        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/androidMain">android</button>
+                <button class="platform-tag platform-selector common-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/commonMain">common</button>
+                <button class="platform-tag platform-selector native-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/iosMain">ios</button>
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/jvmMain">jvm</button>
+                <button class="platform-tag platform-selector common-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/webMain">web</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox"
+                        data-role="dropdown-toggle"
+                        aria-controls="platform-tags-listbox"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-label="Toggle source sets"
+                ></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/androidMain"
+                                       data-filter=":worldwind/androidMain"/>
+                                <span class="checkbox--icon"></span>
+                                android
+                            </label>
+                        </li>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/commonMain"
+                                       data-filter=":worldwind/commonMain"/>
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                        <li role="option" class="dropdown--option platform-selector-option native-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/iosMain"
+                                       data-filter=":worldwind/iosMain"/>
+                                <span class="checkbox--icon"></span>
+                                ios
+                            </label>
+                        </li>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/jvmMain"
+                                       data-filter=":worldwind/jvmMain"/>
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/webMain"
+                                       data-filter=":worldwind/webMain"/>
+                                <span class="checkbox--icon"></span>
+                                web
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button"
+                    type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config='{"defaultSize": 280, "minSize": 200, "maxSize": 400}'>
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list"
+                    data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    WorldWind Kotlin
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="package" id="content" pageIds="WorldWind Kotlin::earth.worldwind.layer.mvt////PointingToDeclaration//647801947">
+  <div class="breadcrumbs"><a href="../../index.html">WorldWind Kotlin</a><span class="delimiter">/</span><span class="current">earth.worldwind.layer.mvt</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="TYPE">Types</button><button class="section-tab" data-togglable="FUNCTION,EXTENSION_FUNCTION">Functions</button><button class="section-tab" data-togglable="PROPERTY,EXTENSION_PROPERTY">Properties</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="-15308701%2FClasslikes%2F-405091373" anchor-label="DefaultMvtStyle" id="-15308701%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-default-mvt-style/index.html"><span>Default</span><wbr></wbr><span>Mvt</span><wbr></wbr><span><span>Style</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-15308701%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="-default-mvt-style/index.html">DefaultMvtStyle</a> : <a href="-mvt-style/index.html">MvtStyle</a></div><div class="brief "><p class="paragraph">Hardcoded style table approximating an OpenMapTiles &quot;basic&quot; look. Covers the layer names commonly seen across OpenMapTiles, Maptiler v3, Mapbox v8, and Protomaps &quot;basemaps&quot; schemas.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1007836615%2FClasslikes%2F647801947" anchor-label="MvtAtlasIconFactory" id="-1007836615%2FClasslikes%2F647801947" data-filterable-set=":worldwind/androidMain,:worldwind/commonMain,:worldwind/iosMain,:worldwind/jvmMain,:worldwind/webMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/androidMain,:worldwind/commonMain,:worldwind/iosMain,:worldwind/jvmMain,:worldwind/webMain" data-filterable-set=":worldwind/androidMain,:worldwind/commonMain,:worldwind/iosMain,:worldwind/jvmMain,:worldwind/webMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-atlas-icon-factory/index.html"><span>Mvt</span><wbr></wbr><span>Atlas</span><wbr></wbr><span>Icon</span><wbr></wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1007836615%2FClasslikes%2F647801947"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/androidMain" data-filterable-set=":worldwind/androidMain" data-active="" data-toggle=":worldwind/androidMain">android</button><button class="platform-bookmark" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain" data-toggle=":worldwind/commonMain">common</button><button class="platform-bookmark" data-filterable-current=":worldwind/iosMain" data-filterable-set=":worldwind/iosMain" data-toggle=":worldwind/iosMain">ios</button><button class="platform-bookmark" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain" data-toggle=":worldwind/jvmMain">jvm</button><button class="platform-bookmark" data-filterable-current=":worldwind/webMain" data-filterable-set=":worldwind/webMain" data-toggle=":worldwind/webMain">web</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/androidMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">class </span><a href="-mvt-atlas-icon-factory/index.html">MvtAtlasIconFactory</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>atlas<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.layer.mvt/MvtSpriteAtlas///PointingToDeclaration/">MvtSpriteAtlas</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>entry<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.layer.mvt/MvtSpriteEntry///PointingToDeclaration/">MvtSpriteEntry</span></span></span><span class="token punctuation">)</span> : <a href="../earth.worldwind.render.image/-image-source/-image-factory/index.html">ImageSource.ImageFactory</a></div><div class="brief "><p class="paragraph">Platform-specific <a href="../earth.worldwind.render.image/-image-source/-image-factory/index.html">ImageSource.ImageFactory</a> that decodes the atlas PNG once (cached by atlas-identity) and crops the requested sub-rect on demand.</p></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">expect </span><span class="token keyword">class </span><a href="-mvt-atlas-icon-factory/index.html">MvtAtlasIconFactory</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">atlas<span class="token operator">: </span><a href="-mvt-sprite-atlas/index.html">MvtSpriteAtlas</a><span class="token punctuation">, </span></span><span class="parameter ">entry<span class="token operator">: </span><a href="-mvt-sprite-entry/index.html">MvtSpriteEntry</a></span></span><span class="token punctuation">)</span> : <a href="../earth.worldwind.render.image/-image-source/-image-factory/index.html">ImageSource.ImageFactory</a></div><div class="brief "><p class="paragraph">Platform-specific <a href="../earth.worldwind.render.image/-image-source/-image-factory/index.html">ImageSource.ImageFactory</a> that decodes the atlas PNG once (cached by atlas-identity) and crops the requested sub-rect on demand.</p></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/iosMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">class </span><a href="-mvt-atlas-icon-factory/index.html">MvtAtlasIconFactory</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>atlas<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.layer.mvt/MvtSpriteAtlas///PointingToDeclaration/">MvtSpriteAtlas</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>entry<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.layer.mvt/MvtSpriteEntry///PointingToDeclaration/">MvtSpriteEntry</span></span></span><span class="token punctuation">)</span> : <a href="../earth.worldwind.render.image/-image-source/-image-factory/index.html">ImageSource.ImageFactory</a></div><div class="brief "><p class="paragraph">Platform-specific <a href="../earth.worldwind.render.image/-image-source/-image-factory/index.html">ImageSource.ImageFactory</a> that decodes the atlas PNG once (cached by atlas-identity) and crops the requested sub-rect on demand.</p></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/jvmMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">class </span><a href="-mvt-atlas-icon-factory/index.html">MvtAtlasIconFactory</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>atlas<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.layer.mvt/MvtSpriteAtlas///PointingToDeclaration/">MvtSpriteAtlas</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>entry<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.layer.mvt/MvtSpriteEntry///PointingToDeclaration/">MvtSpriteEntry</span></span></span><span class="token punctuation">)</span> : <a href="../earth.worldwind.render.image/-image-source/-image-factory/index.html">ImageSource.ImageFactory</a></div><div class="brief "><p class="paragraph">Platform-specific <a href="../earth.worldwind.render.image/-image-source/-image-factory/index.html">ImageSource.ImageFactory</a> that decodes the atlas PNG once (cached by atlas-identity) and crops the requested sub-rect on demand.</p></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/webMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">class </span><a href="-mvt-atlas-icon-factory/index.html">MvtAtlasIconFactory</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>atlas<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.layer.mvt/MvtSpriteAtlas///PointingToDeclaration/">MvtSpriteAtlas</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>entry<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.layer.mvt/MvtSpriteEntry///PointingToDeclaration/">MvtSpriteEntry</span></span></span><span class="token punctuation">)</span> : <a href="../earth.worldwind.render.image/-image-source/-image-factory/index.html">ImageSource.ImageFactory</a></div><div class="brief "><p class="paragraph">Platform-specific <a href="../earth.worldwind.render.image/-image-source/-image-factory/index.html">ImageSource.ImageFactory</a> that decodes the atlas PNG once (cached by atlas-identity) and crops the requested sub-rect on demand.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1576951176%2FClasslikes%2F-405091373" anchor-label="MvtBatchedLineTile" id="1576951176%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-batched-line-tile/index.html"><span>Mvt</span><wbr></wbr><span>Batched</span><wbr></wbr><span>Line</span><wbr></wbr><span><span>Tile</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1576951176%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-mvt-batched-line-tile/index.html">MvtBatchedLineTile</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">features<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="-mvt-batched-line-tile/-batch-line-feature/index.html">MvtBatchedLineTile.BatchLineFeature</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">boundingSector<span class="token operator">: </span><a href="../earth.worldwind.geom/-sector/index.html">Sector</a><span class="token punctuation">, </span></span><span class="parameter ">displayName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span> : <a href="../earth.worldwind.render/-abstract-renderable/index.html">AbstractRenderable</a></div><div class="brief "><p class="paragraph">Batched line-stroke renderable for one MVT slippy tile.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1072005200%2FClasslikes%2F-405091373" anchor-label="MvtBatchedPolygonTile" id="-1072005200%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-batched-polygon-tile/index.html"><span>Mvt</span><wbr></wbr><span>Batched</span><wbr></wbr><span>Polygon</span><wbr></wbr><span><span>Tile</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1072005200%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-mvt-batched-polygon-tile/index.html">MvtBatchedPolygonTile</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">features<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="-mvt-batched-polygon-tile/-batch-feature/index.html">MvtBatchedPolygonTile.BatchFeature</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">boundingSector<span class="token operator">: </span><a href="../earth.worldwind.geom/-sector/index.html">Sector</a><span class="token punctuation">, </span></span><span class="parameter ">minHoleAreaDeg2<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token operator"> = </span><span class="token constant">0.0</span><span class="token punctuation">, </span></span><span class="parameter ">displayName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span> : <a href="../earth.worldwind.render/-abstract-renderable/index.html">AbstractRenderable</a></div><div class="brief "><p class="paragraph">Batched polygon-fill renderable for one MVT slippy tile.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1177205960%2FClasslikes%2F-405091373" anchor-label="MvtCurvedLineLabel" id="-1177205960%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-curved-line-label/index.html"><span>Mvt</span><wbr></wbr><span>Curved</span><wbr></wbr><span>Line</span><wbr></wbr><span><span>Label</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1177205960%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-mvt-curved-line-label/index.html">MvtCurvedLineLabel</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>coords<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double-array/index.html">DoubleArray</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>text<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>attributes<span class="token operator">: </span><a href="../earth.worldwind.shape/-text-attributes/index.html">TextAttributes</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>charWidths<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-float-array/index.html">FloatArray</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>textWidth<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-float/index.html">Float</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>pixelSize<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>priority<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">0</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>featureId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token operator"> = </span><span class="token constant">0</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>repeatGapPx<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-float/index.html">Float</a><span class="token operator"> = </span><span class="token constant">1100.0f</span><span class="token punctuation">, </span></span><span class="parameter ">displayName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span> : <a href="../earth.worldwind.render/-abstract-renderable/index.html">AbstractRenderable</a></div><div class="brief "><p class="paragraph">Per-glyph baseline-following text label for one MVT LINESTRING feature. Each render-pass projects the polyline's geographic waypoints into screen space, runs the arc-length placer to produce one <a href="-mvt-curved-text-placer/-glyph-run/index.html">MvtCurvedTextPlacer.GlyphRun</a> per repeat, then emits a single- character <a href="../earth.worldwind.shape/-label/index.html">Label</a> per glyph with its own rotation matching the local tangent.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1620126162%2FClasslikes%2F-405091373" anchor-label="MvtCurvedTextPlacer" id="1620126162%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-curved-text-placer/index.html"><span>Mvt</span><wbr></wbr><span>Curved</span><wbr></wbr><span>Text</span><wbr></wbr><span><span>Placer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1620126162%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="-mvt-curved-text-placer/index.html">MvtCurvedTextPlacer</a></div><div class="brief "><p class="paragraph">Arc-length parameterised glyph placement along a polyline. Given a polyline in screen coordinates, a text string with its per-character advance widths in pixels, and a desired label-repeat interval, produces one <a href="-mvt-curved-text-placer/-glyph-run/index.html">GlyphRun</a> per repeat position covering as much of the line as fits.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1144642401%2FClasslikes%2F-405091373" anchor-label="MvtDecoder" id="-1144642401%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-decoder/index.html"><span>Mvt</span><wbr></wbr><span><span>Decoder</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1144642401%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="-mvt-decoder/index.html">MvtDecoder</a></div><div class="brief "><p class="paragraph">Decode the bytes of a Mapbox Vector Tile (MVT v2.1) into an <a href="-mvt-tile/index.html">MvtTile</a>. Geometry stays in tile-local extent coordinates; conversion to lat/lon is <a href="-mvt-geometry/index.html">MvtGeometry</a>'s job.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1662230294%2FClasslikes%2F-405091373" anchor-label="MvtExpr" id="-1662230294%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-expr/index.html"><span>Mvt</span><wbr></wbr><span><span>Expr</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1662230294%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="-mvt-expr/index.html">MvtExpr</a></div><div class="brief "><p class="paragraph">Typed entry-points for the most common expression shapes. These let DSL/style code stay concise; full Mapbox expressions still flow through <a href="-mvt-expression/index.html">MvtExpression</a> subclasses directly.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1817349337%2FClasslikes%2F-405091373" anchor-label="MvtExpression" id="-1817349337%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-expression/index.html"><span>Mvt</span><wbr></wbr><span><span>Expression</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1817349337%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">sealed </span><span class="token keyword">class </span><a href="-mvt-expression/index.html">MvtExpression</a><span class="token operator">&lt;</span><span class="token keyword">out </span><a href="-mvt-expression/index.html">T</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">Mapbox-style expression tree. Each node evaluates to <code class="lang-kotlin">T?</code> against an <a href="-mvt-expression/-eval-context/index.html">EvalContext</a> (current tile zoom + feature property map); null propagates when an upstream node has no value (e.g. <code class="lang-kotlin">Get</code> on a missing property).</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-963793080%2FClasslikes%2F-405091373" anchor-label="MvtExpressionParser" id="-963793080%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-expression-parser/index.html"><span>Mvt</span><wbr></wbr><span>Expression</span><wbr></wbr><span><span>Parser</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-963793080%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="-mvt-expression-parser/index.html">MvtExpressionParser</a></div><div class="brief "><p class="paragraph">Parses Mapbox-GL JSON expression arrays into <a href="-mvt-expression/index.html">MvtExpression</a> trees. Supports the subset documented on <a href="-mvt-expression/index.html">MvtExpression</a> (literals + sources + comparisons + boolean + arithmetic + case/match/step + interpolate + coercion).</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1750262317%2FClasslikes%2F-405091373" anchor-label="MvtFeature" id="1750262317%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-feature/index.html"><span>Mvt</span><wbr></wbr><span><span>Feature</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1750262317%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-mvt-feature/index.html">MvtFeature</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>id<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>type<span class="token operator">: </span><a href="-mvt-geometry-type/index.html">MvtGeometryType</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>tags<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int-array/index.html">IntArray</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>geometry<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int-array/index.html">IntArray</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">One feature. <span data-unresolved-link="earth.worldwind.layer.mvt/MvtFeature//#kotlin.Long#earth.worldwind.layer.mvt.MvtGeometryType#kotlin.IntArray#kotlin.IntArray/PointingToCallableParameters(3)/">geometry</span> is the raw MVT command stream (interleaved CommandIntegers and ParameterIntegers, all as packed uint32s) — pass to <a href="-mvt-geometry/index.html">MvtGeometry</a> to materialise into lat/lon points/lines/rings. <span data-unresolved-link="earth.worldwind.layer.mvt/MvtFeature//#kotlin.Long#earth.worldwind.layer.mvt.MvtGeometryType#kotlin.IntArray#kotlin.IntArray/PointingToCallableParameters(2)/">tags</span> holds keyIdx, valueIdx, ... pairs that index into the parent <a href="-mvt-layer/index.html">MvtLayer</a>'s <a href="-mvt-layer/keys.html">MvtLayer.keys</a> / <a href="-mvt-layer/values.html">MvtLayer.values</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1685820089%2FClasslikes%2F-405091373" anchor-label="MvtFilter" id="-1685820089%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-filter/index.html"><span>Mvt</span><wbr></wbr><span><span>Filter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1685820089%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">sealed </span><span class="token keyword">class </span><a href="-mvt-filter/index.html">MvtFilter</a></div><div class="brief "><p class="paragraph">Predicate over an MVT feature's inflated property map. Sealed so the matching set is known up front. Filters are pure data evaluated once per feature off the render thread (in <span data-unresolved-link="earth.worldwind.layer.mvt/MvtVectorLayer/toRenderables/#earth.worldwind.layer.mvt.MvtVectorLayer.TileKey#earth.worldwind.layer.mvt.MvtTile/PointingToDeclaration/">MvtVectorLayer.toRenderables</span>); construct via the companion factory methods or the DSL infix helpers (<code class="lang-kotlin">&quot;kind&quot; eq &quot;motorway&quot;</code>).</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2078749197%2FClasslikes%2F-405091373" anchor-label="MvtGeometry" id="2078749197%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-geometry/index.html"><span>Mvt</span><wbr></wbr><span><span>Geometry</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2078749197%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="-mvt-geometry/index.html">MvtGeometry</a></div><div class="brief "><p class="paragraph">Convert the raw MVT command stream of an <a href="-mvt-feature/index.html">MvtFeature</a> into lat/lon geometry for a slippy tile at (z, x, y) with the given <code class="lang-kotlin">extent</code> (tile-coordinate resolution; conventionally 4096).</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1733720563%2FClasslikes%2F-405091373" anchor-label="MvtGeometryType" id="1733720563%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-geometry-type/index.html"><span>Mvt</span><wbr></wbr><span>Geometry</span><wbr></wbr><span><span>Type</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1733720563%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">enum </span><a href="-mvt-geometry-type/index.html">MvtGeometryType</a> : <a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-enum/index.html">Enum</a><span class="token operator">&lt;</span><a href="-mvt-geometry-type/index.html">MvtGeometryType</a><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1415760703%2FClasslikes%2F-405091373" anchor-label="MvtIconBuilder" id="-1415760703%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-icon-builder/index.html"><span>Mvt</span><wbr></wbr><span>Icon</span><wbr></wbr><span><span>Builder</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1415760703%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-mvt-icon-builder/index.html">MvtIconBuilder</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1700780340%2FClasslikes%2F-405091373" anchor-label="MvtLabelGroup" id="1700780340%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-label-group/index.html"><span>Mvt</span><wbr></wbr><span>Label</span><wbr></wbr><span><span>Group</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1700780340%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-mvt-label-group/index.html">MvtLabelGroup</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">labels<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="../earth.worldwind.shape/-label/index.html">Label</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">priorities<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int-array/index.html">IntArray</a><span class="token punctuation">, </span></span><span class="parameter ">pixelSizes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int-array/index.html">IntArray</a><span class="token punctuation">, </span></span><span class="parameter ">widths<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-float-array/index.html">FloatArray</a><span class="token punctuation">, </span></span><span class="parameter ">minZooms<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int-array/index.html">IntArray</a><span class="token punctuation">, </span></span><span class="parameter ">featureIds<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long-array/index.html">LongArray</a><span class="token punctuation">, </span></span><span class="parameter ">displayName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span> : <a href="../earth.worldwind.render/-abstract-renderable/index.html">AbstractRenderable</a></div><div class="brief "><p class="paragraph">Per-tile bundle of <a href="../earth.worldwind.shape/-label/index.html">Label</a>s for one slippy tile, plus parallel priority and pixel-size arrays that the layer's cross-tile collision pass reads. The pass writes <a href="-mvt-label-group/enabled-mask.html">enabledMask</a>; <span data-unresolved-link="earth.worldwind.layer.mvt/MvtLabelGroup/doRender/#earth.worldwind.render.RenderContext/PointingToDeclaration/">doRender</span> then emits only the masked survivors. All collision / dedup / budget logic lives in <span data-unresolved-link="earth.worldwind.layer.mvt/MvtLabelCollider///PointingToDeclaration/">MvtLabelCollider</span> as one global pass per frame, so groups never collide per-tile.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-692635470%2FClasslikes%2F-405091373" anchor-label="MvtLayer" id="-692635470%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-layer/index.html"><span>Mvt</span><wbr></wbr><span><span>Layer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-692635470%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-mvt-layer/index.html">MvtLayer</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>name<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>version<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>extent<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>keys<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>values<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>features<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="-mvt-feature/index.html">MvtFeature</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">One named layer inside an MVT tile (e.g. <code class="lang-kotlin">water</code>, <code class="lang-kotlin">transportation</code>, <code class="lang-kotlin">building</code>).</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="955381966%2FClasslikes%2F-405091373" anchor-label="MvtMapboxStyleLoader" id="955381966%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-mapbox-style-loader/index.html"><span>Mvt</span><wbr></wbr><span>Mapbox</span><wbr></wbr><span>Style</span><wbr></wbr><span><span>Loader</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="955381966%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="-mvt-mapbox-style-loader/index.html">MvtMapboxStyleLoader</a></div><div class="brief "><p class="paragraph">Parser for a <strong>subset</strong> of the Mapbox GL Style Specification, producing an <a href="-mvt-rule-based-style/index.html">MvtRuleBasedStyle</a> usable with <a href="-mvt-vector-layer/index.html">MvtVectorLayer</a>. The intent is &quot;drop in a hand-authored style.json or a downloaded one from Maptiler/Mapbox and have it just work for typical basemap use cases&quot; — not full spec fidelity.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-715667326%2FClasslikes%2F-405091373" anchor-label="MvtPaintBuilder" id="-715667326%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-paint-builder/index.html"><span>Mvt</span><wbr></wbr><span>Paint</span><wbr></wbr><span><span>Builder</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-715667326%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-mvt-paint-builder/index.html">MvtPaintBuilder</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1596963836%2FClasslikes%2F-405091373" anchor-label="MvtPerfHudLayer" id="1596963836%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-perf-hud-layer/index.html"><span>Mvt</span><wbr></wbr><span>Perf</span><wbr></wbr><span>Hud</span><wbr></wbr><span><span>Layer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1596963836%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-mvt-perf-hud-layer/index.html">MvtPerfHudLayer</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">target<span class="token operator">: </span><a href="-mvt-vector-layer/index.html">MvtVectorLayer</a><span class="token punctuation">, </span></span><span class="parameter ">xOffsetDp<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token operator"> = </span><span class="token constant">8.0</span><span class="token punctuation">, </span></span><span class="parameter ">yOffsetDp<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token operator"> = </span><span class="token constant">48.0</span><span class="token punctuation">, </span></span><span class="parameter ">displayName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span><span class="token string">&quot;MVT Perf HUD&quot;</span></span></span><span class="token punctuation">)</span> : <a href="../earth.worldwind.layer/-abstract-layer/index.html">AbstractLayer</a></div><div class="brief "><p class="paragraph">Diagnostic overlay that reports the <span data-unresolved-link="earth.worldwind.layer.mvt/MvtPerfHudLayer//#earth.worldwind.layer.mvt.MvtVectorLayer#kotlin.Double#kotlin.Double#kotlin.String/PointingToCallableParameters(0)/">target</span> layer's tile-cache and schema state. Useful during MVT style/source tuning — drop it next to the <a href="-mvt-vector-layer/index.html">MvtVectorLayer</a> in the engine's layer list and the corner of the viewport reports:</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-837746355%2FClasslikes%2F-405091373" anchor-label="MvtPickedFeature" id="-837746355%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-picked-feature/index.html"><span>Mvt</span><wbr></wbr><span>Picked</span><wbr></wbr><span><span>Feature</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-837746355%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-mvt-picked-feature/index.html">MvtPickedFeature</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>layerName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>geometryType<span class="token operator">: </span><a href="-mvt-geometry-type/index.html">MvtGeometryType</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>tile<span class="token operator">: </span><a href="-mvt-vector-layer/-tile-key/index.html">MvtVectorLayer.TileKey</a><span class="token punctuation">, </span></span><span class="parameter ">tags<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int-array/index.html">IntArray</a><span class="token punctuation">, </span></span><span class="parameter ">keys<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">values<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Payload exposed via <a href="../earth.worldwind/-picked-object/user-object.html">earth.worldwind.PickedObject.userObject</a> when a vector-tile feature is picked. Carries the original MVT layer name, geometry type, and (lazily) the inflated property map so an app can <code class="lang-kotlin">pickedObject.userObject as? MvtPickedFeature</code> and read e.g. the feature's <code class="lang-kotlin">name</code> or <code class="lang-kotlin">kind</code> to drive an info panel.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1822737189%2FClasslikes%2F-405091373" anchor-label="MvtRuleBasedStyle" id="1822737189%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-rule-based-style/index.html"><span>Mvt</span><wbr></wbr><span>Rule</span><wbr></wbr><span>Based</span><wbr></wbr><span><span>Style</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1822737189%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-mvt-rule-based-style/index.html">MvtRuleBasedStyle</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>rules<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="-mvt-style-rule/index.html">MvtStyleRule</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>backgroundColor<span class="token operator">: </span><a href="../earth.worldwind.render/-color/index.html">Color</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span> : <a href="-mvt-style/index.html">MvtStyle</a></div><div class="brief "><p class="paragraph">Style backed by an ordered list of <a href="-mvt-style-rule/index.html">MvtStyleRule</a>s. For each feature, iterates rules in order and returns the first match's resolved attributes. The same first match's <a href="-mvt-style-rule/z-order.html">MvtStyleRule.zOrder</a> is reported from <a href="-mvt-rule-based-style/z-order-for.html">zOrderFor</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-652295356%2FClasslikes%2F-405091373" anchor-label="MvtRuleBuilder" id="-652295356%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-rule-builder/index.html"><span>Mvt</span><wbr></wbr><span>Rule</span><wbr></wbr><span><span>Builder</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-652295356%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-mvt-rule-builder/index.html">MvtRuleBuilder</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">sourceLayer<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-414332648%2FClasslikes%2F-405091373" anchor-label="MvtSchemaDetector" id="-414332648%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-schema-detector/index.html"><span>Mvt</span><wbr></wbr><span>Schema</span><wbr></wbr><span><span>Detector</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-414332648%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="-mvt-schema-detector/index.html">MvtSchemaDetector</a></div><div class="brief "><p class="paragraph">Identifies which vector-tile schema a decoded <a href="-mvt-tile/index.html">MvtTile</a> follows by inspecting its layer names. Useful for auto-selecting a compatible style — feeding an OpenMapTiles tile to a Shortbread style (or vice versa) produces a mostly-empty map because almost no layer names line up.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-826189475%2FClasslikes%2F-405091373" anchor-label="MvtSpriteAtlas" id="-826189475%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-sprite-atlas/index.html"><span>Mvt</span><wbr></wbr><span>Sprite</span><wbr></wbr><span><span>Atlas</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-826189475%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-mvt-sprite-atlas/index.html">MvtSpriteAtlas</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>entries<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="-mvt-sprite-entry/index.html">MvtSpriteEntry</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>imageBytes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-byte-array/index.html">ByteArray</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Mapbox sprite atlas: PNG bytes + JSON manifest. The PNG packs N icons into a single image and the manifest maps each icon name → its (x, y, width, height) sub-rectangle. The platform-specific <a href="-mvt-sprite-atlas/icon-factory.html">iconFactory</a> decodes the atlas once and crops per-icon on demand.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="74333066%2FClasslikes%2F-405091373" anchor-label="MvtSpriteAtlasLoader" id="74333066%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-sprite-atlas-loader/index.html"><span>Mvt</span><wbr></wbr><span>Sprite</span><wbr></wbr><span>Atlas</span><wbr></wbr><span><span>Loader</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="74333066%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="-mvt-sprite-atlas-loader/index.html">MvtSpriteAtlasLoader</a></div><div class="brief "><p class="paragraph">Fetches a Mapbox sprite atlas (<code class="lang-kotlin">&lt;stem&gt;.json</code> manifest + <code class="lang-kotlin">&lt;stem&gt;.png</code> packed image) from a URL stem and returns a populated <a href="-mvt-sprite-atlas/index.html">MvtSpriteAtlas</a>. The two fetches run sequentially — sprite endpoints typically serve both responses from the same edge node so concurrency doesn't save much round-trip time.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="966195030%2FClasslikes%2F-405091373" anchor-label="MvtSpriteEntry" id="966195030%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-sprite-entry/index.html"><span>Mvt</span><wbr></wbr><span>Sprite</span><wbr></wbr><span><span>Entry</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="966195030%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-mvt-sprite-entry/index.html">MvtSpriteEntry</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>name<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>x<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>y<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>width<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>height<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>pixelRatio<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token operator"> = </span><span class="token constant">1.0</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>content<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int-array/index.html">IntArray</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>sdf<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">false</span></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">One icon's slice within a Mapbox-format sprite sheet: pixel rectangle within the atlas PNG plus optional <code class="lang-kotlin">pixelRatio</code> (<code class="lang-kotlin">@2x</code> / <code class="lang-kotlin">@3x</code> HiDPI variants ship the same icon at integer scales of the base; the renderer divides by pixelRatio when sizing the on-screen Placemark).</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1703681106%2FClasslikes%2F-405091373" anchor-label="MvtStyle" id="1703681106%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-style/index.html"><span>Mvt</span><wbr></wbr><span><span>Style</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1703681106%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><span class="token keyword">interface </span><a href="-mvt-style/index.html">MvtStyle</a></div><div class="brief "><p class="paragraph">Decides how each MVT feature should be drawn: for polygons and lines, what <a href="../earth.worldwind.shape/-shape-attributes/index.html">ShapeAttributes</a> to apply; <code class="lang-kotlin">null</code> skips the feature entirely.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1151918549%2FClasslikes%2F-405091373" anchor-label="MvtStyleBuilder" id="1151918549%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-style-builder/index.html"><span>Mvt</span><wbr></wbr><span>Style</span><wbr></wbr><span><span>Builder</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1151918549%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-mvt-style-builder/index.html">MvtStyleBuilder</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="660168051%2FClasslikes%2F-405091373" anchor-label="MvtStyleDsl" id="660168051%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-style-dsl/index.html"><span>Mvt</span><wbr></wbr><span>Style</span><wbr></wbr><span><span>Dsl</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="660168051%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-dsl-marker/index.html"><span class="token annotation builtin">DslMarker</span></a></div></div><span class="token keyword">annotation class </span><a href="-mvt-style-dsl/index.html">MvtStyleDsl</a></div><div class="brief "><p class="paragraph">Type-safe builder DSL for <a href="-mvt-rule-based-style/index.html">MvtRuleBasedStyle</a>. Lets a style read as a flat list of declarations:</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1320511254%2FClasslikes%2F-405091373" anchor-label="MvtStyleParseException" id="1320511254%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-style-parse-exception/index.html"><span>Mvt</span><wbr></wbr><span>Style</span><wbr></wbr><span>Parse</span><wbr></wbr><span><span>Exception</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1320511254%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-mvt-style-parse-exception/index.html">MvtStyleParseException</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">message<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span> : <a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-runtime-exception/index.html">RuntimeException</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-921006026%2FClasslikes%2F-405091373" anchor-label="MvtStyleRule" id="-921006026%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-style-rule/index.html"><span>Mvt</span><wbr></wbr><span>Style</span><wbr></wbr><span><span>Rule</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-921006026%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-mvt-style-rule/index.html">MvtStyleRule</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>sourceLayer<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>filter<span class="token operator">: </span><a href="-mvt-filter/index.html">MvtFilter</a><span class="token operator"> = </span>MvtFilter.Always<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>minZoom<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">0</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>maxZoom<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span>Int.MAX_VALUE<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>zOrder<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">0</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>geometryType<span class="token operator">: </span><a href="-mvt-geometry-type/index.html">MvtGeometryType</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>paint<span class="token operator">: </span><a href="-mvt-style-rule/-paint-spec/index.html">MvtStyleRule.PaintSpec</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">One declarative rule in an <a href="-mvt-rule-based-style/index.html">MvtRuleBasedStyle</a>. Matches features by source layer name, optional <span data-unresolved-link="earth.worldwind.layer.mvt/MvtStyleRule//#kotlin.String#earth.worldwind.layer.mvt.MvtFilter#kotlin.Int#kotlin.Int#kotlin.Int#earth.worldwind.layer.mvt.MvtGeometryType?#earth.worldwind.layer.mvt.MvtStyleRule.PaintSpec/PointingToCallableParameters(1)/">filter</span> over properties, and tile-zoom range, then resolves zoom-interpolated paint properties into a <a href="../earth.worldwind.shape/-shape-attributes/index.html">ShapeAttributes</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1858966155%2FClasslikes%2F-405091373" anchor-label="MvtTextBuilder" id="-1858966155%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-text-builder/index.html"><span>Mvt</span><wbr></wbr><span>Text</span><wbr></wbr><span><span>Builder</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1858966155%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-mvt-text-builder/index.html">MvtTextBuilder</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-284304815%2FClasslikes%2F-405091373" anchor-label="MvtTile" id="-284304815%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-tile/index.html"><span>Mvt</span><wbr></wbr><span><span>Tile</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-284304815%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-mvt-tile/index.html">MvtTile</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>layers<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="-mvt-layer/index.html">MvtLayer</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Decoded Mapbox Vector Tile — the flat in-memory shape of <code class="lang-kotlin">Tile { repeated Layer }</code>. Each <a href="-mvt-layer/index.html">MvtLayer</a> holds its own dictionary of property keys/values plus a list of features whose geometry stream is still in tile-local extent coordinates. Ring grouping, geometry-type- specific handling, and Mercator unprojection happen in <a href="-mvt-geometry/index.html">MvtGeometry</a>, not here.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="251527509%2FClasslikes%2F-405091373" anchor-label="MvtVectorLayer" id="251527509%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-vector-layer/index.html"><span>Mvt</span><wbr></wbr><span>Vector</span><wbr></wbr><span><span>Layer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="251527509%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">class </span><a href="-mvt-vector-layer/index.html">MvtVectorLayer</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">var </span>source<span class="token operator">: </span><a href="../earth.worldwind.layer.source/-tile-source/index.html">TileSource</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>minZoom<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">0</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>maxZoom<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">14</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>maxLoadedTiles<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">256</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>maxConcurrentFetches<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">4</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>maxConcurrentAssembly<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">4</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>simplifyGeometry<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">true</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>simplifyMaxZoom<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">12</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>useBatchedRendering<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">true</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">var </span>style<span class="token operator">: </span><a href="-mvt-style/index.html">MvtStyle</a><span class="token operator"> = </span>DefaultMvtStyle<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">var </span>spriteAtlas<span class="token operator">: </span><a href="-mvt-sprite-atlas/index.html">MvtSpriteAtlas</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter ">displayName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span><span class="token string">&quot;Vector Tiles&quot;</span></span></span><span class="token punctuation">)</span> : <a href="../earth.worldwind.layer.mercator/-mercator-tiled-vector-layer/index.html">MercatorTiledVectorLayer</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="../earth.worldwind.render/-renderable/index.html">Renderable</a><span class="token operator">&gt;</span><span class="token operator">&gt; </span></div><div class="brief "><p class="paragraph">Renders Mapbox Vector Tile (MVT) data as flat surface-draped polygons and polylines.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2137697240%2FClasslikes%2F-405091373" anchor-label="MvtZoomInterp" id="2137697240%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mvt-zoom-interp/index.html"><span>Mvt</span><wbr></wbr><span>Zoom</span><wbr></wbr><span><span>Interp</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2137697240%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="-mvt-zoom-interp/index.html">MvtZoomInterp</a></div><div class="brief "><p class="paragraph">Convenience constructors for the most common expression shape — linear interpolation over <code class="lang-kotlin">(zoom, value)</code> stops, or a constant. Each factory returns an <a href="-mvt-expression/index.html">MvtExpression</a> that fits directly into a paint-property slot.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="241263980%2FClasslikes%2F-405091373" anchor-label="OpenTopoMapMvtStyle" id="241263980%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-open-topo-map-mvt-style/index.html"><span>Open</span><wbr></wbr><span>Topo</span><wbr></wbr><span>Map</span><wbr></wbr><span>Mvt</span><wbr></wbr><span><span>Style</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="241263980%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="-open-topo-map-mvt-style/index.html">OpenTopoMapMvtStyle</a> : <a href="-mvt-style/index.html">MvtStyle</a></div><div class="brief "><p class="paragraph">Hand-coded <a href="-mvt-style/index.html">MvtStyle</a> that approximates the palette of <a href="https://opentopomap.org/">OpenTopoMap</a> for MVT sources following the OpenMapTiles v3 schema (Versatiles, Maptiler, self-hosted OpenMapTiles). Reference implementation for the imperative-DSL approach — for the same look with zoom-interpolation and labels, use the rule-based <a href="-open-topo-map-rules.html">OpenTopoMapRules</a> instead.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1324321869%2FClasslikes%2F-405091373" anchor-label="UrlTemplateMvtTileSource" id="1324321869%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-url-template-mvt-tile-source/index.html"><span>Url</span><wbr></wbr><span>Template</span><wbr></wbr><span>Mvt</span><wbr></wbr><span>Tile</span><wbr></wbr><span><span>Source</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1324321869%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-url-template-mvt-tile-source/index.html">UrlTemplateMvtTileSource</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>urlTemplate<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">headers<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token operator"> = </span>emptyMap()<span class="token punctuation">, </span></span><span class="parameter ">connectTimeoutMs<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token operator"> = </span>5.seconds.inWholeMilliseconds<span class="token punctuation">, </span></span><span class="parameter ">requestTimeoutMs<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token operator"> = </span>30.seconds.inWholeMilliseconds<span class="token punctuation">, </span></span><span class="parameter ">clientConfig<span class="token operator">: </span><span data-unresolved-link="io.ktor.client/HttpClientConfig///PointingToDeclaration/">HttpClientConfig</span><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a><span class="token operator"> = </span>{}</span></span><span class="token punctuation">)</span> : <a href="../earth.worldwind.layer.cache/-http-tile-source/index.html">HttpTileSource</a></div><div class="brief "><p class="paragraph">URL-template-based <a href="../earth.worldwind.layer.cache/-http-tile-source/index.html">HttpTileSource</a> for Mapbox Vector Tile servers. The template uses <code class="lang-kotlin">{z}</code>, <code class="lang-kotlin">{x}</code>, <code class="lang-kotlin">{y}</code> placeholders, matching the slippy-map convention used by every major vector-tile provider:</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="-1967415301%2FProperties%2F647801947" anchor-label="mvtAssemblyDispatcher" id="-1967415301%2FProperties%2F647801947" data-filterable-set=":worldwind/androidMain,:worldwind/commonMain,:worldwind/iosMain,:worldwind/jvmMain,:worldwind/webMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/androidMain,:worldwind/commonMain,:worldwind/iosMain,:worldwind/jvmMain,:worldwind/webMain" data-filterable-set=":worldwind/androidMain,:worldwind/commonMain,:worldwind/iosMain,:worldwind/jvmMain,:worldwind/webMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="mvt-assembly-dispatcher.html"><span>mvt</span><wbr></wbr><span>Assembly</span><wbr></wbr><span><span>Dispatcher</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1967415301%2FProperties%2F647801947"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/androidMain" data-filterable-set=":worldwind/androidMain" data-active="" data-toggle=":worldwind/androidMain">android</button><button class="platform-bookmark" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain" data-toggle=":worldwind/commonMain">common</button><button class="platform-bookmark" data-filterable-current=":worldwind/iosMain" data-filterable-set=":worldwind/iosMain" data-toggle=":worldwind/iosMain">ios</button><button class="platform-bookmark" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain" data-toggle=":worldwind/jvmMain">jvm</button><button class="platform-bookmark" data-filterable-current=":worldwind/webMain" data-filterable-set=":worldwind/webMain" data-toggle=":worldwind/webMain">web</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/androidMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">val </span><a href="mvt-assembly-dispatcher.html">mvtAssemblyDispatcher</a><span class="token operator">: </span><span data-unresolved-link="kotlinx.coroutines/CoroutineDispatcher///PointingToDeclaration/">CoroutineDispatcher</span></div><div class="brief "><p class="paragraph">Low-priority dispatcher for the CPU-heavy MVT decode + tessellation, so the OS scheduler hands cores to the render/GL threads first. Background-priority threads on Android, MIN_PRIORITY on the JVM, plain default elsewhere. Shared process-wide; the per-layer assembly semaphore still bounds concurrency.</p></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">expect </span><span class="token keyword">val </span><a href="mvt-assembly-dispatcher.html">mvtAssemblyDispatcher</a><span class="token operator">: </span><span data-unresolved-link="kotlinx.coroutines/CoroutineDispatcher///PointingToDeclaration/">CoroutineDispatcher</span></div><div class="brief "><p class="paragraph">Low-priority dispatcher for the CPU-heavy MVT decode + tessellation, so the OS scheduler hands cores to the render/GL threads first. Background-priority threads on Android, MIN_PRIORITY on the JVM, plain default elsewhere. Shared process-wide; the per-layer assembly semaphore still bounds concurrency.</p></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/iosMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">val </span><a href="mvt-assembly-dispatcher.html">mvtAssemblyDispatcher</a><span class="token operator">: </span><span data-unresolved-link="kotlinx.coroutines/CoroutineDispatcher///PointingToDeclaration/">CoroutineDispatcher</span></div><div class="brief "><p class="paragraph">Low-priority dispatcher for the CPU-heavy MVT decode + tessellation, so the OS scheduler hands cores to the render/GL threads first. Background-priority threads on Android, MIN_PRIORITY on the JVM, plain default elsewhere. Shared process-wide; the per-layer assembly semaphore still bounds concurrency.</p></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/jvmMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">val </span><a href="mvt-assembly-dispatcher.html">mvtAssemblyDispatcher</a><span class="token operator">: </span><span data-unresolved-link="kotlinx.coroutines/CoroutineDispatcher///PointingToDeclaration/">CoroutineDispatcher</span></div><div class="brief "><p class="paragraph">Low-priority dispatcher for the CPU-heavy MVT decode + tessellation, so the OS scheduler hands cores to the render/GL threads first. Background-priority threads on Android, MIN_PRIORITY on the JVM, plain default elsewhere. Shared process-wide; the per-layer assembly semaphore still bounds concurrency.</p></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/webMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">val </span><a href="mvt-assembly-dispatcher.html">mvtAssemblyDispatcher</a><span class="token operator">: </span><span data-unresolved-link="kotlinx.coroutines/CoroutineDispatcher///PointingToDeclaration/">CoroutineDispatcher</span></div><div class="brief "><p class="paragraph">Low-priority dispatcher for the CPU-heavy MVT decode + tessellation, so the OS scheduler hands cores to the render/GL threads first. Background-priority threads on Android, MIN_PRIORITY on the JVM, plain default elsewhere. Shared process-wide; the per-layer assembly semaphore still bounds concurrency.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1608945864%2FProperties%2F-405091373" anchor-label="OpenTopoMapRules" id="1608945864%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-open-topo-map-rules.html"><span>Open</span><wbr></wbr><span>Topo</span><wbr></wbr><span>Map</span><wbr></wbr><span><span>Rules</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1608945864%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-open-topo-map-rules.html">OpenTopoMapRules</a><span class="token operator">: </span><a href="-mvt-rule-based-style/index.html">MvtRuleBasedStyle</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="351959323%2FFunctions%2F647801947" anchor-label="curvedGlyphAdvanceScale" id="351959323%2FFunctions%2F647801947" data-filterable-set=":worldwind/androidMain,:worldwind/commonMain,:worldwind/iosMain,:worldwind/jvmMain,:worldwind/webMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/androidMain,:worldwind/commonMain,:worldwind/iosMain,:worldwind/jvmMain,:worldwind/webMain" data-filterable-set=":worldwind/androidMain,:worldwind/commonMain,:worldwind/iosMain,:worldwind/jvmMain,:worldwind/webMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="curved-glyph-advance-scale.html"><span>curved</span><wbr></wbr><span>Glyph</span><wbr></wbr><span>Advance</span><wbr></wbr><span><span>Scale</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="351959323%2FFunctions%2F647801947"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/androidMain" data-filterable-set=":worldwind/androidMain" data-active="" data-toggle=":worldwind/androidMain">android</button><button class="platform-bookmark" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain" data-toggle=":worldwind/commonMain">common</button><button class="platform-bookmark" data-filterable-current=":worldwind/iosMain" data-filterable-set=":worldwind/iosMain" data-toggle=":worldwind/iosMain">ios</button><button class="platform-bookmark" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain" data-toggle=":worldwind/jvmMain">jvm</button><button class="platform-bookmark" data-filterable-current=":worldwind/webMain" data-filterable-set=":worldwind/webMain" data-toggle=":worldwind/webMain">web</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/androidMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">fun </span><a href="curved-glyph-advance-scale.html"><span class="token function">curvedGlyphAdvanceScale</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">rc<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.render/RenderContext///PointingToDeclaration/">RenderContext</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-float/index.html">Float</a></div><div class="brief "><p class="paragraph">Factor converting <a href="../earth.worldwind.render/-font/measure-chars.html">earth.worldwind.render.Font.measureChars</a> advances (logical pixels) into the units of the rendered glyph bitmaps and the projected screen polyline. On platforms whose TextRenderer density-scales the glyph bitmap and projects into a device-pixel viewport (JVM, iOS, web) this is <span data-unresolved-link="earth.worldwind.render/RenderContext/densityFactor/#/PointingToDeclaration/">RenderContext.densityFactor</span>; on platforms that rasterise text at logical size (Android) it is 1.</p></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">expect </span><span class="token keyword">fun </span><a href="curved-glyph-advance-scale.html"><span class="token function">curvedGlyphAdvanceScale</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">rc<span class="token operator">: </span><a href="../earth.worldwind.render/-render-context/index.html">RenderContext</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-float/index.html">Float</a></div><div class="brief "><p class="paragraph">Factor converting <a href="../earth.worldwind.render/-font/measure-chars.html">earth.worldwind.render.Font.measureChars</a> advances (logical pixels) into the units of the rendered glyph bitmaps and the projected screen polyline. On platforms whose TextRenderer density-scales the glyph bitmap and projects into a device-pixel viewport (JVM, iOS, web) this is <a href="../earth.worldwind.render/-render-context/density-factor.html">RenderContext.densityFactor</a>; on platforms that rasterise text at logical size (Android) it is 1.</p></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/iosMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">fun </span><a href="curved-glyph-advance-scale.html"><span class="token function">curvedGlyphAdvanceScale</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">rc<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.render/RenderContext///PointingToDeclaration/">RenderContext</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-float/index.html">Float</a></div><div class="brief "><p class="paragraph">Factor converting <a href="../earth.worldwind.render/-font/measure-chars.html">earth.worldwind.render.Font.measureChars</a> advances (logical pixels) into the units of the rendered glyph bitmaps and the projected screen polyline. On platforms whose TextRenderer density-scales the glyph bitmap and projects into a device-pixel viewport (JVM, iOS, web) this is <span data-unresolved-link="earth.worldwind.render/RenderContext/densityFactor/#/PointingToDeclaration/">RenderContext.densityFactor</span>; on platforms that rasterise text at logical size (Android) it is 1.</p></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/jvmMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">fun </span><a href="curved-glyph-advance-scale.html"><span class="token function">curvedGlyphAdvanceScale</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">rc<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.render/RenderContext///PointingToDeclaration/">RenderContext</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-float/index.html">Float</a></div><div class="brief "><p class="paragraph">Factor converting <a href="../earth.worldwind.render/-font/measure-chars.html">earth.worldwind.render.Font.measureChars</a> advances (logical pixels) into the units of the rendered glyph bitmaps and the projected screen polyline. On platforms whose TextRenderer density-scales the glyph bitmap and projects into a device-pixel viewport (JVM, iOS, web) this is <span data-unresolved-link="earth.worldwind.render/RenderContext/densityFactor/#/PointingToDeclaration/">RenderContext.densityFactor</span>; on platforms that rasterise text at logical size (Android) it is 1.</p></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/webMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">fun </span><a href="curved-glyph-advance-scale.html"><span class="token function">curvedGlyphAdvanceScale</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">rc<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.render/RenderContext///PointingToDeclaration/">RenderContext</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-float/index.html">Float</a></div><div class="brief "><p class="paragraph">Factor converting <a href="../earth.worldwind.render/-font/measure-chars.html">earth.worldwind.render.Font.measureChars</a> advances (logical pixels) into the units of the rendered glyph bitmaps and the projected screen polyline. On platforms whose TextRenderer density-scales the glyph bitmap and projects into a device-pixel viewport (JVM, iOS, web) this is <span data-unresolved-link="earth.worldwind.render/RenderContext/densityFactor/#/PointingToDeclaration/">RenderContext.densityFactor</span>; on platforms that rasterise text at logical size (Android) it is 1.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1887707325%2FFunctions%2F-405091373" anchor-label="eq" id="-1887707325%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="eq.html"><span><span>eq</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1887707325%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="eq.html"><span class="token function">eq</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-mvt-filter/index.html">MvtFilter</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1223594844%2FFunctions%2F-405091373" anchor-label="isIn" id="-1223594844%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="is-in.html"><span>is</span><wbr></wbr><span><span>In</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1223594844%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="is-in.html"><span class="token function">isIn</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">values<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-set/index.html">Set</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-mvt-filter/index.html">MvtFilter</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-375662345%2FFunctions%2F-405091373" anchor-label="mvtStyle" id="-375662345%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="mvt-style.html"><span>mvt</span><wbr></wbr><span><span>Style</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-375662345%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="mvt-style.html"><span class="token function">mvtStyle</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">block<span class="token operator">: </span><a href="-mvt-style-builder/index.html">MvtStyleBuilder</a><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-mvt-rule-based-style/index.html">MvtRuleBasedStyle</a></div><div class="brief "><p class="paragraph">Top-level DSL entry: build an <a href="-mvt-rule-based-style/index.html">MvtRuleBasedStyle</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2058724636%2FFunctions%2F-405091373" anchor-label="notEq" id="2058724636%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="not-eq.html"><span>not</span><wbr></wbr><span><span>Eq</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2058724636%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="not-eq.html"><span class="token function">notEq</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-mvt-filter/index.html">MvtFilter</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>(c) WorldWind Earth</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

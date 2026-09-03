@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>earth.worldwind.layer.ogc3d</title>
+    <link href="../../images/logo-icon.svg" rel="icon" type="image/svg">
+        <script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async="async"></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async="async"></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async="async"></script>
+<script type="text/javascript" src="../../scripts/main.js" defer="defer"></script>
+<script type="text/javascript" src="../../scripts/prism.js" async="async"></script>
+<script type="text/javascript" src="../../ui-kit/ui-kit.min.js" defer="defer"></script>
+</head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+            <a class="library-name--link" href="../../index.html" tabindex="1">
+                    WorldWind Kotlin
+            </a>
+        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle"
+                type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+2.1.0        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector common-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/commonMain">common</button>
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/jvmCommonMain">jvmCommon</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox"
+                        data-role="dropdown-toggle"
+                        aria-controls="platform-tags-listbox"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-label="Toggle source sets"
+                ></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/commonMain"
+                                       data-filter=":worldwind/commonMain"/>
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/jvmCommonMain"
+                                       data-filter=":worldwind/jvmCommonMain"/>
+                                <span class="checkbox--icon"></span>
+                                jvmCommon
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button"
+                    type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config='{"defaultSize": 280, "minSize": 200, "maxSize": 400}'>
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list"
+                    data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    WorldWind Kotlin
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="package" id="content" pageIds="WorldWind Kotlin::earth.worldwind.layer.ogc3d////PointingToDeclaration//1101327604">
+  <div class="breadcrumbs"><a href="../../index.html">WorldWind Kotlin</a><span class="delimiter">/</span><span class="current">earth.worldwind.layer.ogc3d</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="TYPE">Types</button><button class="section-tab" data-togglable="FUNCTION,EXTENSION_FUNCTION">Functions</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="-859646516%2FClasslikes%2F-405091373" anchor-label="BatchedFeature" id="-859646516%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-batched-feature/index.html"><span>Batched</span><wbr></wbr><span><span>Feature</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-859646516%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-batched-feature/index.html">BatchedFeature</a></div><div class="brief "><p class="paragraph">One picked feature from a batch-table tile. <code class="lang-kotlin">PickedObject.userObject</code> when batch picking is active; the surrounding PickedObject still carries the world-space hit.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1866788811%2FClasslikes%2F-405091373" anchor-label="DracoPointCloud" id="-1866788811%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-draco-point-cloud/index.html"><span>Draco</span><wbr></wbr><span>Point</span><wbr></wbr><span><span>Cloud</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1866788811%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-draco-point-cloud/index.html">DracoPointCloud</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>positions<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-float-array/index.html">FloatArray</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>colors<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-float-array/index.html">FloatArray</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>positionsCount<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span>positions.size / 3<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>colorsCount<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span>(colors?.size ?: 0) / 4</span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Decoded point cloud. <span data-unresolved-link="earth.worldwind.layer.ogc3d/DracoPointCloud//#kotlin.FloatArray#kotlin.FloatArray?#kotlin.Int#kotlin.Int/PointingToCallableParameters(0)/">positions</span> / <span data-unresolved-link="earth.worldwind.layer.ogc3d/DracoPointCloud//#kotlin.FloatArray#kotlin.FloatArray?#kotlin.Int#kotlin.Int/PointingToCallableParameters(1)/">colors</span> may be pool-backed and longer than the valid span — readers must respect <span data-unresolved-link="earth.worldwind.layer.ogc3d/DracoPointCloud//#kotlin.FloatArray#kotlin.FloatArray?#kotlin.Int#kotlin.Int/PointingToCallableParameters(2)/">positionsCount</span> / <span data-unresolved-link="earth.worldwind.layer.ogc3d/DracoPointCloud//#kotlin.FloatArray#kotlin.FloatArray?#kotlin.Int#kotlin.Int/PointingToCallableParameters(3)/">colorsCount</span> (in points).</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-575341559%2FClasslikes%2F-405091373" anchor-label="DracoPointCloudDecoder" id="-575341559%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-draco-point-cloud-decoder/index.html"><span>Draco</span><wbr></wbr><span>Point</span><wbr></wbr><span>Cloud</span><wbr></wbr><span><span>Decoder</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-575341559%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-draco-point-cloud-decoder/index.html">DracoPointCloudDecoder</a></div><div class="brief "><p class="paragraph">Pluggable codec for the <code class="lang-kotlin">3DTILES_draco_point_compression</code> PNTS extension. Wired in by the <code class="lang-kotlin">worldwind-formats-gltf-draco</code> module's <code class="lang-kotlin">installDracoDecoder()</code>, which shares its native bridge with the glTF mesh path. Implementations must be thread-safe.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="655954052%2FClasslikes%2F-405091373" anchor-label="Ogc3dDecoderRegistry" id="655954052%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-ogc3d-decoder-registry/index.html"><span>Ogc3d</span><wbr></wbr><span>Decoder</span><wbr></wbr><span><span>Registry</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="655954052%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="-ogc3d-decoder-registry/index.html">Ogc3dDecoderRegistry</a></div><div class="brief "><p class="paragraph">Process-level registry of 3D-Tiles-specific pluggable extensions. Apps wire concrete implementations once at startup; the engine reads the registry from the streaming + render hot path without per-layer plumbing.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1264614767%2FClasslikes%2F-405091373" anchor-label="Ogc3dTilesLayer" id="-1264614767%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-ogc3d-tiles-layer/index.html"><span>Ogc3d</span><wbr></wbr><span>Tiles</span><wbr></wbr><span><span>Layer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1264614767%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">class </span><a href="-ogc3d-tiles-layer/index.html">Ogc3dTilesLayer</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>source<span class="token operator">: </span><a href="-tileset-source/index.html">TilesetSource</a><span class="token punctuation">, </span></span><span class="parameter ">displayName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>source.displayName<span class="token punctuation">, </span></span><span class="parameter ">blobStore<span class="token operator">: </span><a href="../earth.worldwind.layer.cache/-blob-store/index.html">BlobStore</a><span class="token operator"> = </span>NoOpBlobStore<span class="token punctuation">, </span></span><span class="parameter ">fetchConcurrency<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">8</span><span class="token punctuation">, </span></span><span class="parameter ">byteSource<span class="token operator">: </span><a href="../earth.worldwind.layer.ogc3d.stream/-tile-byte-source/index.html">TileByteSource</a><span class="token operator"> = </span>HttpTileByteSource()</span></span><span class="token punctuation">)</span> : <a href="../earth.worldwind.layer/-abstract-layer/index.html">AbstractLayer</a></div><div class="brief "><p class="paragraph">OGC / Cesium 3D Tiles layer. Streams b3dm / i3dm / cmpt / pnts / glTF / Gaussian-splat payloads from a self-hosted endpoint, Cesium Ion, Google Photorealistic, or any custom-headers / Bearer-authenticated endpoint via <a href="-tileset-source/auth-provider.html">TilesetSource.authProvider</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-19778084%2FClasslikes%2F-1022326867" anchor-label="SlpkLayer" id="-19778084%2FClasslikes%2F-1022326867" data-filterable-set=":worldwind/jvmCommonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-slpk-layer/index.html"><span>Slpk</span><wbr></wbr><span><span>Layer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-19778084%2FClasslikes%2F-1022326867"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain" data-active="" data-toggle=":worldwind/jvmCommonMain">jvmCommon</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmCommonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-slpk-layer/index.html">SlpkLayer</a> : <span data-unresolved-link="earth.worldwind.layer.ogc3d/Ogc3dTilesLayer///PointingToDeclaration/">Ogc3dTilesLayer</span></div><div class="brief "><p class="paragraph">Renders an ArcGIS <strong>SLPK</strong> (I3S Scene Layer Package) opened in place from a local file — no extraction or copy, so 5-15 GB packages work on device (see <a href="../earth.worldwind.formats.archive/-zip-file-archive/index.html">ZipFileArchive</a>).</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1760648822%2FClasslikes%2F-405091373" anchor-label="TilesetSource" id="-1760648822%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-tileset-source/index.html"><span>Tileset</span><wbr></wbr><span><span>Source</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1760648822%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-tileset-source/index.html">TilesetSource</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>rootUri<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>authProvider<span class="token operator">: </span><a href="../earth.worldwind.layer.ogc3d.auth/-tileset-auth-provider/index.html">TilesetAuthProvider</a><span class="token operator"> = </span>NoAuthProvider<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>displayName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span>rootUri</span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Identifies a 3D Tiles dataset: the absolute URI of its root document (<code class="lang-kotlin">tileset.json</code> for a self-hosted set; an asset-endpoint URL for Cesium Ion; <code class="lang-kotlin">root.json?key=...</code> for Google Photorealistic 3D Tiles) and the <a href="../earth.worldwind.layer.ogc3d.auth/-tileset-auth-provider/index.html">TilesetAuthProvider</a> used to authenticate every fetch the layer makes on its behalf.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="1285727561%2FFunctions%2F-1022326867" anchor-label="openArchived3dTilesLayer" id="1285727561%2FFunctions%2F-1022326867" data-filterable-set=":worldwind/jvmCommonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="open-archived3d-tiles-layer.html"><span>open</span><wbr></wbr><span>Archived3d</span><wbr></wbr><span>Tiles</span><wbr></wbr><span><span>Layer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1285727561%2FFunctions%2F-1022326867"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain" data-active="" data-toggle=":worldwind/jvmCommonMain">jvmCommon</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmCommonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="open-archived3d-tiles-layer.html"><span class="token function">openArchived3dTilesLayer</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">file<span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/java/io/File.html">File</a><span class="token punctuation">, </span></span><span class="parameter ">rootEntry<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span><span class="token string">&quot;tileset.json&quot;</span><span class="token punctuation">, </span></span><span class="parameter ">displayName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span>file.name<span class="token punctuation">, </span></span><span class="parameter ">blobStore<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.layer.cache/BlobStore///PointingToDeclaration/">BlobStore</span><span class="token operator"> = </span>NoOpBlobStore<span class="token punctuation">, </span></span><span class="parameter ">fetchConcurrency<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">8</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="earth.worldwind.layer.ogc3d/Ogc3dTilesLayer///PointingToDeclaration/">Ogc3dTilesLayer</span></div><div class="brief "><p class="paragraph">Open a <strong>Cesium 3D Tiles Archive</strong> in place from a local file — a single-file package of an ordinary 3D Tiles dataset. Both container forms are auto-detected by magic bytes: <code class="lang-kotlin">.3tz</code> (a ZIP, via <a href="../earth.worldwind.formats.archive/-zip-file-archive/index.html">ZipFileArchive</a>) and <code class="lang-kotlin">.3dtiles</code> (a SQLite <code class="lang-kotlin">media(key, content)</code> DB, via <a href="../earth.worldwind.formats.archive/-sqlite3d-tiles-archive/index.html">Sqlite3dTilesArchive</a>).</p></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="open-archived3d-tiles-layer.html"><span class="token function">openArchived3dTilesLayer</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">path<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">rootEntry<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span><span class="token string">&quot;tileset.json&quot;</span><span class="token punctuation">, </span></span><span class="parameter ">displayName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter ">blobStore<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.layer.cache/BlobStore///PointingToDeclaration/">BlobStore</span><span class="token operator"> = </span>NoOpBlobStore<span class="token punctuation">, </span></span><span class="parameter ">fetchConcurrency<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">8</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="earth.worldwind.layer.ogc3d/Ogc3dTilesLayer///PointingToDeclaration/">Ogc3dTilesLayer</span></div><div class="brief "><p class="paragraph">Convenience overload accepting a filesystem path string.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1492353048%2FFunctions%2F-405091373" anchor-label="openOgc3dTilesLayer" id="-1492353048%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="open-ogc3d-tiles-layer.html"><span>open</span><wbr></wbr><span>Ogc3d</span><wbr></wbr><span>Tiles</span><wbr></wbr><span><span>Layer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1492353048%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">suspend </span><span class="token keyword">fun </span><a href="../earth.worldwind.util/-content-manager/index.html">ContentManager</a><span class="token punctuation">.</span><a href="open-ogc3d-tiles-layer.html"><span class="token function">openOgc3dTilesLayer</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">contentKey<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">authOverride<span class="token operator">: </span><a href="../earth.worldwind.layer.ogc3d.auth/-tileset-auth-provider/index.html">TilesetAuthProvider</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter ">evictionPolicy<span class="token operator">: </span><a href="../earth.worldwind.layer.cache/-cache-policy/index.html">CachePolicy</a><span class="token operator"> = </span>CachePolicy.UNBOUNDED</span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-ogc3d-tiles-layer/index.html">Ogc3dTilesLayer</a><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Reopen an <a href="-ogc3d-tiles-layer/index.html">Ogc3dTilesLayer</a> from a <a href="../earth.worldwind.util/-content-manager/index.html">ContentManager</a> entry registered by an earlier <code class="lang-kotlin">openBlobStore(...)</code> + <code class="lang-kotlin">registerWebService(...)</code> pair. Reads the persisted <a href="../earth.worldwind.layer.cache/-web-service-info/index.html">earth.worldwind.layer.cache.WebServiceInfo</a> (root URI in <code class="lang-kotlin">.address</code>, auth-provider class name in <code class="lang-kotlin">.layerName</code>, credentials JSON in <code class="lang-kotlin">.metadata</code>) and rebuilds the layer end-to-end so the caller only has to do <code class="lang-kotlin">engine.layers.addLayer(layer)</code>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>(c) WorldWind Earth</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

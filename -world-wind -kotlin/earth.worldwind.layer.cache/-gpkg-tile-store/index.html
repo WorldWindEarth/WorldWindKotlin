@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>GpkgTileStore</title>
+    <link href="../../../images/logo-icon.svg" rel="icon" type="image/svg">
+        <script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async="async"></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async="async"></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async="async"></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer="defer"></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async="async"></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer="defer"></script>
+</head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+            <a class="library-name--link" href="../../../index.html" tabindex="1">
+                    WorldWind Kotlin
+            </a>
+        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle"
+                type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+2.1.0        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/jvmCommonMain">jvmCommon</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox"
+                        data-role="dropdown-toggle"
+                        aria-controls="platform-tags-listbox"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-label="Toggle source sets"
+                ></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/jvmCommonMain"
+                                       data-filter=":worldwind/jvmCommonMain"/>
+                                <span class="checkbox--icon"></span>
+                                jvmCommon
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button"
+                    type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config='{"defaultSize": 280, "minSize": 200, "maxSize": 400}'>
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list"
+                    data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    WorldWind Kotlin
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="classlike" id="content" pageIds="WorldWind Kotlin::earth.worldwind.layer.cache/GpkgTileStore///PointingToDeclaration//-1022326867">
+  <div class="breadcrumbs"><a href="../../../index.html">WorldWind Kotlin</a><span class="delimiter">/</span><a href="../index.html">earth.worldwind.layer.cache</a><span class="delimiter">/</span><span class="current">GpkgTileStore</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Gpkg</span><wbr></wbr><span>Tile</span><wbr></wbr><span><span>Store</span></span></h1>
+    <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+      <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain" data-active="" data-toggle=":worldwind/jvmCommonMain">jvmCommon</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmCommonMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="index.html">GpkgTileStore</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">geoPackage<span class="token operator">: </span><a href="../../earth.worldwind.formats.gpkg/-geo-package/index.html">GeoPackage</a><span class="token punctuation">, </span></span><span class="parameter ">content<span class="token operator">: </span><a href="../../earth.worldwind.formats.gpkg/-gpkg-content/index.html">GpkgContent</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>cachePolicy<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.layer.cache/CachePolicy///PointingToDeclaration/">CachePolicy</span><span class="token operator"> = </span>CachePolicy.UNBOUNDED</span></span><span class="token punctuation">)</span> : <span data-unresolved-link="earth.worldwind.layer.cache/TileStore///PointingToDeclaration/">TileStore</span>, <span data-unresolved-link="earth.worldwind.layer.cache/CachedSourceInfoProvider///PointingToDeclaration/">CachedSourceInfoProvider</span></div><p class="paragraph">GeoPackage-backed <span data-unresolved-link="earth.worldwind.layer.cache/TileStore///PointingToDeclaration/">TileStore</span>. One instance binds to one tile-pyramid table — works for any <code class="lang-kotlin">data_type</code> that uses the tile-user-data shape (<code class="lang-kotlin">image/png</code>, <code class="lang-kotlin">image/jpeg</code>, <code class="lang-kotlin">image/webp</code>, gridded coverages, vector-tile protobuf).</p><p class="paragraph"><code class="lang-kotlin">(z, x, y)</code> maps to <code class="lang-kotlin">(zoom_level, tile_column, tile_row)</code>. ETag / Last-Modified ride alongside in the <code class="lang-kotlin">ww_tile_revalidation</code> side table, so a conditional GET against the network source on a follow-up refresh stays cheap.</p><p class="paragraph">Tile-payload format is whatever the source produced — the store doesn't decode. Image layers decode PNG/JPEG/WebP at render time; elevation layers decode the gridded blob; MVT layers parse the protobuf.</p></div>    </div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="CONSTRUCTOR">
+        <h2 class="tableheader">Constructors</h2>
+        <div class="table"><a data-name="-1601416006%2FConstructors%2F-1022326867" anchor-label="GpkgTileStore" id="-1601416006%2FConstructors%2F-1022326867" data-filterable-set=":worldwind/jvmCommonMain"></a>
+          <div class="table-row table-row_content" data-togglable="CONSTRUCTOR" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-gpkg-tile-store.html"><span>Gpkg</span><wbr></wbr><span>Tile</span><wbr></wbr><span><span>Store</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1601416006%2FConstructors%2F-1022326867"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain" data-active="" data-toggle=":worldwind/jvmCommonMain">jvmCommon</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmCommonMain"><div class="symbol monospace"><span class="token keyword">constructor</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">geoPackage<span class="token operator">: </span><a href="../../earth.worldwind.formats.gpkg/-geo-package/index.html">GeoPackage</a><span class="token punctuation">, </span></span><span class="parameter ">content<span class="token operator">: </span><a href="../../earth.worldwind.formats.gpkg/-gpkg-content/index.html">GpkgContent</a><span class="token punctuation">, </span></span><span class="parameter ">cachePolicy<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.layer.cache/CachePolicy///PointingToDeclaration/">CachePolicy</span><span class="token operator"> = </span>CachePolicy.UNBOUNDED</span></span><span class="token punctuation">)</span></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="1893826832%2FProperties%2F-1022326867" anchor-label="cacheInfo" id="1893826832%2FProperties%2F-1022326867" data-filterable-set=":worldwind/jvmCommonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="cache-info.html"><span>cache</span><wbr></wbr><span><span>Info</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1893826832%2FProperties%2F-1022326867"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain" data-active="" data-toggle=":worldwind/jvmCommonMain">jvmCommon</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmCommonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="cache-info.html">cacheInfo</a><span class="token operator">: </span><span data-unresolved-link="earth.worldwind.layer.cache/CachedSourceInfo///PointingToDeclaration/">CachedSourceInfo</span></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-973827892%2FProperties%2F-1022326867" anchor-label="cachePolicy" id="-973827892%2FProperties%2F-1022326867" data-filterable-set=":worldwind/jvmCommonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="cache-policy.html"><span>cache</span><wbr></wbr><span><span>Policy</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-973827892%2FProperties%2F-1022326867"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain" data-active="" data-toggle=":worldwind/jvmCommonMain">jvmCommon</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmCommonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="cache-policy.html">cachePolicy</a><span class="token operator">: </span><span data-unresolved-link="earth.worldwind.layer.cache/CachePolicy///PointingToDeclaration/">CachePolicy</span></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="-1637813837%2FFunctions%2F-1022326867" anchor-label="bumpValidatedAt" id="-1637813837%2FFunctions%2F-1022326867" data-filterable-set=":worldwind/jvmCommonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="bump-validated-at.html"><span>bump</span><wbr></wbr><span>Validated</span><wbr></wbr><span><span>At</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1637813837%2FFunctions%2F-1022326867"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain" data-active="" data-toggle=":worldwind/jvmCommonMain">jvmCommon</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmCommonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">suspend override </span><span class="token keyword">fun </span><a href="bump-validated-at.html"><span class="token function">bumpValidatedAt</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">z<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">x<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">y<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Refresh a tile's freshness timestamp WITHOUT rewriting its bytes — the conditional-GET <code class="lang-kotlin">304 Not Modified</code> path. Restarts the stale-while-revalidate window so a still-current tile isn't re-requested every frame. Default no-op for stores that don't track freshness.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1105536224%2FFunctions%2F-1022326867" anchor-label="bumpValidatedAtBatch" id="1105536224%2FFunctions%2F-1022326867" data-filterable-set=":worldwind/jvmCommonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="bump-validated-at-batch.html"><span>bump</span><wbr></wbr><span>Validated</span><wbr></wbr><span>At</span><wbr></wbr><span><span>Batch</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1105536224%2FFunctions%2F-1022326867"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain" data-active="" data-toggle=":worldwind/jvmCommonMain">jvmCommon</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmCommonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">suspend override </span><span class="token keyword">fun </span><a href="bump-validated-at-batch.html"><span class="token function">bumpValidatedAtBatch</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">keys<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-collection/index.html">Collection</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph"><span data-unresolved-link="earth.worldwind.layer.cache/TileStore/bumpValidatedAt/#kotlin.Int#kotlin.Int#kotlin.Int/PointingToDeclaration/">bumpValidatedAt</span> for many tiles at once — <span data-unresolved-link="earth.worldwind.layer.cache/TileStore/bumpValidatedAtBatch/#kotlin.collections.Collection[kotlin.Long]/PointingToCallableParameters(0)/">keys</span> packed by <span data-unresolved-link="earth.worldwind.layer.cache//tileKey/#kotlin.Int#kotlin.Int#kotlin.Int/PointingToDeclaration/">tileKey</span>. Stores that commit per call should override this with a single-transaction implementation so a coalesced restamp burst costs one commit instead of one per tile.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1273042847%2FFunctions%2F-1022326867" anchor-label="deleteTile" id="1273042847%2FFunctions%2F-1022326867" data-filterable-set=":worldwind/jvmCommonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="delete-tile.html"><span>delete</span><wbr></wbr><span><span>Tile</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1273042847%2FFunctions%2F-1022326867"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain" data-active="" data-toggle=":worldwind/jvmCommonMain">jvmCommon</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmCommonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">suspend override </span><span class="token keyword">fun </span><a href="delete-tile.html"><span class="token function">deleteTile</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">z<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">x<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">y<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Drop a tile from the store (after a server-side delete, manual eviction, etc.).</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1007248457%2FFunctions%2F-1022326867" anchor-label="evict" id="-1007248457%2FFunctions%2F-1022326867" data-filterable-set=":worldwind/jvmCommonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="evict.html"><span><span>evict</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1007248457%2FFunctions%2F-1022326867"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain" data-active="" data-toggle=":worldwind/jvmCommonMain">jvmCommon</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmCommonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">suspend override </span><span class="token keyword">fun </span><a href="evict.html"><span class="token function">evict</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Apply <span data-unresolved-link="earth.worldwind.layer.cache/TileStore/cachePolicy/#/PointingToDeclaration/">cachePolicy</span> now. Idempotent / unbounded policy → no-op.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1622927060%2FFunctions%2F-1022326867" anchor-label="readTile" id="1622927060%2FFunctions%2F-1022326867" data-filterable-set=":worldwind/jvmCommonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="read-tile.html"><span>read</span><wbr></wbr><span><span>Tile</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1622927060%2FFunctions%2F-1022326867"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain" data-active="" data-toggle=":worldwind/jvmCommonMain">jvmCommon</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmCommonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">suspend override </span><span class="token keyword">fun </span><a href="read-tile.html"><span class="token function">readTile</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">z<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">x<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">y<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="earth.worldwind.layer.source/TileBlob///PointingToDeclaration/">TileBlob</span><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Returns the cached blob, or <code class="lang-kotlin">null</code> if the tile isn't present. Treat <span data-unresolved-link="earth.worldwind.layer.source/TileBlob.Companion/EMPTY/#/PointingToDeclaration/">TileBlob.EMPTY</span> as &quot;the server confirmed no tile here&quot; — distinct from <code class="lang-kotlin">null</code> cache miss.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-763625970%2FFunctions%2F-1022326867" anchor-label="setBoundingSector" id="-763625970%2FFunctions%2F-1022326867" data-filterable-set=":worldwind/jvmCommonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="set-bounding-sector.html"><span>set</span><wbr></wbr><span>Bounding</span><wbr></wbr><span><span>Sector</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-763625970%2FFunctions%2F-1022326867"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain" data-active="" data-toggle=":worldwind/jvmCommonMain">jvmCommon</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmCommonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">suspend override </span><span class="token keyword">fun </span><a href="set-bounding-sector.html"><span class="token function">setBoundingSector</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">sector<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.geom/Sector///PointingToDeclaration/">Sector</span></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Persist <span data-unresolved-link="earth.worldwind.layer.cache/TileStore/setBoundingSector/#earth.worldwind.geom.Sector/PointingToCallableParameters(0)/">sector</span> as the store's content bounding box — the data-availability extent a bulk download records (e.g. <code class="lang-kotlin">gpkg_contents</code>). Default no-op for stores without one.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1234227382%2FFunctions%2F-1022326867" anchor-label="sizeBytes" id="1234227382%2FFunctions%2F-1022326867" data-filterable-set=":worldwind/jvmCommonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="size-bytes.html"><span>size</span><wbr></wbr><span><span>Bytes</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1234227382%2FFunctions%2F-1022326867"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain" data-active="" data-toggle=":worldwind/jvmCommonMain">jvmCommon</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmCommonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">suspend override </span><span class="token keyword">fun </span><a href="size-bytes.html"><span class="token function">sizeBytes</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a></div><div class="brief "><p class="paragraph">Approximate byte size of all tiles in the store.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1620032789%2FFunctions%2F-1022326867" anchor-label="writeTile" id="-1620032789%2FFunctions%2F-1022326867" data-filterable-set=":worldwind/jvmCommonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="write-tile.html"><span>write</span><wbr></wbr><span><span>Tile</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1620032789%2FFunctions%2F-1022326867"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain" data-active="" data-toggle=":worldwind/jvmCommonMain">jvmCommon</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmCommonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">suspend override </span><span class="token keyword">fun </span><a href="write-tile.html"><span class="token function">writeTile</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">z<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">x<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">y<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">blob<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.layer.source/TileBlob///PointingToDeclaration/">TileBlob</span></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Persist a tile. <span data-unresolved-link="earth.worldwind.layer.source/TileBlob.Companion/EMPTY/#/PointingToDeclaration/">TileBlob.EMPTY</span> is allowed (and recommended) for &quot;no tile here&quot;.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>(c) WorldWind Earth</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

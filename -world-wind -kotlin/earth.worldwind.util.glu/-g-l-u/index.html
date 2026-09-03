@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>GLU</title>
+    <link href="../../../images/logo-icon.svg" rel="icon" type="image/svg">
+        <script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async="async"></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async="async"></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async="async"></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer="defer"></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async="async"></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer="defer"></script>
+</head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+            <a class="library-name--link" href="../../../index.html" tabindex="1">
+                    WorldWind Kotlin
+            </a>
+        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle"
+                type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+2.1.0        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector common-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/commonMain">common</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox"
+                        data-role="dropdown-toggle"
+                        aria-controls="platform-tags-listbox"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-label="Toggle source sets"
+                ></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/commonMain"
+                                       data-filter=":worldwind/commonMain"/>
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button"
+                    type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config='{"defaultSize": 280, "minSize": 200, "maxSize": 400}'>
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list"
+                    data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    WorldWind Kotlin
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="classlike" id="content" pageIds="WorldWind Kotlin::earth.worldwind.util.glu/GLU///PointingToDeclaration//-405091373">
+  <div class="breadcrumbs"><a href="../../../index.html">WorldWind Kotlin</a><span class="delimiter">/</span><a href="../index.html">earth.worldwind.util.glu</a><span class="delimiter">/</span><span class="current">GLU</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>GLU</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="index.html">GLU</a></div><p class="paragraph">Provides access to the OpenGL Utility Library (GLU). This library provides standard methods for setting up view volumes, building mipmaps and performing other common operations.  The GLU NURBS routines are not currently exposed. <BR></BR> Notes from the Reference Implementation for this class: Thanks to the contributions of many individuals, this class is a pure Java port of SGI's original C sources. All of the projection, mipmap, scaling, and tessellation routines that are exposed are compatible with the GLU 1.3 specification. The GLU NURBS routines are not currently exposed.</p></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="-1591610977%2FProperties%2F-405091373" anchor-label="extensionString" id="-1591610977%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="extension-string.html"><span>extension</span><wbr></wbr><span><span>String</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1591610977%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="extension-string.html">extensionString</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="264072327%2FProperties%2F-405091373" anchor-label="GLU_CCW" id="264072327%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-c-c-w.html"><span>GLU_</span><wbr></wbr><span>CCW</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="264072327%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-c-c-w.html">GLU_CCW</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100121</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="329313480%2FProperties%2F-405091373" anchor-label="GLU_CW" id="329313480%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-c-w.html"><span>GLU_</span><wbr></wbr><span>CW</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="329313480%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-c-w.html">GLU_CW</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100120</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-416284120%2FProperties%2F-405091373" anchor-label="GLU_EXTENSIONS" id="-416284120%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-e-x-t-e-n-s-i-o-n-s.html"><span>GLU_</span><wbr></wbr><span>EXTENSIONS</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-416284120%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-e-x-t-e-n-s-i-o-n-s.html">GLU_EXTENSIONS</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100801</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2092335490%2FProperties%2F-405091373" anchor-label="GLU_EXTERIOR" id="-2092335490%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-e-x-t-e-r-i-o-r.html"><span>GLU_</span><wbr></wbr><span>EXTERIOR</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2092335490%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-e-x-t-e-r-i-o-r.html">GLU_EXTERIOR</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100123</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1732960069%2FProperties%2F-405091373" anchor-label="GLU_FALSE" id="-1732960069%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-f-a-l-s-e.html"><span>GLU_</span><wbr></wbr><span>FALSE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1732960069%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-f-a-l-s-e.html">GLU_FALSE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">0</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="684060620%2FProperties%2F-405091373" anchor-label="GLU_INTERIOR" id="684060620%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-i-n-t-e-r-i-o-r.html"><span>GLU_</span><wbr></wbr><span>INTERIOR</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="684060620%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-i-n-t-e-r-i-o-r.html">GLU_INTERIOR</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100122</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1392302515%2FProperties%2F-405091373" anchor-label="GLU_INVALID_ENUM" id="1392302515%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-i-n-v-a-l-i-d_-e-n-u-m.html"><span>GLU_</span><wbr></wbr><span>INVALID_</span><wbr></wbr><span>ENUM</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1392302515%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-i-n-v-a-l-i-d_-e-n-u-m.html">GLU_INVALID_ENUM</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100900</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1590553311%2FProperties%2F-405091373" anchor-label="GLU_INVALID_OPERATION" id="1590553311%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-i-n-v-a-l-i-d_-o-p-e-r-a-t-i-o-n.html"><span>GLU_</span><wbr></wbr><span>INVALID_</span><wbr></wbr><span>OPERATION</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1590553311%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-i-n-v-a-l-i-d_-o-p-e-r-a-t-i-o-n.html">GLU_INVALID_OPERATION</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100904</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1518641813%2FProperties%2F-405091373" anchor-label="GLU_INVALID_VALUE" id="1518641813%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-i-n-v-a-l-i-d_-v-a-l-u-e.html"><span>GLU_</span><wbr></wbr><span>INVALID_</span><wbr></wbr><span>VALUE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1518641813%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-i-n-v-a-l-i-d_-v-a-l-u-e.html">GLU_INVALID_VALUE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100901</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1555721786%2FProperties%2F-405091373" anchor-label="GLU_OUT_OF_MEMORY" id="-1555721786%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-o-u-t_-o-f_-m-e-m-o-r-y.html"><span>GLU_</span><wbr></wbr><span>OUT_</span><wbr></wbr><span>OF_</span><wbr></wbr><span>MEMORY</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1555721786%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-o-u-t_-o-f_-m-e-m-o-r-y.html">GLU_OUT_OF_MEMORY</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100902</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1572182209%2FProperties%2F-405091373" anchor-label="GLU_TESS_BEGIN" id="1572182209%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-b-e-g-i-n.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>BEGIN</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1572182209%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-b-e-g-i-n.html">GLU_TESS_BEGIN</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100100</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="124062928%2FProperties%2F-405091373" anchor-label="GLU_TESS_BEGIN_DATA" id="124062928%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-b-e-g-i-n_-d-a-t-a.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>BEGIN_</span><wbr></wbr><span>DATA</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="124062928%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-b-e-g-i-n_-d-a-t-a.html">GLU_TESS_BEGIN_DATA</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100106</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1623792471%2FProperties%2F-405091373" anchor-label="GLU_TESS_BOUNDARY_ONLY" id="-1623792471%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-b-o-u-n-d-a-r-y_-o-n-l-y.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>BOUNDARY_</span><wbr></wbr><span>ONLY</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1623792471%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-b-o-u-n-d-a-r-y_-o-n-l-y.html">GLU_TESS_BOUNDARY_ONLY</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100141</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1549966763%2FProperties%2F-405091373" anchor-label="GLU_TESS_COMBINE" id="1549966763%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-c-o-m-b-i-n-e.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>COMBINE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1549966763%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-c-o-m-b-i-n-e.html">GLU_TESS_COMBINE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100105</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1886877146%2FProperties%2F-405091373" anchor-label="GLU_TESS_COMBINE_DATA" id="-1886877146%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-c-o-m-b-i-n-e_-d-a-t-a.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>COMBINE_</span><wbr></wbr><span>DATA</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1886877146%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-c-o-m-b-i-n-e_-d-a-t-a.html">GLU_TESS_COMBINE_DATA</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100111</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1836528572%2FProperties%2F-405091373" anchor-label="GLU_TESS_COORD_TOO_LARGE" id="-1836528572%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-c-o-o-r-d_-t-o-o_-l-a-r-g-e.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>COORD_</span><wbr></wbr><span>TOO_</span><wbr></wbr><span>LARGE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1836528572%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-c-o-o-r-d_-t-o-o_-l-a-r-g-e.html">GLU_TESS_COORD_TOO_LARGE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100155</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1879655868%2FProperties%2F-405091373" anchor-label="GLU_TESS_EDGE_FLAG" id="1879655868%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-e-d-g-e_-f-l-a-g.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>EDGE_</span><wbr></wbr><span>FLAG</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1879655868%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-e-d-g-e_-f-l-a-g.html">GLU_TESS_EDGE_FLAG</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100104</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1630714699%2FProperties%2F-405091373" anchor-label="GLU_TESS_EDGE_FLAG_DATA" id="-1630714699%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-e-d-g-e_-f-l-a-g_-d-a-t-a.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>EDGE_</span><wbr></wbr><span>FLAG_</span><wbr></wbr><span>DATA</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1630714699%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-e-d-g-e_-f-l-a-g_-d-a-t-a.html">GLU_TESS_EDGE_FLAG_DATA</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100110</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1099415537%2FProperties%2F-405091373" anchor-label="GLU_TESS_END" id="-1099415537%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-e-n-d.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>END</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1099415537%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-e-n-d.html">GLU_TESS_END</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100102</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1313654338%2FProperties%2F-405091373" anchor-label="GLU_TESS_END_DATA" id="1313654338%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-e-n-d_-d-a-t-a.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>END_</span><wbr></wbr><span>DATA</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1313654338%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-e-n-d_-d-a-t-a.html">GLU_TESS_END_DATA</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100108</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="823212098%2FProperties%2F-405091373" anchor-label="GLU_TESS_ERROR" id="823212098%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-e-r-r-o-r.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>ERROR</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="823212098%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-e-r-r-o-r.html">GLU_TESS_ERROR</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100103</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-731281209%2FProperties%2F-405091373" anchor-label="GLU_TESS_ERROR1" id="-731281209%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-e-r-r-o-r1.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>ERROR1</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-731281209%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-e-r-r-o-r1.html">GLU_TESS_ERROR1</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100151</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-700261402%2FProperties%2F-405091373" anchor-label="GLU_TESS_ERROR2" id="-700261402%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-e-r-r-o-r2.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>ERROR2</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-700261402%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-e-r-r-o-r2.html">GLU_TESS_ERROR2</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100152</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-669241595%2FProperties%2F-405091373" anchor-label="GLU_TESS_ERROR3" id="-669241595%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-e-r-r-o-r3.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>ERROR3</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-669241595%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-e-r-r-o-r3.html">GLU_TESS_ERROR3</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100153</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-638221788%2FProperties%2F-405091373" anchor-label="GLU_TESS_ERROR4" id="-638221788%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-e-r-r-o-r4.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>ERROR4</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-638221788%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-e-r-r-o-r4.html">GLU_TESS_ERROR4</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100154</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-607201981%2FProperties%2F-405091373" anchor-label="GLU_TESS_ERROR5" id="-607201981%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-e-r-r-o-r5.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>ERROR5</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-607201981%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-e-r-r-o-r5.html">GLU_TESS_ERROR5</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100155</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-576182174%2FProperties%2F-405091373" anchor-label="GLU_TESS_ERROR6" id="-576182174%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-e-r-r-o-r6.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>ERROR6</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-576182174%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-e-r-r-o-r6.html">GLU_TESS_ERROR6</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100156</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-545162367%2FProperties%2F-405091373" anchor-label="GLU_TESS_ERROR7" id="-545162367%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-e-r-r-o-r7.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>ERROR7</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-545162367%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-e-r-r-o-r7.html">GLU_TESS_ERROR7</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100157</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-514142560%2FProperties%2F-405091373" anchor-label="GLU_TESS_ERROR8" id="-514142560%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-e-r-r-o-r8.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>ERROR8</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-514142560%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-e-r-r-o-r8.html">GLU_TESS_ERROR8</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100158</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1133901295%2FProperties%2F-405091373" anchor-label="GLU_TESS_ERROR_DATA" id="1133901295%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-e-r-r-o-r_-d-a-t-a.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>ERROR_</span><wbr></wbr><span>DATA</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1133901295%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-e-r-r-o-r_-d-a-t-a.html">GLU_TESS_ERROR_DATA</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100109</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="109986768%2FProperties%2F-405091373" anchor-label="GLU_TESS_MAX_COORD" id="109986768%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-m-a-x_-c-o-o-r-d.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>MAX_</span><wbr></wbr><span>COORD</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="109986768%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-m-a-x_-c-o-o-r-d.html">GLU_TESS_MAX_COORD</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token operator"> = </span><span class="token constant">1.0E150</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-645428289%2FProperties%2F-405091373" anchor-label="GLU_TESS_MISSING_BEGIN_CONTOUR" id="-645428289%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-m-i-s-s-i-n-g_-b-e-g-i-n_-c-o-n-t-o-u-r.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>MISSING_</span><wbr></wbr><span>BEGIN_</span><wbr></wbr><span>CONTOUR</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-645428289%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-m-i-s-s-i-n-g_-b-e-g-i-n_-c-o-n-t-o-u-r.html">GLU_TESS_MISSING_BEGIN_CONTOUR</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100152</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1419969185%2FProperties%2F-405091373" anchor-label="GLU_TESS_MISSING_BEGIN_POLYGON" id="-1419969185%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-m-i-s-s-i-n-g_-b-e-g-i-n_-p-o-l-y-g-o-n.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>MISSING_</span><wbr></wbr><span>BEGIN_</span><wbr></wbr><span>POLYGON</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1419969185%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-m-i-s-s-i-n-g_-b-e-g-i-n_-p-o-l-y-g-o-n.html">GLU_TESS_MISSING_BEGIN_POLYGON</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100151</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1091385165%2FProperties%2F-405091373" anchor-label="GLU_TESS_MISSING_END_CONTOUR" id="1091385165%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-m-i-s-s-i-n-g_-e-n-d_-c-o-n-t-o-u-r.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>MISSING_</span><wbr></wbr><span>END_</span><wbr></wbr><span>CONTOUR</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1091385165%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-m-i-s-s-i-n-g_-e-n-d_-c-o-n-t-o-u-r.html">GLU_TESS_MISSING_END_CONTOUR</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100154</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="316844269%2FProperties%2F-405091373" anchor-label="GLU_TESS_MISSING_END_POLYGON" id="316844269%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-m-i-s-s-i-n-g_-e-n-d_-p-o-l-y-g-o-n.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>MISSING_</span><wbr></wbr><span>END_</span><wbr></wbr><span>POLYGON</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="316844269%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-m-i-s-s-i-n-g_-e-n-d_-p-o-l-y-g-o-n.html">GLU_TESS_MISSING_END_POLYGON</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100153</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-205725956%2FProperties%2F-405091373" anchor-label="GLU_TESS_NEED_COMBINE_CALLBACK" id="-205725956%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-n-e-e-d_-c-o-m-b-i-n-e_-c-a-l-l-b-a-c-k.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>NEED_</span><wbr></wbr><span>COMBINE_</span><wbr></wbr><span>CALLBACK</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-205725956%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-n-e-e-d_-c-o-m-b-i-n-e_-c-a-l-l-b-a-c-k.html">GLU_TESS_NEED_COMBINE_CALLBACK</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100156</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1889963171%2FProperties%2F-405091373" anchor-label="GLU_TESS_TOLERANCE" id="-1889963171%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-t-o-l-e-r-a-n-c-e.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>TOLERANCE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1889963171%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-t-o-l-e-r-a-n-c-e.html">GLU_TESS_TOLERANCE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100142</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1110250188%2FProperties%2F-405091373" anchor-label="GLU_TESS_VERTEX" id="1110250188%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-v-e-r-t-e-x.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>VERTEX</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1110250188%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-v-e-r-t-e-x.html">GLU_TESS_VERTEX</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100101</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1756421723%2FProperties%2F-405091373" anchor-label="GLU_TESS_VERTEX_DATA" id="-1756421723%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-v-e-r-t-e-x_-d-a-t-a.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>VERTEX_</span><wbr></wbr><span>DATA</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1756421723%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-v-e-r-t-e-x_-d-a-t-a.html">GLU_TESS_VERTEX_DATA</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100107</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1494436868%2FProperties%2F-405091373" anchor-label="GLU_TESS_WINDING_ABS_GEQ_TWO" id="-1494436868%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-w-i-n-d-i-n-g_-a-b-s_-g-e-q_-t-w-o.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>WINDING_</span><wbr></wbr><span>ABS_</span><wbr></wbr><span>GEQ_</span><wbr></wbr><span>TWO</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1494436868%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-w-i-n-d-i-n-g_-a-b-s_-g-e-q_-t-w-o.html">GLU_TESS_WINDING_ABS_GEQ_TWO</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100134</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="663870806%2FProperties%2F-405091373" anchor-label="GLU_TESS_WINDING_NEGATIVE" id="663870806%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-w-i-n-d-i-n-g_-n-e-g-a-t-i-v-e.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>WINDING_</span><wbr></wbr><span>NEGATIVE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="663870806%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-w-i-n-d-i-n-g_-n-e-g-a-t-i-v-e.html">GLU_TESS_WINDING_NEGATIVE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100133</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-338343782%2FProperties%2F-405091373" anchor-label="GLU_TESS_WINDING_NONZERO" id="-338343782%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-w-i-n-d-i-n-g_-n-o-n-z-e-r-o.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>WINDING_</span><wbr></wbr><span>NONZERO</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-338343782%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-w-i-n-d-i-n-g_-n-o-n-z-e-r-o.html">GLU_TESS_WINDING_NONZERO</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100131</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="197528736%2FProperties%2F-405091373" anchor-label="GLU_TESS_WINDING_ODD" id="197528736%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-w-i-n-d-i-n-g_-o-d-d.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>WINDING_</span><wbr></wbr><span>ODD</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="197528736%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-w-i-n-d-i-n-g_-o-d-d.html">GLU_TESS_WINDING_ODD</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100130</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1970443282%2FProperties%2F-405091373" anchor-label="GLU_TESS_WINDING_POSITIVE" id="1970443282%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-w-i-n-d-i-n-g_-p-o-s-i-t-i-v-e.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>WINDING_</span><wbr></wbr><span>POSITIVE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1970443282%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-w-i-n-d-i-n-g_-p-o-s-i-t-i-v-e.html">GLU_TESS_WINDING_POSITIVE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100132</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1180471441%2FProperties%2F-405091373" anchor-label="GLU_TESS_WINDING_RULE" id="-1180471441%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-e-s-s_-w-i-n-d-i-n-g_-r-u-l-e.html"><span>GLU_</span><wbr></wbr><span>TESS_</span><wbr></wbr><span>WINDING_</span><wbr></wbr><span>RULE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1180471441%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-e-s-s_-w-i-n-d-i-n-g_-r-u-l-e.html">GLU_TESS_WINDING_RULE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100140</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1479136558%2FProperties%2F-405091373" anchor-label="GLU_TRUE" id="1479136558%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-t-r-u-e.html"><span>GLU_</span><wbr></wbr><span>TRUE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1479136558%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-t-r-u-e.html">GLU_TRUE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">1</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="94498612%2FProperties%2F-405091373" anchor-label="GLU_UNKNOWN" id="94498612%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-u-n-k-n-o-w-n.html"><span>GLU_</span><wbr></wbr><span>UNKNOWN</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="94498612%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-u-n-k-n-o-w-n.html">GLU_UNKNOWN</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100124</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="897358438%2FProperties%2F-405091373" anchor-label="GLU_VERSION" id="897358438%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-l-u_-v-e-r-s-i-o-n.html"><span>GLU_</span><wbr></wbr><span>VERSION</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="897358438%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-l-u_-v-e-r-s-i-o-n.html">GLU_VERSION</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100800</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2047228518%2FProperties%2F-405091373" anchor-label="versionString" id="2047228518%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="version-string.html"><span>version</span><wbr></wbr><span><span>String</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2047228518%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="version-string.html">versionString</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="1495055891%2FFunctions%2F-405091373" anchor-label="gluDeleteTess" id="1495055891%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="glu-delete-tess.html"><span>glu</span><wbr></wbr><span>Delete</span><wbr></wbr><span><span>Tess</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1495055891%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="glu-delete-tess.html"><span class="token function">gluDeleteTess</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">tessellator<span class="token operator">: </span><a href="../-g-l-utessellator/index.html">GLUtessellator</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph"><strong>gluDeleteTess</strong> destroys the indicated tessellation object (which was created with .gluNewTess).</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2021101120%2FFunctions%2F-405091373" anchor-label="gluErrorString" id="-2021101120%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="glu-error-string.html"><span>glu</span><wbr></wbr><span>Error</span><wbr></wbr><span><span>String</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2021101120%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="glu-error-string.html"><span class="token function">gluErrorString</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">errorCode<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2068560191%2FFunctions%2F-405091373" anchor-label="gluGetTessProperty" id="2068560191%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="glu-get-tess-property.html"><span>glu</span><wbr></wbr><span>Get</span><wbr></wbr><span>Tess</span><wbr></wbr><span><span>Property</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2068560191%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="glu-get-tess-property.html"><span class="token function">gluGetTessProperty</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">tessellator<span class="token operator">: </span><a href="../-g-l-utessellator/index.html">GLUtessellator</a><span class="token punctuation">, </span></span><span class="parameter ">which<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double-array/index.html">DoubleArray</a><span class="token punctuation">, </span></span><span class="parameter ">value_offset<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph"><strong>gluGetTessProperty</strong> retrieves properties stored in a tessellation object.  These properties affect the way that tessellation objects are interpreted and rendered.  See the .gluTessProperty reference page for information about the properties and what they do.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1014823562%2FFunctions%2F-405091373" anchor-label="gluNewTess" id="1014823562%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="glu-new-tess.html"><span>glu</span><wbr></wbr><span>New</span><wbr></wbr><span><span>Tess</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1014823562%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="glu-new-tess.html"><span class="token function">gluNewTess</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-g-l-utessellator/index.html">GLUtessellator</a></div><div class="brief "><p class="paragraph"><strong>gluNewTess</strong> creates and returns a new tessellation object.  This object must be referred to when calling tesselation methods.  A return value of null means that there was not enough memeory to allocate the object.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1719523367%2FFunctions%2F-405091373" anchor-label="gluTessBeginContour" id="-1719523367%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="glu-tess-begin-contour.html"><span>glu</span><wbr></wbr><span>Tess</span><wbr></wbr><span>Begin</span><wbr></wbr><span><span>Contour</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1719523367%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="glu-tess-begin-contour.html"><span class="token function">gluTessBeginContour</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">tessellator<span class="token operator">: </span><a href="../-g-l-utessellator/index.html">GLUtessellator</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph"><strong>gluTessBeginContour</strong> and .gluTessEndContour delimit the definition of a polygon contour. Within each <strong>gluTessBeginContour</strong> .gluTessEndContour pair, there can be zero or more calls to .gluTessVertex. The vertices specify a closed contour (the last vertex of each contour is automatically linked to the first). See the .gluTessVertex reference page for more details. <strong>gluTessBeginContour</strong> can only be called between .gluTessBeginPolygon and .gluTessEndPolygon.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1979171097%2FFunctions%2F-405091373" anchor-label="gluTessBeginPolygon" id="-1979171097%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="glu-tess-begin-polygon.html"><span>glu</span><wbr></wbr><span>Tess</span><wbr></wbr><span>Begin</span><wbr></wbr><span><span>Polygon</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1979171097%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="glu-tess-begin-polygon.html"><span class="token function">gluTessBeginPolygon</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">tessellator<span class="token operator">: </span><a href="../-g-l-utessellator/index.html">GLUtessellator</a><span class="token punctuation">, </span></span><span class="parameter ">data<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph"><strong>gluTessBeginPolygon</strong> and .gluTessEndPolygon delimit the definition of a convex, concave or self-intersecting polygon. Within each <strong>gluTessBeginPolygon</strong> .gluTessEndPolygon pair, there must be one or more calls to .gluTessBeginContour/ .gluTessEndContour. Within each contour, there are zero or more calls to .gluTessVertex. The vertices specify a closed contour (the last vertex of each contour is automatically linked to the first). See the .gluTessVertex, .gluTessBeginContour, and .gluTessEndContour reference pages for more details. <BR></BR> **data ** is a reference to a user-defined data structure. If the appropriate callback(s) are specified (see .gluTessCallback), then this reference is returned to the callback method(s). Thus, it is a convenient way to store per-polygon information. <BR></BR> Once .gluTessEndPolygon is called, the polygon is tessellated, and the resulting triangles are described through callbacks. See .gluTessCallback for descriptions of the callback methods.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1796365343%2FFunctions%2F-405091373" anchor-label="gluTessCallback" id="-1796365343%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="glu-tess-callback.html"><span>glu</span><wbr></wbr><span>Tess</span><wbr></wbr><span><span>Callback</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1796365343%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="glu-tess-callback.html"><span class="token function">gluTessCallback</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">tessellator<span class="token operator">: </span><a href="../-g-l-utessellator/index.html">GLUtessellator</a><span class="token punctuation">, </span></span><span class="parameter ">which<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">aCallback<span class="token operator">: </span><a href="../-g-l-utessellator-callback/index.html">GLUtessellatorCallback</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph"><strong>gluTessCallback</strong> is used to indicate a callback to be used by a tessellation object. If the specified callback is already defined, then it is replaced. If <i>aCallback</i> is null, then the existing callback becomes undefined. <BR></BR> These callbacks are used by the tessellation object to describe how a polygon specified by the user is broken into triangles. Note that there are two versions of each callback: one with user-specified polygon data and one without. If both versions of a particular callback are specified, then the callback with user-specified polygon data will be used. Note that the polygonData parameter used by some of the methods is a copy of the reference that was specified when .gluTessBeginPolygon was called. The legal callbacks are as follows: <UL> <LI><strong>GLU_TESS_BEGIN</strong> <BR></BR> The begin callback is invoked like glBegin to indicate the start of a (triangle) primitive. The method takes a single argument of type int. If the <strong>GLU_TESS_BOUNDARY_ONLY</strong> property is set to <strong>GL_FALSE</strong>, then the argument is set to either <strong>GL_TRIANGLE_FAN</strong>, <strong>GL_TRIANGLE_STRIP</strong>, or <strong>GL_TRIANGLES</strong>. If the <strong>GLU_TESS_BOUNDARY_ONLY</strong> property is set to <strong>GL_TRUE</strong>, then the argument will be set to <strong>GL_LINE_LOOP</strong>. The method prototype for this callback is: <PRE>void begin(int type);</PRE> </LI> * <LI><strong>GLU_TESS_BEGIN_DATA</strong> <BR></BR> The same as the <strong>GLU_TESS_BEGIN</strong> callback except that it takes an additional reference argument. This reference is identical to the opaque reference provided when .gluTessBeginPolygon was called. The method prototype for this callback is: <PRE>void beginData(int type, Object polygonData);</PRE> </LI> * <LI><strong>GLU_TESS_EDGE_FLAG</strong> <BR></BR> The edge flag callback is similar to glEdgeFlag. The method takes a single boolean boundaryEdge that indicates which edges lie on the polygon boundary. If the boundaryEdge is <strong>GL_TRUE</strong>, then each vertex that follows begins an edge that lies on the polygon boundary, that is, an edge that separates an interior region from an exterior one. If the boundaryEdge is <strong>GL_FALSE</strong>, then each vertex that follows begins an edge that lies in the polygon interior. The edge flag callback (if defined) is invoked before the first vertex callback. <BR></BR> Since triangle fans and triangle strips do not support edge flags, the begin callback is not called with <strong>GL_TRIANGLE_FAN</strong> or <strong>GL_TRIANGLE_STRIP</strong> if a non-null edge flag callback is provided. (If the callback is initialized to null, there is no impact on performance). Instead, the fans and strips are converted to independent triangles. The method prototype for this callback is: <PRE>void edgeFlag(boolean boundaryEdge);</PRE> </LI> * <LI><strong>GLU_TESS_EDGE_FLAG_DATA</strong> <BR></BR> The same as the <strong>GLU_TESS_EDGE_FLAG</strong> callback except that it takes an additional reference argument. This reference is identical to the opaque reference provided when .gluTessBeginPolygon was called. The method prototype for this callback is: <PRE>void edgeFlagData(boolean boundaryEdge, Object polygonData);</PRE> </LI> * <LI><strong>GLU_TESS_VERTEX</strong> <BR></BR> The vertex callback is invoked between the begin and end callbacks. It is similar to glVertex3f, and it defines the vertices of the triangles created by the tessellation process. The method takes a reference as its only argument. This reference is identical to the opaque reference provided by the user when the vertex was described (see .gluTessVertex). The method prototype for this callback is: <PRE>void vertex(Object vertexData);</PRE> </LI> * <LI><strong>GLU_TESS_VERTEX_DATA</strong> <BR></BR> The same as the <strong>GLU_TESS_VERTEX</strong> callback except that it takes an additional reference argument. This reference is identical to the opaque reference provided when .gluTessBeginPolygon was called. The method prototype for this callback is: <PRE>void vertexData(Object vertexData, Object polygonData);</PRE> </LI> * <LI><strong>GLU_TESS_END</strong> <BR></BR> The end callback serves the same purpose as glEnd. It indicates the end of a primitive and it takes no arguments. The method prototype for this callback is: <PRE>void end();</PRE> </LI> * <LI><strong>GLU_TESS_END_DATA</strong> <BR></BR> The same as the <strong>GLU_TESS_END</strong> callback except that it takes an additional reference argument. This reference is identical to the opaque reference provided when .gluTessBeginPolygon was called. The method prototype for this callback is: <PRE>void endData(Object polygonData);</PRE> </LI> * <LI><strong>GLU_TESS_COMBINE</strong> <BR></BR> The combine callback is called to create a new vertex when the tessellation detects an intersection, or wishes to merge features. The method takes four arguments: an array of three elements each of type double, an array of four references, an array of four elements each of type float, and a reference to a reference. The prototype is: <PRE>void combine(double[] coords, Object[] data, float[] weight, Object[] outData);</PRE> The vertex is defined as a linear combination of up to four existing vertices, stored in <i>data</i>. The coefficients of the linear combination are given by <i>weight</i>; these weights always add up to 1. All vertex pointers are valid even when some of the weights are 0. <i>coords</i> gives the location of the new vertex. <BR></BR> The user must allocate another vertex, interpolate parameters using <i>data</i> and <i>weight</i>, and return the new vertex pointer in <i>outData</i>. This handle is supplied during rendering callbacks. The user is responsible for freeing the memory some time after .gluTessEndPolygon is called. <BR></BR> For example, if the polygon lies in an arbitrary plane in 3-space, and a color is associated with each vertex, the <strong>GLU_TESS_COMBINE</strong> callback might look like this: <PRE> void myCombine(double[] coords, Object[] data, float[] weight, Object[] outData) { MyVertex newVertex = new MyVertex();</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1289251623%2FFunctions%2F-405091373" anchor-label="gluTessEndContour" id="1289251623%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="glu-tess-end-contour.html"><span>glu</span><wbr></wbr><span>Tess</span><wbr></wbr><span>End</span><wbr></wbr><span><span>Contour</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1289251623%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="glu-tess-end-contour.html"><span class="token function">gluTessEndContour</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">tessellator<span class="token operator">: </span><a href="../-g-l-utessellator/index.html">GLUtessellator</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph"><strong>gluTessEndContour</strong> and <a href="glu-tess-begin-contour.html">gluTessBeginContour</a> delimit the definition of a polygon contour. Within each <a href="glu-tess-begin-contour.html">gluTessBeginContour</a>/ <strong>gluTessEndContour</strong> pair, there can be zero or more calls to <a href="glu-tess-vertex.html">gluTessVertex</a>. The vertices specify a closed contour (the last vertex of each contour is automatically linked to the first). See the <a href="glu-tess-vertex.html"> gluTessVertex</a> reference page for more details. <a href="glu-tess-begin-contour.html">gluTessBeginContour</a> can only be called between <a href="glu-tess-begin-polygon.html"> gluTessBeginPolygon</a> and <a href="glu-tess-end-polygon.html">gluTessEndPolygon</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1869374855%2FFunctions%2F-405091373" anchor-label="gluTessEndPolygon" id="1869374855%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="glu-tess-end-polygon.html"><span>glu</span><wbr></wbr><span>Tess</span><wbr></wbr><span>End</span><wbr></wbr><span><span>Polygon</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1869374855%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="glu-tess-end-polygon.html"><span class="token function">gluTessEndPolygon</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">tessellator<span class="token operator">: </span><a href="../-g-l-utessellator/index.html">GLUtessellator</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph"><strong>gluTessEndPolygon</strong> and <a href="glu-tess-begin-polygon.html">gluTessBeginPolygon</a> delimit the definition of a convex, concave or self-intersecting polygon. Within each <a href="glu-tess-begin-polygon.html"> gluTessBeginPolygon</a>/ <strong>gluTessEndPolygon</strong> pair, there must be one or more calls to <a href="glu-tess-begin-contour.html"> gluTessBeginContour</a>/<a href="glu-tess-end-contour.html"> gluTessEndContour</a>. Within each contour, there are zero or more calls to <a href="glu-tess-vertex.html">gluTessVertex</a>. The vertices specify a closed contour (the last vertex of each contour is automatically linked to the first). See the <a href="glu-tess-vertex.html"> gluTessVertex</a>, <a href="glu-tess-begin-contour.html"> gluTessBeginContour</a> and <a href="glu-tess-end-contour.html"> gluTessEndContour</a> reference pages for more details. <BR></BR> Once <strong>gluTessEndPolygon</strong> is called, the polygon is tessellated, and the resulting triangles are described through callbacks. See <a href="glu-tess-callback.html">gluTessCallback</a> for descriptions of the callback functions.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-797233026%2FFunctions%2F-405091373" anchor-label="gluTessNormal" id="-797233026%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="glu-tess-normal.html"><span>glu</span><wbr></wbr><span>Tess</span><wbr></wbr><span><span>Normal</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-797233026%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="glu-tess-normal.html"><span class="token function">gluTessNormal</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">tessellator<span class="token operator">: </span><a href="../-g-l-utessellator/index.html">GLUtessellator</a><span class="token punctuation">, </span></span><span class="parameter ">x<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">y<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token punctuation">, </span></span><span class="parameter ">z<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph"><strong>gluTessNormal</strong> describes a normal for a polygon that the program is defining. All input data will be projected onto a plane perpendicular to the one of the three coordinate axes before tessellation and all output triangles will be oriented CCW with repsect to the normal (CW orientation can be obtained by reversing the sign of the supplied normal).  For example, if you know that all polygons lie in the x-y plane, call <strong>gluTessNormal</strong>(tess, 0.0, 0.0, 0.0) before rendering any polygons. <BR></BR> If the supplied normal is (0.0, 0.0, 0.0)(the initial value), the normal is determined as follows.  The direction of the normal, up to its sign, is found by fitting a plane to the vertices, without regard to how the vertices are connected.  It is expected that the input data lies approximately in the plane; otherwise, projection perpendicular to one of the three coordinate axes may substantially change the geometry.  The sign of the normal is chosen so that the sum of the signed areas of all input contours is nonnegative (where a CCW contour has positive area). <BR></BR> The supplied normal persists until it is changed by another call to <strong>gluTessNormal</strong>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1761605413%2FFunctions%2F-405091373" anchor-label="gluTessProperty" id="1761605413%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="glu-tess-property.html"><span>glu</span><wbr></wbr><span>Tess</span><wbr></wbr><span><span>Property</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1761605413%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="glu-tess-property.html"><span class="token function">gluTessProperty</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">tessellator<span class="token operator">: </span><a href="../-g-l-utessellator/index.html">GLUtessellator</a><span class="token punctuation">, </span></span><span class="parameter ">which<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph"><strong>gluTessProperty</strong> is used to control properites stored in a tessellation object.  These properties affect the way that the polygons are interpreted and rendered.  The legal value for <i>which</i> are as follows: <UL> <LI><strong>GLU_TESS_WINDING_RULE</strong> <BR></BR> Determines which parts of the polygon are on the &quot;interior&quot;. <i>value</i> may be set to one of <BR></BR><strong>GLU_TESS_WINDING_ODD</strong>, <BR></BR><strong>GLU_TESS_WINDING_NONZERO</strong>, <BR></BR><strong>GLU_TESS_WINDING_POSITIVE</strong>, or <BR></BR><strong>GLU_TESS_WINDING_NEGATIVE</strong>, or <BR></BR><strong>GLU_TESS_WINDING_ABS_GEQ_TWO</strong>. <BR></BR> To understand how the winding rule works, consider that the input contours partition the plane into regions.  The winding rule determines which of these regions are inside the polygon. <BR></BR> For a single contour C, the winding number of a point x is simply the signed number of revolutions we make around x as we travel once around C (where CCW is positive).  When there are several contours, the individual winding numbers are summed.  This procedure associates a signed integer value with each point x in the plane.  Note that the winding number is the same for all points in a single region. <BR></BR> The winding rule classifies a region as &quot;inside&quot; if its winding number belongs to the chosen category (odd, nonzero, positive, negative, or absolute value of at least two).  The previous GLU tessellator (prior to GLU 1.2) used the &quot;odd&quot; rule.  The &quot;nonzero&quot; rule is another common way to define the interior.  The other three rules are useful for polygon CSG operations. </LI> * <LI><strong>GLU_TESS_BOUNDARY_ONLY</strong> <BR></BR> Is a boolean value (&quot;value&quot; should be set to GL_TRUE or GL_FALSE). When set to GL_TRUE, a set of closed contours separating the polygon interior and exterior are returned instead of a tessellation.  Exterior contours are oriented CCW with respect to the normal; interior contours are oriented CW. The <strong>GLU_TESS_BEGIN</strong> and <strong>GLU_TESS_BEGIN_DATA</strong> callbacks use the type GL_LINE_LOOP for each contour. </LI> * <LI><strong>GLU_TESS_TOLERANCE</strong> <BR></BR> Specifies a tolerance for merging features to reduce the size of the output. For example, two vertices that are very close to each other might be replaced by a single vertex.  The tolerance is multiplied by the largest coordinate magnitude of any input vertex; this specifies the maximum distance that any feature can move as the result of a single merge operation.  If a single feature takes part in several merge operations, the toal distance moved could be larger. <BR></BR> Feature merging is completely optional; the tolerance is only a hint. The implementation is free to merge in some cases and not in others, or to never merge features at all.  The initial tolerance is 0. <BR></BR> The current implementation merges vertices only if they are exactly coincident, regardless of the current tolerance.  A vertex is spliced into an edge only if the implementation is unable to distinguish which side of the edge the vertex lies on.  Two edges are merged only when both endpoints are identical. </LI> * </UL> *</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2114883099%2FFunctions%2F-405091373" anchor-label="gluTessVertex" id="2114883099%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="glu-tess-vertex.html"><span>glu</span><wbr></wbr><span>Tess</span><wbr></wbr><span><span>Vertex</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2114883099%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="glu-tess-vertex.html"><span class="token function">gluTessVertex</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">tessellator<span class="token operator">: </span><a href="../-g-l-utessellator/index.html">GLUtessellator</a><span class="token punctuation">, </span></span><span class="parameter ">coords<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double-array/index.html">DoubleArray</a><span class="token punctuation">, </span></span><span class="parameter ">coords_offset<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">data<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph"><strong>gluTessVertex</strong> describes a vertex on a polygon that the program defines. Successive <strong>gluTessVertex</strong> calls describe a closed contour. For example, to describe a quadrilateral <strong>gluTessVertex</strong> should be called four times. <strong>gluTessVertex</strong> can only be called between .gluTessBeginContour and .gluTessBeginContour. <BR></BR> <strong>data</strong> normally references to a structure containing the vertex location, as well as other per-vertex attributes such as color and normal. This reference is passed back to the user through the <strong>GLU_TESS_VERTEX</strong> or <strong>GLU_TESS_VERTEX_DATA</strong> callback after tessellation (see the .gluTessCallback reference page).</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>(c) WorldWind Earth</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,1594 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>Companion</title>
+    <link href="../../../../images/logo-icon.svg" rel="icon" type="image/svg">
+        <script>var pathToRoot = "../../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="../../../../scripts/sourceset_dependencies.js" async="async"></script>
+<link href="../../../../styles/style.css" rel="Stylesheet">
+<link href="../../../../styles/main.css" rel="Stylesheet">
+<link href="../../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../../scripts/navigation-loader.js" async="async"></script>
+<script type="text/javascript" src="../../../../scripts/platform-content-handler.js" async="async"></script>
+<script type="text/javascript" src="../../../../scripts/main.js" defer="defer"></script>
+<script type="text/javascript" src="../../../../scripts/prism.js" async="async"></script>
+<script type="text/javascript" src="../../../../ui-kit/ui-kit.min.js" defer="defer"></script>
+</head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+            <a class="library-name--link" href="../../../../index.html" tabindex="1">
+                    WorldWind Kotlin
+            </a>
+        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle"
+                type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+2.1.0        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector wasm-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/wasmJsMain">wasmJs</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox"
+                        data-role="dropdown-toggle"
+                        aria-controls="platform-tags-listbox"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-label="Toggle source sets"
+                ></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option wasm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/wasmJsMain"
+                                       data-filter=":worldwind/wasmJsMain"/>
+                                <span class="checkbox--icon"></span>
+                                wasmJs
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button"
+                    type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config='{"defaultSize": 280, "minSize": 200, "maxSize": 400}'>
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list"
+                    data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    WorldWind Kotlin
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="classlike" id="content" pageIds="WorldWind Kotlin::earth.worldwind.shape.milstd2525/Modifiers.Companion///PointingToDeclaration//-4826054">
+  <div class="breadcrumbs"><a href="../../../../index.html">WorldWind Kotlin</a><span class="delimiter">/</span><a href="../../index.html">earth.worldwind.shape.milstd2525</a><span class="delimiter">/</span><a href="../index.html">Modifiers</a><span class="delimiter">/</span><span class="current">Companion</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Companion</span></span></h1>
+    <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+      <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="index.html">Companion</a></div></div>    </div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="-1460809407%2FProperties%2F-4826054" anchor-label="A_SYMBOL_ICON" id="-1460809407%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a_-s-y-m-b-o-l_-i-c-o-n.html"><span>A_</span><wbr></wbr><span>SYMBOL_</span><wbr></wbr><span>ICON</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1460809407%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a_-s-y-m-b-o-l_-i-c-o-n.html">A_SYMBOL_ICON</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Symbol Icon
+The innermost part of a symbol, comprised of an icon and optional modifiers, that represents a joint military object (see 5.3.4).
+Format: Graphic
+Symbol Set: All
+Remarks: Determined by SIDC positions 11-20.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1954822019%2FProperties%2F-4826054" anchor-label="AA_SPECIAL_C2_HQ" id="1954822019%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-a_-s-p-e-c-i-a-l_-c2_-h-q.html"><span>AA_</span><wbr></wbr><span>SPECIAL_</span><wbr></wbr><span>C2_</span><wbr></wbr><span>HQ</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1954822019%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-a_-s-p-e-c-i-a-l_-c2_-h-q.html">AA_SPECIAL_C2_HQ</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Special C2 Headquarters
+A amplifier that is contained inside the frame in place of the main icon and contains the name of the special C2 Headquarters.
+Format: Alphanumeric - {1,9}
+Symbol Set: 10
+Remarks:
+Examples: Named command such as SHAPE, PACOM, and joint, multinational, or coalition commands such as CJTF, JTF, or MJTF.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="909206924%2FProperties%2F-4826054" anchor-label="AB_FEINT_DUMMY_INDICATOR" id="909206924%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-b_-f-e-i-n-t_-d-u-m-m-y_-i-n-d-i-c-a-t-o-r.html"><span>AB_</span><wbr></wbr><span>FEINT_</span><wbr></wbr><span>DUMMY_</span><wbr></wbr><span>INDICATOR</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="909206924%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-b_-f-e-i-n-t_-d-u-m-m-y_-i-n-d-i-c-a-t-o-r.html">AB_FEINT_DUMMY_INDICATOR</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Feint/Dummy indicator
+An amplifier that identifies an offensive or defensive unit, intended to draw the enemy's attention away from the area of the main attack.
+Format: Graphic
+Symbol Set: 10, 15, 20, 25
+Remarks: Determined by SIDC position 8.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1932478003%2FProperties%2F-4826054" anchor-label="AD_PLATFORM_TYPE" id="-1932478003%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-d_-p-l-a-t-f-o-r-m_-t-y-p-e.html"><span>AD_</span><wbr></wbr><span>PLATFORM_</span><wbr></wbr><span>TYPE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1932478003%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-d_-p-l-a-t-f-o-r-m_-t-y-p-e.html">AD_PLATFORM_TYPE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Platform Type
+An amplifier that identifies the electronic identification for a pulsed or non-pulsed electromagnetic emission.
+Format: Alphanumeric - {5,5}
+Symbol Set: 10, 15
+Remarks:
+List of Values:
+ELNOT = Electronic intelligence notation
+CENOT = Communications intelligence notation
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1362888197%2FProperties%2F-4826054" anchor-label="AE_EQUIPMENT_TEARDOWN_TIME" id="-1362888197%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-e_-e-q-u-i-p-m-e-n-t_-t-e-a-r-d-o-w-n_-t-i-m-e.html"><span>AE_</span><wbr></wbr><span>EQUIPMENT_</span><wbr></wbr><span>TEARDOWN_</span><wbr></wbr><span>TIME</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1362888197%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-e_-e-q-u-i-p-m-e-n-t_-t-e-a-r-d-o-w-n_-t-i-m-e.html">AE_EQUIPMENT_TEARDOWN_TIME</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Platform Type
+An amplifier that identifies equipment teardown time in minutes.
+Format: Numeric – {1,3}
+Symbol Set: 10(2525E), 15
+Remarks:
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1366228340%2FProperties%2F-4826054" anchor-label="AF_COMMON_IDENTIFIER" id="1366228340%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-f_-c-o-m-m-o-n_-i-d-e-n-t-i-f-i-e-r.html"><span>AF_</span><wbr></wbr><span>COMMON_</span><wbr></wbr><span>IDENTIFIER</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1366228340%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-f_-c-o-m-m-o-n_-i-d-e-n-t-i-f-i-e-r.html">AF_COMMON_IDENTIFIER</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Common Identifier
+An amplifier to provide a common name used to identify an entity.
+Format: Alphanumeric - {1,12}
+Symbol Set: 10(2525E), 15, 27
+Remarks: Example: "Hawk" for Hawk SAM system.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1922192981%2FProperties%2F-4826054" anchor-label="AG_AUX_EQUIP_INDICATOR" id="-1922192981%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-g_-a-u-x_-e-q-u-i-p_-i-n-d-i-c-a-t-o-r.html"><span>AG_</span><wbr></wbr><span>AUX_</span><wbr></wbr><span>EQUIP_</span><wbr></wbr><span>INDICATOR</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1922192981%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-g_-a-u-x_-e-q-u-i-p_-i-n-d-i-c-a-t-o-r.html">AG_AUX_EQUIP_INDICATOR</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Auxiliary Equipment Indicator
+An amplifier for equipment that indicates the presence of a towed sonar array (see 5.3.7.11, figure 14 and table IX).
+Format: Graphic
+Symbol Set: 15
+Remarks: Determined by SIDC positions 9-10.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1855720457%2FProperties%2F-4826054" anchor-label="AH_AREA_OF_UNCERTAINTY" id="-1855720457%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-h_-a-r-e-a_-o-f_-u-n-c-e-r-t-a-i-n-t-y.html"><span>AH_</span><wbr></wbr><span>AREA_</span><wbr></wbr><span>OF_</span><wbr></wbr><span><span>UNCERTAINTY</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1855720457%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-h_-a-r-e-a_-o-f_-u-n-c-e-r-t-a-i-n-t-y.html">AH_AREA_OF_UNCERTAINTY</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Area of Uncertainty
+An amplifier that indicates the area where an object is most likely to be, based on the object's last report and
+the reporting accuracy of the sensor that detected the object (see 5.3.7.13.1 and figure 18.
+Format: Graphic (Alphanumeric for exchange only)
+Symbol Set: 01, 05, 10, 15, 20, 25, 27, 30, 35, 40
+Remarks:
+The amplifier can be displayed as an ellipse, a bearing box, or a line of bearing, depending on the report received for the object.
+Notes: Not implemented by the renderer
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1092351605%2FProperties%2F-4826054" anchor-label="AI_DEAD_RECKONING_TRAILER" id="-1092351605%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-i_-d-e-a-d_-r-e-c-k-o-n-i-n-g_-t-r-a-i-l-e-r.html"><span>AI_</span><wbr></wbr><span>DEAD_</span><wbr></wbr><span>RECKONING_</span><wbr></wbr><span>TRAILER</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1092351605%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-i_-d-e-a-d_-r-e-c-k-o-n-i-n-g_-t-r-a-i-l-e-r.html">AI_DEAD_RECKONING_TRAILER</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Dead Reckoning Trailer
+An amplifier that identifies where an object should be located at present, given its last reported course and speed (see 5.3.7.13.2).
+Format: Graphic
+Symbol Set: 01, 05, 10, 15, 20, 25, 27, 30, 35, 40
+Remarks:
+Locally derived information. This datum is not exchanged.
+Notes: Not implemented by the renderer
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1203632980%2FProperties%2F-4826054" anchor-label="AJ_SPEED_LEADER" id="-1203632980%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-j_-s-p-e-e-d_-l-e-a-d-e-r.html"><span>AJ_</span><wbr></wbr><span>SPEED_</span><wbr></wbr><span>LEADER</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1203632980%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-j_-s-p-e-e-d_-l-e-a-d-e-r.html">AJ_SPEED_LEADER</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Speed Leader
+An amplifier that depicts the speed and direction of movement of an object (see 5.3.7.13.3 and figure 18).
+Format: Graphic
+Symbol Set: 10, 15, 30, 35
+Remarks:
+Land units and equipment use the Direction of Movement and Speed amplifiers for this information.
+Notes: Not implemented by the renderer
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1511296989%2FProperties%2F-4826054" anchor-label="AK_PAIRING_LINE" id="-1511296989%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-k_-p-a-i-r-i-n-g_-l-i-n-e.html"><span>AK_</span><wbr></wbr><span>PAIRING_</span><wbr></wbr><span>LINE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1511296989%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-k_-p-a-i-r-i-n-g_-l-i-n-e.html">AK_PAIRING_LINE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Pairing Line
+An amplifier that connects two objects and is updated dynamically as the positions of the two objects change (see 5.3.7.13.4 and figure 18).
+Format: Graphic
+Symbol Set: NA
+Remarks:
+Notes: Not implemented by the renderer
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-855691619%2FProperties%2F-4826054" anchor-label="AL_OPERATIONAL_CONDITION" id="-855691619%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-l_-o-p-e-r-a-t-i-o-n-a-l_-c-o-n-d-i-t-i-o-n.html"><span>AL_</span><wbr></wbr><span>OPERATIONAL_</span><wbr></wbr><span>CONDITION</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-855691619%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-l_-o-p-e-r-a-t-i-o-n-a-l_-c-o-n-d-i-t-i-o-n.html">AL_OPERATIONAL_CONDITION</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Operational Condition
+An amplifier that indicates operational condition or capacity.
+Format: Graphic
+Symbol Set: 01, 05,10, 15, 20, 30, 35
+Remarks: Determined by SIDC position 7.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="647953051%2FProperties%2F-4826054" anchor-label="AM_DISTANCE" id="647953051%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-m_-d-i-s-t-a-n-c-e.html"><span>AM_</span><wbr></wbr><span>DISTANCE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="647953051%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-m_-d-i-s-t-a-n-c-e.html">AM_DISTANCE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Distance
+An amplifier that displays a minimum, maximum, or a specific distance (range, radius, width, length, etc.), in meters.
+Format: Alphanumeric - {3,9} [#] [X]
+Symbol Set: 25
+Remarks:
+"#" is the value (range 0-99999)
+XXX is the distance unit.
+There should be a space between the integer and the unit of measure values.
+Where more than one distance is specified the AM amplifier will be suffixed with a numeric entry, e.g. AM1, AM2.
+Note:
+Renderer expects just a number or a comma delimited string of numbers and an accompanying attribute {@link MilStdAttributes.DistanceUnits}
+Default behavior assumes meters.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="33959037%2FProperties%2F-4826054" anchor-label="AN_AZIMUTH" id="33959037%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-n_-a-z-i-m-u-t-h.html"><span>AN_</span><wbr></wbr><span>AZIMUTH</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="33959037%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-n_-a-z-i-m-u-t-h.html">AN_AZIMUTH</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Azimuth
+An amplifier that displays an angle measured from true north to any other line in degrees.
+Format: Alphanumeric - {7,8} [#####] [XXX]
+Symbol Set: 25
+Remarks:
+For Degrees entries.
+XXX DGT, where XXX is degrees from 000-359 and DGT is referenced to TRUE North.
+For Mils entries.
+XXXX MGT, where XXXX is MILS from 0000-6399 and MGT is referenced to TRUE North.
+Where more than one angle is specified the AN amplifier will be suffixed with a numeric entry, e.g. AN1, AN2.
+Note:
+Renderer expects just a number or a comma delimited string of numbers
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-34473953%2FProperties%2F-4826054" anchor-label="AO_ENGAGEMENT_BAR" id="-34473953%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-o_-e-n-g-a-g-e-m-e-n-t_-b-a-r.html"><span>AO_</span><wbr></wbr><span>ENGAGEMENT_</span><wbr></wbr><span>BAR</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-34473953%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-o_-e-n-g-a-g-e-m-e-n-t_-b-a-r.html">AO_ENGAGEMENT_BAR</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><p class="paragraph">Engagement Bar A graphic amplifier placed immediately atop the symbol. May denote: A) local/remote engagement status - 'R' for remote, 'B' for mix of local/remote, none for local B) engagement status C) weapon type.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="743665993%2FProperties%2F-4826054" anchor-label="AP1_TARGET_NUMBER_EXTENSION" id="743665993%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-p1_-t-a-r-g-e-t_-n-u-m-b-e-r_-e-x-t-e-n-s-i-o-n.html"><span>AP1_</span><wbr></wbr><span>TARGET_</span><wbr></wbr><span>NUMBER_</span><wbr></wbr><span>EXTENSION</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="743665993%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-p1_-t-a-r-g-e-t_-n-u-m-b-e-r_-e-x-t-e-n-s-i-o-n.html">AP1_TARGET_NUMBER_EXTENSION</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Target Number Extension
+An amplifier used to identify a target number extension which is a sequentially assigned number identifying the individual elements in a target (MIL-STD-6017),
+Format: Numeric – {2,3} [-##]
+Symbol Set: 25
+Remarks:
+Position 1 is a dash (-) and positions 2-3 are numbers, from 1 through 15.
+It is applicable only to the "Point or Single Target" symbol.
+It is conditional upon the presence of the Target Number amplifier and is visually displayed appended to the Target Number amplifier.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-590859472%2FProperties%2F-4826054" anchor-label="AP_TARGET_NUMBER" id="-590859472%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-p_-t-a-r-g-e-t_-n-u-m-b-e-r.html"><span>AP_</span><wbr></wbr><span>TARGET_</span><wbr></wbr><span>NUMBER</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-590859472%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-p_-t-a-r-g-e-t_-n-u-m-b-e-r.html">AP_TARGET_NUMBER</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Target Number
+An amplifier used in Fire Support operations to uniquely designate targets in accordance with STANAG 2934.
+Format: Alphanumeric - {6,6} [XX][####]
+Symbol Set: 25
+Remarks:
+Two-part composite field.
+Where positions 1-2 are text, and positions 3-6 are numeric.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="815573589%2FProperties%2F-4826054" anchor-label="AQ_GUARDED_UNIT" id="815573589%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-q_-g-u-a-r-d-e-d_-u-n-i-t.html"><span>AQ_</span><wbr></wbr><span>GUARDED_</span><wbr></wbr><span>UNIT</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="815573589%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-q_-g-u-a-r-d-e-d_-u-n-i-t.html">AQ_GUARDED_UNIT</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Guarded Unit
+An amplifier used during ballistic missile defense. Some tracks are designated as guarded by a particular unit.
+Format: Alphanumeric - {6,6} [XX]
+Symbol Set: 10(2525E), 15, 20(2525E), 30
+Remarks:
+Single value:
+BG - Guarded Unit
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1223153531%2FProperties%2F-4826054" anchor-label="AR_SPECIAL_DESIGNATOR" id="1223153531%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-r_-s-p-e-c-i-a-l_-d-e-s-i-g-n-a-t-o-r.html"><span>AR_</span><wbr></wbr><span>SPECIAL_</span><wbr></wbr><span>DESIGNATOR</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1223153531%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-r_-s-p-e-c-i-a-l_-d-e-s-i-g-n-a-t-o-r.html">AR_SPECIAL_DESIGNATOR</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Special Designator
+An amplifier that identifies special track designators.
+Format: Alphanumeric - {3,3}
+Symbol Set: 10, 30, 35
+Remarks:
+List of values:
+NRT - Non-Real Time.
+SIG - Tactically Significant Tracks.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1265119790%2FProperties%2F-4826054" anchor-label="AS_COUNTRY" id="1265119790%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-s_-c-o-u-n-t-r-y.html"><span>AS_</span><wbr></wbr><span>COUNTRY</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1265119790%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-s_-c-o-u-n-t-r-y.html">AS_COUNTRY</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Country
+A three-letter code that indicates the country of origin of the organization (US systems shall use GENC).
+Format: Alphanumeric - {3,3}
+Symbol Set: All
+Remarks: Determined by SIDC positions 28-30.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1500841030%2FProperties%2F-4826054" anchor-label="AT_CAPACITY_OF_INSTALLATION" id="-1500841030%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-t_-c-a-p-a-c-i-t-y_-o-f_-i-n-s-t-a-l-l-a-t-i-o-n.html"><span>AT_</span><wbr></wbr><span>CAPACITY_</span><wbr></wbr><span>OF_</span><wbr></wbr><span><span>INSTALLATION</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1500841030%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-t_-c-a-p-a-c-i-t-y_-o-f_-i-n-s-t-a-l-l-a-t-i-o-n.html">AT_CAPACITY_OF_INSTALLATION</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Capacity of Installation
+Capacity of installation displayed.
+Format: Alphanumeric - {1,19} [#########] [XXXXXXXXXX]
+Symbol Set: 2525E addition, not currently defined.  Probably 20
+Remarks:
+Two-part composite field.
+Comprised of:
+Quantity 0-99999999 followed by the unit of measure.
+e.g. 400 Beds
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1391579284%2FProperties%2F-4826054" anchor-label="AV_LEADERSHIP" id="1391579284%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-v_-l-e-a-d-e-r-s-h-i-p.html"><span>AV_</span><wbr></wbr><span>LEADERSHIP</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1391579284%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-v_-l-e-a-d-e-r-s-h-i-p.html">AV_LEADERSHIP</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Leadership
+Identifies Leadership (ONLY IN DISMOUNTED INDIVIDUAL)
+Format: Graphic
+Symbol Set: 27(2525E)
+Remarks: Determined by SIDC positions 9-10.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1215818826%2FProperties%2F-4826054" anchor-label="AW_HEADQUARTERS_ELEMENT" id="-1215818826%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-w_-h-e-a-d-q-u-a-r-t-e-r-s_-e-l-e-m-e-n-t.html"><span>AW_</span><wbr></wbr><span>HEADQUARTERS_</span><wbr></wbr><span>ELEMENT</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1215818826%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-w_-h-e-a-d-q-u-a-r-t-e-r-s_-e-l-e-m-e-n-t.html">AW_HEADQUARTERS_ELEMENT</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Headquarters Element
+An amplifier that indicates what type of element of a headquarters is being represented, such as TOC, MAIN2.
+Format: Alphanumeric {0,8}
+Symbol Set: 10(2525E)
+Remarks: Location currently undefined
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2095468246%2FProperties%2F-4826054" anchor-label="AX_INSTALLATION_COMPOSITION" id="2095468246%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-x_-i-n-s-t-a-l-l-a-t-i-o-n_-c-o-m-p-o-s-i-t-i-o-n.html"><span>AX_</span><wbr></wbr><span>INSTALLATION_</span><wbr></wbr><span><span>COMPOSITION</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2095468246%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-x_-i-n-s-t-a-l-l-a-t-i-o-n_-c-o-m-p-o-s-i-t-i-o-n.html">AX_INSTALLATION_COMPOSITION</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Installation Composition
+Indicates the component type of the installation
+Format: Alphanumeric {3,7}
+Symbol Set: 20(2525E)
+Remarks: Location currently undefined
+List of Values:
+DEVELOP - Development.
+RSRCH - Research.
+PROD - Production.
+SVC - Service.
+STORE - Storage.
+UTIL - Utility.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1386369790%2FProperties%2F-4826054" anchor-label="AY_NETWORK_IDENTIFIER" id="-1386369790%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-y_-n-e-t-w-o-r-k_-i-d-e-n-t-i-f-i-e-r.html"><span>AY_</span><wbr></wbr><span>NETWORK_</span><wbr></wbr><span>IDENTIFIER</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1386369790%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-a-y_-n-e-t-w-o-r-k_-i-d-e-n-t-i-f-i-e-r.html">AY_NETWORK_IDENTIFIER</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Network Identifier
+Indicates the network the entity has privileges within.
+Format: Alphanumeric
+Symbol Set: undefined
+Remarks:
+The colour of the graphic shall be assignable by the operator.
+Notes: undefined
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1810541808%2FProperties%2F-4826054" anchor-label="B_ECHELON" id="1810541808%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-b_-e-c-h-e-l-o-n.html"><span>B_</span><wbr></wbr><span>ECHELON</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1810541808%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-b_-e-c-h-e-l-o-n.html">B_ECHELON</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Echelon
+An amplifier in a unit symbol that identifies command level (see 5.3.7.1 and table VII).
+Format: Graphic
+Symbol Set: All
+Remarks: Determined by SIDC positions 9-10.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1874747568%2FProperties%2F-4826054" anchor-label="C_QUANTITY" id="-1874747568%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-c_-q-u-a-n-t-i-t-y.html"><span>C_</span><wbr></wbr><span>QUANTITY</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1874747568%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-c_-q-u-a-n-t-i-t-y.html">C_QUANTITY</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Quantity
+An amplifier in an equipment symbol that identifies the number of items present.
+Examples include:
+350 Beds 50 Gallons
+Format:
+Alphanumeric - {1,19}
+[#########] [XXXXXXXXXX]
+Symbol Set: 10, 11, 15, 25, 27, 60
+Remarks: Two-part composite field.
+Where # is the numeric value [1-999999999], and X is the unit of measure.
+Note: There should be a space between the numeric and the unit of measure values.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1375714533%2FProperties%2F-4826054" anchor-label="D_TASK_FORCE_INDICATOR" id="-1375714533%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-d_-t-a-s-k_-f-o-r-c-e_-i-n-d-i-c-a-t-o-r.html"><span>D_</span><wbr></wbr><span>TASK_</span><wbr></wbr><span>FORCE_</span><wbr></wbr><span>INDICATOR</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1375714533%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-d_-t-a-s-k_-f-o-r-c-e_-i-n-d-i-c-a-t-o-r.html">D_TASK_FORCE_INDICATOR</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Task Force Indicator
+An amplifier that identifies a unit or activities symbol as a task force (see 5.3.7.2 and figure 14).
+Format: Graphic
+Symbol Set: 10
+Remarks: Determined by SIDC position 8.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-146206762%2FProperties%2F-4826054" anchor-label="E_FRAME_SHAPE_MODIFIER" id="-146206762%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e_-f-r-a-m-e_-s-h-a-p-e_-m-o-d-i-f-i-e-r.html"><span>E_</span><wbr></wbr><span>FRAME_</span><wbr></wbr><span>SHAPE_</span><wbr></wbr><span>MODIFIER</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-146206762%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-e_-f-r-a-m-e_-s-h-a-p-e_-m-o-d-i-f-i-e-r.html">E_FRAME_SHAPE_MODIFIER</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Frame Shape Modifier
+A graphic modifier that displays standard identity, battle dimension, or exercise
+amplifying descriptors of an object (see 5.3.1 and table II).
+Format: Graphic
+Symbol Set: ALL BUT 25,45,46,47
+Remarks: 2525C, not processed as a modifier in 2525D+
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1420436306%2FProperties%2F-4826054" anchor-label="F_REINFORCED_REDUCED" id="-1420436306%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-f_-r-e-i-n-f-o-r-c-e-d_-r-e-d-u-c-e-d.html"><span>F_</span><wbr></wbr><span>REINFORCED_</span><wbr></wbr><span>REDUCED</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1420436306%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-f_-r-e-i-n-f-o-r-c-e-d_-r-e-d-u-c-e-d.html">F_REINFORCED_REDUCED</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Reinforced or Reduced
+An amplifier in a unit symbol that displays (+) for reinforced, (-) for reduced, (<u>+</u>) reinforced and reduced.
+Format: Alphanumeric - {1,1}
+Symbol Set: 10
+Remarks:
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1763039796%2FProperties%2F-4826054" anchor-label="G_STAFF_COMMENTS" id="-1763039796%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g_-s-t-a-f-f_-c-o-m-m-e-n-t-s.html"><span>G_</span><wbr></wbr><span>STAFF_</span><wbr></wbr><span>COMMENTS</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1763039796%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-g_-s-t-a-f-f_-c-o-m-m-e-n-t-s.html">G_STAFF_COMMENTS</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Staff Comments
+An amplifier for units, equipment and installations; content is implementation specific.
+Format: Alphanumeric - {1,20}
+Symbol Set: 01, 05, 10, 15, 20, 27, 30, 35, 40
+Remarks:
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1587443404%2FProperties%2F-4826054" anchor-label="H1_ADDITIONAL_INFO_2" id="-1587443404%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-h1_-a-d-d-i-t-i-o-n-a-l_-i-n-f-o_2.html"><span>H1_</span><wbr></wbr><span>ADDITIONAL_</span><wbr></wbr><span>INFO_</span><wbr></wbr><span>2</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1587443404%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-h1_-a-d-d-i-t-i-o-n-a-l_-i-n-f-o_2.html">H1_ADDITIONAL_INFO_2</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Unlisted Point Information
+An alphanumeric text amplifier used to provide an up to a three-character letter field acronym to describe a point that is not already listed.
+Format: Alphanumeric - {1,3}
+Symbol Set: 25
+Remarks: Only used with Action Points (General) control measure. SIDC 130100.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1713849778%2FProperties%2F-4826054" anchor-label="H2_ADDITIONAL_INFO_3" id="1713849778%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-h2_-a-d-d-i-t-i-o-n-a-l_-i-n-f-o_3.html"><span>H2_</span><wbr></wbr><span>ADDITIONAL_</span><wbr></wbr><span>INFO_</span><wbr></wbr><span>3</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1713849778%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-h2_-a-d-d-i-t-i-o-n-a-l_-i-n-f-o_3.html">H2_ADDITIONAL_INFO_3</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><p class="paragraph">A text modifier for tactical graphics; content is implementation specific. CM: P,L,A,N,B/C,R/N Length: 20</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-585228894%2FProperties%2F-4826054" anchor-label="H_ADDITIONAL_INFO_1" id="-585228894%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-h_-a-d-d-i-t-i-o-n-a-l_-i-n-f-o_1.html"><span>H_</span><wbr></wbr><span>ADDITIONAL_</span><wbr></wbr><span>INFO_</span><wbr></wbr><span>1</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-585228894%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-h_-a-d-d-i-t-i-o-n-a-l_-i-n-f-o_1.html">H_ADDITIONAL_INFO_1</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Additional Information
+An amplifier for units, equipment and installations; content is implementation specific.
+Format: Alphanumeric - {1,20}
+Symbol Set: ALL
+Remarks:
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1088022184%2FProperties%2F-4826054" anchor-label="J_EVALUATION_RATING" id="-1088022184%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-j_-e-v-a-l-u-a-t-i-o-n_-r-a-t-i-n-g.html"><span>J_</span><wbr></wbr><span>EVALUATION_</span><wbr></wbr><span>RATING</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1088022184%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-j_-e-v-a-l-u-a-t-i-o-n_-r-a-t-i-n-g.html">J_EVALUATION_RATING</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Evaluation Rating
+An amplifier that consists of a one-letter reliability rating and a one-number credibility rating. (See ATP 2-33.4)
+Format: Alphanumeric - {2,2} [X][#]
+Symbol Set: 10, 15, 20,27, 40
+Remarks:
+
+Reliability Ratings:
+A-completely reliable
+B-usually reliable
+C-fairly reliable
+D-not usually reliable
+E-unreliable
+F-reliability cannot be judged
+
+Credibility Ratings:
+1-confirmed by other sources
+2-probably true
+3-possibly true
+4-doubtfully true
+5-improbable
+6-truth cannot be judged
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-305602672%2FProperties%2F-4826054" anchor-label="K_COMBAT_EFFECTIVENESS" id="-305602672%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-k_-c-o-m-b-a-t_-e-f-f-e-c-t-i-v-e-n-e-s-s.html"><span>K_</span><wbr></wbr><span>COMBAT_</span><wbr></wbr><span><span>EFFECTIVENESS</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-305602672%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-k_-c-o-m-b-a-t_-e-f-f-e-c-t-i-v-e-n-e-s-s.html">K_COMBAT_EFFECTIVENESS</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Effectiveness
+An amplifier for units and installations that indicates unit effectiveness or installation capability.
+Format: Alphanumeric - {2,3}
+Symbol Set: 10, 15, 27
+Remarks:
+List of Values:
+FO - Fully Operational
+SO - Substantially operational
+MO - Marginally operational
+NO - Not operational
+UNK - Unknown
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1170593997%2FProperties%2F-4826054" anchor-label="L_SIGNATURE_EQUIP" id="1170593997%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-l_-s-i-g-n-a-t-u-r-e_-e-q-u-i-p.html"><span>L_</span><wbr></wbr><span>SIGNATURE_</span><wbr></wbr><span>EQUIP</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1170593997%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-l_-s-i-g-n-a-t-u-r-e_-e-q-u-i-p.html">L_SIGNATURE_EQUIP</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Signature Equipment
+An amplifier for hostile equipment; "!" indicates detectable electronic signatures.
+Format: Alphanumeric - {1,1}
+Symbol Set: 15
+Remarks: The amplifier displayed is the exclamation mark "!".
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-448322556%2FProperties%2F-4826054" anchor-label="M_HIGHER_FORMATION" id="-448322556%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-m_-h-i-g-h-e-r_-f-o-r-m-a-t-i-o-n.html"><span>M_</span><wbr></wbr><span>HIGHER_</span><wbr></wbr><span>FORMATION</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-448322556%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-m_-h-i-g-h-e-r_-f-o-r-m-a-t-i-o-n.html">M_HIGHER_FORMATION</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Higher Formation
+An amplifier for units that indicates number or title of higher echelon command (corps are designated by Roman numerals).
+Format: Alphanumeric - {1,21}
+Symbol Set: 10
+Remarks: The amplifier displayed is the exclamation mark "!".
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1057910790%2FProperties%2F-4826054" anchor-label="N_HOSTILE" id="-1057910790%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-n_-h-o-s-t-i-l-e.html"><span>N_</span><wbr></wbr><span>HOSTILE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1057910790%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-n_-h-o-s-t-i-l-e.html">N_HOSTILE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Hostile (Enemy)
+An amplifier for equipment; letters "ENY" denote hostile symbols.
+Format: Alphanumeric - {3,3}
+Symbol Set: 15,25
+Remarks: Determined by SIDC position 4.
+Note: This amplifier must be used when displaying enemy/hostile control measures on monochromatic displays
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-209309076%2FProperties%2F-4826054" anchor-label="P_IFF_SIF_AIS" id="-209309076%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-p_-i-f-f_-s-i-f_-a-i-s.html"><span>P_</span><wbr></wbr><span>IFF_</span><wbr></wbr><span>SIF_</span><wbr></wbr><span>AIS</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-209309076%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-p_-i-f-f_-s-i-f_-a-i-s.html">P_IFF_SIF_AIS</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+IFF/SIF/AIS
+An amplifier displaying IFF/SIF/AIS Identification modes and codes.
+Format:
+Symbol Set: 01, 10, 15, 27, 30, 35
+Remarks: 'MODE' is not required when displaying.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1069021082%2FProperties%2F-4826054" anchor-label="Q_DIRECTION_OF_MOVEMENT" id="1069021082%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-q_-d-i-r-e-c-t-i-o-n_-o-f_-m-o-v-e-m-e-n-t.html"><span>Q_</span><wbr></wbr><span>DIRECTION_</span><wbr></wbr><span>OF_</span><wbr></wbr><span>MOVEMENT</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1069021082%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-q_-d-i-r-e-c-t-i-o-n_-o-f_-m-o-v-e-m-e-n-t.html">Q_DIRECTION_OF_MOVEMENT</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Direction of Movement Indicator
+An amplifier consisting of a line with arrow that identifies the direction of movement or intended movement of an object (see 5.3.7.9 and figure 14).
+Format: Graphic (Alphanumeric for exchange only)
+Symbol Set: 10, 15, 20, 25, 27
+Remarks:
+Renderer Assumes a value in degrees with no text
+MilStd:
+
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="914599524%2FProperties%2F-4826054" anchor-label="R2_SIGNIT_MOBILITY_INDICATOR" id="914599524%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r2_-s-i-g-n-i-t_-m-o-b-i-l-i-t-y_-i-n-d-i-c-a-t-o-r.html"><span>R2_</span><wbr></wbr><span>SIGNIT_</span><wbr></wbr><span>MOBILITY_</span><wbr></wbr><span>INDICATOR</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="914599524%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-r2_-s-i-g-n-i-t_-m-o-b-i-l-i-t-y_-i-n-d-i-c-a-t-o-r.html">R2_SIGNIT_MOBILITY_INDICATOR</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+SIGINT Mobility Indicator
+An amplifier that indicates the mobility of a SIGINT unit.
+Format: Alphanumeric - {1,1}
+Symbol Set: 50, 51, 52, 53, 54
+Remarks:
+List of Values:
+M = Mobile,
+S = Static
+U = Uncertain.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="79446415%2FProperties%2F-4826054" anchor-label="R_MOBILITY_INDICATOR" id="79446415%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r_-m-o-b-i-l-i-t-y_-i-n-d-i-c-a-t-o-r.html"><span>R_</span><wbr></wbr><span>MOBILITY_</span><wbr></wbr><span>INDICATOR</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="79446415%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-r_-m-o-b-i-l-i-t-y_-i-n-d-i-c-a-t-o-r.html">R_MOBILITY_INDICATOR</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Mobility Indicator
+An amplifier that depicts the mobility of an object not intrinsic to the entity itself (see 5.3.7.9, figure 14 and table IX).
+Format: Graphic
+Symbol Set: 10
+Remarks: Determined by SIDC positions 9-10
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1542456224%2FProperties%2F-4826054" anchor-label="S2_OFFSET_INDICATOR" id="-1542456224%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-s2_-o-f-f-s-e-t_-i-n-d-i-c-a-t-o-r.html"><span>S2_</span><wbr></wbr><span>OFFSET_</span><wbr></wbr><span>INDICATOR</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1542456224%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-s2_-o-f-f-s-e-t_-i-n-d-i-c-a-t-o-r.html">S2_OFFSET_INDICATOR</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Offset Location Indicator
+An amplifier used to indicate the offset or precise location of a single point symbol (see 5.3.7.5, 5.3.12, and figure 14).
+Format: Graphic
+Symbol Set: 10, 20, 25, 27, 40
+Remarks: Determined by individual system implementations, not implemented by the renderer.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="314876241%2FProperties%2F-4826054" anchor-label="S_HQ_STAFF_INDICATOR" id="314876241%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-s_-h-q_-s-t-a-f-f_-i-n-d-i-c-a-t-o-r.html"><span>S_</span><wbr></wbr><span>HQ_</span><wbr></wbr><span>STAFF_</span><wbr></wbr><span>INDICATOR</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="314876241%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-s_-h-q_-s-t-a-f-f_-i-n-d-i-c-a-t-o-r.html">S_HQ_STAFF_INDICATOR</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Headquarters Staff Indicator
+An amplifier for units, installations and activities that identifies them as a headquarters (see figure 14 and figure 13).
+Format: Graphic
+Symbol Set: 10, 20, 40
+Remarks: Determined by SIDC position 8.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="221872773%2FProperties%2F-4826054" anchor-label="T1_UNIQUE_DESIGNATION_2" id="221872773%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-t1_-u-n-i-q-u-e_-d-e-s-i-g-n-a-t-i-o-n_2.html"><span>T1_</span><wbr></wbr><span>UNIQUE_</span><wbr></wbr><span>DESIGNATION_</span><wbr></wbr><span>2</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="221872773%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-t1_-u-n-i-q-u-e_-d-e-s-i-g-n-a-t-i-o-n_2.html">T1_UNIQUE_DESIGNATION_2</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Lines - Unique Identifier or Primary Purpose
+An amplifier that uniquely identifies a particular symbol or track number. Identifies acquisitions number when used with SIGINT symbology.
+Format: Alphanumeric - {1,30}
+Symbol Set: All
+Remarks:
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1624820399%2FProperties%2F-4826054" anchor-label="T_UNIQUE_DESIGNATION_1" id="-1624820399%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-t_-u-n-i-q-u-e_-d-e-s-i-g-n-a-t-i-o-n_1.html"><span>T_</span><wbr></wbr><span>UNIQUE_</span><wbr></wbr><span>DESIGNATION_</span><wbr></wbr><span>1</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1624820399%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-t_-u-n-i-q-u-e_-d-e-s-i-g-n-a-t-i-o-n_1.html">T_UNIQUE_DESIGNATION_1</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Unique Designation
+An amplifier that uniquely identifies a particular symbol or track number. Identifies acquisitions number when used with SIGINT symbology.
+Format: Alphanumeric - {1,30}
+Symbol Set: All
+Remarks:
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1669112155%2FProperties%2F-4826054" anchor-label="V_EQUIP_TYPE" id="-1669112155%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-v_-e-q-u-i-p_-t-y-p-e.html"><span>V_</span><wbr></wbr><span>EQUIP_</span><wbr></wbr><span>TYPE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1669112155%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-v_-e-q-u-i-p_-t-y-p-e.html">V_EQUIP_TYPE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Type
+An amplifier for equipment that indicates types of equipment.
+Format: Alphanumeric - {1,24}
+Symbol Set: Not Installation(20), Activites(40), or CyberSpace(60)
+Remarks:
+Example:
+AH-64 for Attack Helicopter
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="467418802%2FProperties%2F-4826054" anchor-label="W1_DTG_2" id="467418802%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-w1_-d-t-g_2.html"><span>W1_</span><wbr></wbr><span>DTG_</span><wbr></wbr><span>2</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="467418802%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-w1_-d-t-g_2.html">W1_DTG_2</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Date/Time Group (DTG) W1
+An amplifier for displaying a date-time group (DDHHMMSSZMONYYYY) or (DDHHMMZMMMYYYY) or "O/O" for On Order.
+Field "W" is used to provide DTG or if used with field "W1" the start of a period of time.
+Field "W1" is used to provide the end of a period of time.
+Format: Alphanumeric - {3,16}
+Symbol Set: 25
+Remarks:
+The date-time group is composed of a group of six numeric digits with a time zone suffix and the standardized three-letter abbreviation for the month followed by four digits representing the year.
+The first pair of digits represents the day; the second pair, the hour; the third pair, the minutes. For automated systems, two digits may be added before the time zone suffix and after the minutes to designate seconds (see 5.3.7.8).
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1898297506%2FProperties%2F-4826054" anchor-label="W_DTG_1" id="1898297506%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-w_-d-t-g_1.html"><span>W_</span><wbr></wbr><span>DTG_</span><wbr></wbr><span>1</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1898297506%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-w_-d-t-g_1.html">W_DTG_1</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Date/Time Group (DTG) W
+An amplifier for displaying a date-time group (DDHHMMSSZMONYYYY) or (DDHHMMZMMMYYYY) or "O/O" for On Order.
+Field "W" is used to provide DTG or if used with field "W1" the start of a period of time.
+Field "W1" is used to provide the end of a period of time.
+Format: Alphanumeric - {3,16}
+Symbol Set: 10, 15, 20, 25, 27, 40, 45
+Remarks:
+The date-time group is composed of a group of six numeric digits with a time zone suffix and the standardized three-letter abbreviation for the month followed by four digits representing the year.
+The first pair of digits represents the day; the second pair, the hour; the third pair, the minutes. For automated systems, two digits may be added before the time zone suffix and after the minutes to designate seconds (see 5.3.7.8).
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="994225674%2FProperties%2F-4826054" anchor-label="X_ALTITUDE_DEPTH" id="994225674%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-x_-a-l-t-i-t-u-d-e_-d-e-p-t-h.html"><span>X_</span><wbr></wbr><span>ALTITUDE_</span><wbr></wbr><span>DEPTH</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="994225674%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-x_-a-l-t-i-t-u-d-e_-d-e-p-t-h.html">X_ALTITUDE_DEPTH</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Altitude/Depth
+An amplifier that displays either altitude, flight level, depth for submerged objects or height of equipment or structures on the ground, the minimum, maximum and/or specific altitude (in feet or meters in relation to a reference datum) or depth (for submerged objects in feet below sea level). See 5.3.7.6 for content.
+Format:
+Symbol Set: All but 40 & 60
+Remarks:
+SM = Statute Miles
+DM = Data Miles
+Notes:
+The Renderer handles the whole value as a string for Single Point Icons.
+For multipoints, it expects just a number and an accompanying attribute {@link MilStdAttributes.AltitudeUnits}
+Default behavior assumes feet.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1364532740%2FProperties%2F-4826054" anchor-label="Y_LOCATION" id="-1364532740%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-y_-l-o-c-a-t-i-o-n.html"><span>Y_</span><wbr></wbr><span>LOCATION</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1364532740%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-y_-l-o-c-a-t-i-o-n.html">Y_LOCATION</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Location
+An amplifier that displays a symbol's location in degrees, minutes and decimal minutes (or in MGRS, GARS, or other applicable display formats).
+Format: Alphanumeric - {3,16}
+Symbol Set: 10, 15, 20, 25, 27, 30, 40
+Remarks: Exchange format is implementation specific.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-573022847%2FProperties%2F-4826054" anchor-label="Z_SPEED" id="-573022847%2FProperties%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-z_-s-p-e-e-d.html"><span>Z_</span><wbr></wbr><span>SPEED</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-573022847%2FProperties%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-z_-s-p-e-e-d.html">Z_SPEED</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><pre>
+Speed
+An amplifier that displays velocity (see 5.3.7.7).
+Format: Alphanumeric - {5,9} [#####] [XXX]
+Symbol Set: NOT 20, 35, 40, 60
+Remarks:
+Two-part composite field.
+Where # is the numeric value [1-999999999], and XXX is the unit of measure (KPH, KPS, MPH, NMH, KTS).
+Note: There should be a space between the numeric and the unit of measure values.
+</pre></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="1057205367%2FFunctions%2F-4826054" anchor-label="GetControlMeasureModifierList" id="1057205367%2FFunctions%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-get-control-measure-modifier-list.html"><span>Get</span><wbr></wbr><span>Control</span><wbr></wbr><span>Measure</span><wbr></wbr><span>Modifier</span><wbr></wbr><span><span>List</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1057205367%2FFunctions%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="-get-control-measure-modifier-list.html"><span class="token function">GetControlMeasureModifierList</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.js/-js-array/index.html">JsArray</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.js/-js-string/index.html">JsString</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">Returns an Arraylist of the modifiers for Control Measures</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="752137500%2FFunctions%2F-4826054" anchor-label="getModifierDescription" id="752137500%2FFunctions%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-modifier-description.html"><span>get</span><wbr></wbr><span>Modifier</span><wbr></wbr><span><span>Description</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="752137500%2FFunctions%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="get-modifier-description.html"><span class="token function">getModifierDescription</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">modifier<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><p class="paragraph">Returns the description for a modifier constant</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1110881855%2FFunctions%2F-4826054" anchor-label="getModifierKey" id="1110881855%2FFunctions%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-modifier-key.html"><span>get</span><wbr></wbr><span>Modifier</span><wbr></wbr><span><span>Key</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1110881855%2FFunctions%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="get-modifier-key.html"><span class="token function">getModifierKey</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">modLetter<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div><div class="brief "><p class="paragraph">go from &quot;T&quot; or &quot;T1&quot; to integer constant values 9 and 10</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-547492735%2FFunctions%2F-4826054" anchor-label="getModifierLetterCode" id="-547492735%2FFunctions%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-modifier-letter-code.html"><span>get</span><wbr></wbr><span>Modifier</span><wbr></wbr><span>Letter</span><wbr></wbr><span><span>Code</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-547492735%2FFunctions%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="get-modifier-letter-code.html"><span class="token function">getModifierLetterCode</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">modifier<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-302489288%2FFunctions%2F-4826054" anchor-label="GetModifierList" id="-302489288%2FFunctions%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-get-modifier-list.html"><span>Get</span><wbr></wbr><span>Modifier</span><wbr></wbr><span><span>List</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-302489288%2FFunctions%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="-get-modifier-list.html"><span class="token function">GetModifierList</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.js/-js-array/index.html">JsArray</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.js/-js-string/index.html">JsString</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">Returns an Arraylist of the all the modifiers that appear as labels and are not derived from the symbol code or are external to symbol data like offset indicator. Also includes modifiers that control the shape of a symbol like AM & AN.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="225086233%2FFunctions%2F-4826054" anchor-label="getModifierName" id="225086233%2FFunctions%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-modifier-name.html"><span>get</span><wbr></wbr><span>Modifier</span><wbr></wbr><span><span>Name</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="225086233%2FFunctions%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="get-modifier-name.html"><span class="token function">getModifierName</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">modifier<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1176999976%2FFunctions%2F-4826054" anchor-label="GetSymbolCodeModifiersList" id="-1176999976%2FFunctions%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-get-symbol-code-modifiers-list.html"><span>Get</span><wbr></wbr><span>Symbol</span><wbr></wbr><span>Code</span><wbr></wbr><span>Modifiers</span><wbr></wbr><span><span>List</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1176999976%2FFunctions%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="-get-symbol-code-modifiers-list.html"><span class="token function">GetSymbolCodeModifiersList</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.js/-js-array/index.html">JsArray</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.js/-js-string/index.html">JsString</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">Returns an ArrayList of the modifier constants that are determined by the symbol code and therefore don't need their values to be manually typed or selected. (Based on the comments in GetModifierList, GetUnitModifierList, and GetControlMeasureModifierList.)</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-136707564%2FFunctions%2F-4826054" anchor-label="GetUnitModifierList" id="-136707564%2FFunctions%2F-4826054" data-filterable-set=":worldwind/wasmJsMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-get-unit-modifier-list.html"><span>Get</span><wbr></wbr><span>Unit</span><wbr></wbr><span>Modifier</span><wbr></wbr><span><span>List</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-136707564%2FFunctions%2F-4826054"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/wasmJsMain" data-filterable-set=":worldwind/wasmJsMain" data-active="" data-toggle=":worldwind/wasmJsMain">wasmJs</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/wasmJsMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="-get-unit-modifier-list.html"><span class="token function">GetUnitModifierList</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.js/-js-array/index.html">JsArray</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.js/-js-string/index.html">JsString</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">Returns an Arraylist of the modifier names for units</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>(c) WorldWind Earth</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>DefaultMvtStyle</title>
+    <link href="../../../images/logo-icon.svg" rel="icon" type="image/svg">
+        <script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async="async"></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async="async"></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async="async"></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer="defer"></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async="async"></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer="defer"></script>
+</head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+            <a class="library-name--link" href="../../../index.html" tabindex="1">
+                    WorldWind Kotlin
+            </a>
+        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle"
+                type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+2.1.0        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector common-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/commonMain">common</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox"
+                        data-role="dropdown-toggle"
+                        aria-controls="platform-tags-listbox"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-label="Toggle source sets"
+                ></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/commonMain"
+                                       data-filter=":worldwind/commonMain"/>
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button"
+                    type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config='{"defaultSize": 280, "minSize": 200, "maxSize": 400}'>
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list"
+                    data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    WorldWind Kotlin
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="classlike" id="content" pageIds="WorldWind Kotlin::earth.worldwind.layer.mvt/DefaultMvtStyle///PointingToDeclaration//-405091373">
+  <div class="breadcrumbs"><a href="../../../index.html">WorldWind Kotlin</a><span class="delimiter">/</span><a href="../index.html">earth.worldwind.layer.mvt</a><span class="delimiter">/</span><span class="current">DefaultMvtStyle</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Default</span><wbr></wbr><span>Mvt</span><wbr></wbr><span><span>Style</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="index.html">DefaultMvtStyle</a> : <a href="../-mvt-style/index.html">MvtStyle</a></div><p class="paragraph">Hardcoded style table approximating an OpenMapTiles &quot;basic&quot; look. Covers the layer names commonly seen across OpenMapTiles, Maptiler v3, Mapbox v8, and Protomaps &quot;basemaps&quot; schemas.</p><p class="paragraph">Decisions:</p><ul><li><p class="paragraph">POINT features always return <code class="lang-kotlin">null</code> — hand-coded styles don't carry label data; use      <a href="../-mvt-rule-based-style/index.html">MvtRuleBasedStyle</a> for labels.</p></li><li><p class="paragraph">Roads are styled by <code class="lang-kotlin">class</code>/<code class="lang-kotlin">kind</code> property where available, with a generic fallback.</p></li><li><p class="paragraph">Outlines are off for area fills — outlining a dense mesh of tiny polygons drops the      framerate without improving readability.</p></li><li><p class="paragraph">Shadows are off layer-wide; vector-tile features are flat surface decals, not occluders.</p></li></ul></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="-883564584%2FProperties%2F-405091373" anchor-label="backgroundColor" id="-883564584%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-mvt-style/background-color.html"><span>background</span><wbr></wbr><span><span>Color</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-883564584%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">val </span><a href="../-mvt-style/background-color.html">backgroundColor</a><span class="token operator">: </span><a href="../../earth.worldwind.render/-color/index.html">Color</a><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Solid base under every fill — the Mapbox <code class="lang-kotlin">background</code> layer. Fills gaps MVT has no polygon for (bare rock, street interiors, highway corridors); null (default) shows whatever is beneath the layer. See <a href="../-mvt-style/-companion/-z_-b-a-c-k-g-r-o-u-n-d.html">Z_BACKGROUND</a>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-454479723%2FProperties%2F-405091373" anchor-label="BOUNDARY_LINE" id="-454479723%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-b-o-u-n-d-a-r-y_-l-i-n-e.html"><span>BOUNDARY_</span><wbr></wbr><span>LINE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-454479723%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-b-o-u-n-d-a-r-y_-l-i-n-e.html">BOUNDARY_LINE</a><span class="token operator">: </span><a href="../../earth.worldwind.shape/-shape-attributes/index.html">ShapeAttributes</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="306091760%2FProperties%2F-405091373" anchor-label="BUILDING_FILL" id="306091760%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-b-u-i-l-d-i-n-g_-f-i-l-l.html"><span>BUILDING_</span><wbr></wbr><span>FILL</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="306091760%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-b-u-i-l-d-i-n-g_-f-i-l-l.html">BUILDING_FILL</a><span class="token operator">: </span><a href="../../earth.worldwind.shape/-shape-attributes/index.html">ShapeAttributes</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="928029302%2FProperties%2F-405091373" anchor-label="LANDUSE_FILL" id="928029302%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-l-a-n-d-u-s-e_-f-i-l-l.html"><span>LANDUSE_</span><wbr></wbr><span>FILL</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="928029302%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-l-a-n-d-u-s-e_-f-i-l-l.html">LANDUSE_FILL</a><span class="token operator">: </span><a href="../../earth.worldwind.shape/-shape-attributes/index.html">ShapeAttributes</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1216570918%2FProperties%2F-405091373" anchor-label="PARK_FILL" id="1216570918%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-p-a-r-k_-f-i-l-l.html"><span>PARK_</span><wbr></wbr><span>FILL</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1216570918%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-p-a-r-k_-f-i-l-l.html">PARK_FILL</a><span class="token operator">: </span><a href="../../earth.worldwind.shape/-shape-attributes/index.html">ShapeAttributes</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2008662992%2FProperties%2F-405091373" anchor-label="PATH_LINE" id="2008662992%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-p-a-t-h_-l-i-n-e.html"><span>PATH_</span><wbr></wbr><span>LINE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2008662992%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-p-a-t-h_-l-i-n-e.html">PATH_LINE</a><span class="token operator">: </span><a href="../../earth.worldwind.shape/-shape-attributes/index.html">ShapeAttributes</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1804185213%2FProperties%2F-405091373" anchor-label="RAIL_LINE" id="1804185213%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r-a-i-l_-l-i-n-e.html"><span>RAIL_</span><wbr></wbr><span>LINE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1804185213%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-r-a-i-l_-l-i-n-e.html">RAIL_LINE</a><span class="token operator">: </span><a href="../../earth.worldwind.shape/-shape-attributes/index.html">ShapeAttributes</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2106883394%2FProperties%2F-405091373" anchor-label="ROAD_MAJOR" id="2106883394%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r-o-a-d_-m-a-j-o-r.html"><span>ROAD_</span><wbr></wbr><span>MAJOR</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2106883394%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-r-o-a-d_-m-a-j-o-r.html">ROAD_MAJOR</a><span class="token operator">: </span><a href="../../earth.worldwind.shape/-shape-attributes/index.html">ShapeAttributes</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1957183802%2FProperties%2F-405091373" anchor-label="ROAD_MINOR" id="-1957183802%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r-o-a-d_-m-i-n-o-r.html"><span>ROAD_</span><wbr></wbr><span>MINOR</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1957183802%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-r-o-a-d_-m-i-n-o-r.html">ROAD_MINOR</a><span class="token operator">: </span><a href="../../earth.worldwind.shape/-shape-attributes/index.html">ShapeAttributes</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="757173657%2FProperties%2F-405091373" anchor-label="ROAD_PRIMARY" id="757173657%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r-o-a-d_-p-r-i-m-a-r-y.html"><span>ROAD_</span><wbr></wbr><span>PRIMARY</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="757173657%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-r-o-a-d_-p-r-i-m-a-r-y.html">ROAD_PRIMARY</a><span class="token operator">: </span><a href="../../earth.worldwind.shape/-shape-attributes/index.html">ShapeAttributes</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1447331743%2FProperties%2F-405091373" anchor-label="ROCK_FILL" id="-1447331743%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r-o-c-k_-f-i-l-l.html"><span>ROCK_</span><wbr></wbr><span>FILL</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1447331743%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-r-o-c-k_-f-i-l-l.html">ROCK_FILL</a><span class="token operator">: </span><a href="../../earth.worldwind.shape/-shape-attributes/index.html">ShapeAttributes</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1287928128%2FProperties%2F-405091373" anchor-label="SAND_FILL" id="1287928128%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-s-a-n-d_-f-i-l-l.html"><span>SAND_</span><wbr></wbr><span>FILL</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1287928128%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-s-a-n-d_-f-i-l-l.html">SAND_FILL</a><span class="token operator">: </span><a href="../../earth.worldwind.shape/-shape-attributes/index.html">ShapeAttributes</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-969940481%2FProperties%2F-405091373" anchor-label="SNOW_FILL" id="-969940481%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-s-n-o-w_-f-i-l-l.html"><span>SNOW_</span><wbr></wbr><span>FILL</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-969940481%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-s-n-o-w_-f-i-l-l.html">SNOW_FILL</a><span class="token operator">: </span><a href="../../earth.worldwind.shape/-shape-attributes/index.html">ShapeAttributes</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1756165684%2FProperties%2F-405091373" anchor-label="TRACK_LINE" id="1756165684%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-t-r-a-c-k_-l-i-n-e.html"><span>TRACK_</span><wbr></wbr><span>LINE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1756165684%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-t-r-a-c-k_-l-i-n-e.html">TRACK_LINE</a><span class="token operator">: </span><a href="../../earth.worldwind.shape/-shape-attributes/index.html">ShapeAttributes</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="505877580%2FProperties%2F-405091373" anchor-label="URBAN_FILL" id="505877580%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-u-r-b-a-n_-f-i-l-l.html"><span>URBAN_</span><wbr></wbr><span>FILL</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="505877580%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-u-r-b-a-n_-f-i-l-l.html">URBAN_FILL</a><span class="token operator">: </span><a href="../../earth.worldwind.shape/-shape-attributes/index.html">ShapeAttributes</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-145636470%2FProperties%2F-405091373" anchor-label="VEGETATION_FILL" id="-145636470%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-v-e-g-e-t-a-t-i-o-n_-f-i-l-l.html"><span>VEGETATION_</span><wbr></wbr><span>FILL</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-145636470%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-v-e-g-e-t-a-t-i-o-n_-f-i-l-l.html">VEGETATION_FILL</a><span class="token operator">: </span><a href="../../earth.worldwind.shape/-shape-attributes/index.html">ShapeAttributes</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="709617233%2FProperties%2F-405091373" anchor-label="WATER_FILL" id="709617233%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-w-a-t-e-r_-f-i-l-l.html"><span>WATER_</span><wbr></wbr><span>FILL</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="709617233%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-w-a-t-e-r_-f-i-l-l.html">WATER_FILL</a><span class="token operator">: </span><a href="../../earth.worldwind.shape/-shape-attributes/index.html">ShapeAttributes</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-659085725%2FProperties%2F-405091373" anchor-label="WATERWAY_LINE" id="-659085725%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-w-a-t-e-r-w-a-y_-l-i-n-e.html"><span>WATERWAY_</span><wbr></wbr><span>LINE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-659085725%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-w-a-t-e-r-w-a-y_-l-i-n-e.html">WATERWAY_LINE</a><span class="token operator">: </span><a href="../../earth.worldwind.shape/-shape-attributes/index.html">ShapeAttributes</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1612613045%2FProperties%2F-405091373" anchor-label="WETLAND_FILL" id="-1612613045%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-w-e-t-l-a-n-d_-f-i-l-l.html"><span>WETLAND_</span><wbr></wbr><span>FILL</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1612613045%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">val </span><a href="-w-e-t-l-a-n-d_-f-i-l-l.html">WETLAND_FILL</a><span class="token operator">: </span><a href="../../earth.worldwind.shape/-shape-attributes/index.html">ShapeAttributes</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="-1111035913%2FFunctions%2F-405091373" anchor-label="styleFor" id="-1111035913%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="style-for.html"><span>style</span><wbr></wbr><span><span>For</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1111035913%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="style-for.html"><span class="token function">styleFor</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">layerName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">geometryType<span class="token operator">: </span><a href="../-mvt-geometry-type/index.html">MvtGeometryType</a><span class="token punctuation">, </span></span><span class="parameter ">properties<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../earth.worldwind.shape/-shape-attributes/index.html">ShapeAttributes</a><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Resolve attributes for one feature. <a href="../-mvt-style/style-for.html">layerName</a> is the MVT layer (e.g. <code class="lang-kotlin">water</code>, <code class="lang-kotlin">transportation</code>, <code class="lang-kotlin">building</code>); <a href="../-mvt-style/style-for.html">geometryType</a> gates polygon-vs-line attribute choice. <a href="../-mvt-style/style-for.html">properties</a> is the inflated feature property map.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="119683698%2FFunctions%2F-405091373" anchor-label="zOrderFor" id="119683698%2FFunctions%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="z-order-for.html"><span>z</span><wbr></wbr><span>Order</span><wbr></wbr><span><span>For</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="119683698%2FFunctions%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="z-order-for.html"><span class="token function">zOrderFor</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">layerName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">geometryType<span class="token operator">: </span><a href="../-mvt-geometry-type/index.html">MvtGeometryType</a><span class="token punctuation">, </span></span><span class="parameter ">properties<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></div><div class="brief "><p class="paragraph">Optional paint order within a tile. Features with smaller <a href="../-mvt-style/z-order-for.html">zOrderFor</a> paint first, features with larger values paint over them. Default 0 — every feature shares the same z-layer, and the order falls through to MVT-server-determined layer iteration order (good enough for OpenMapTiles-schema servers that already order water → landuse → roads → buildings sensibly).</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>(c) WorldWind Earth</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

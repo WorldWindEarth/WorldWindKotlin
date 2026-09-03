@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>loadColladaKmz</title>
+    <link href="../../images/logo-icon.svg" rel="icon" type="image/svg">
+        <script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async="async"></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async="async"></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async="async"></script>
+<script type="text/javascript" src="../../scripts/main.js" defer="defer"></script>
+<script type="text/javascript" src="../../scripts/prism.js" async="async"></script>
+<script type="text/javascript" src="../../ui-kit/ui-kit.min.js" defer="defer"></script>
+</head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+            <a class="library-name--link" href="../../index.html" tabindex="1">
+                    WorldWind Kotlin
+            </a>
+        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle"
+                type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+2.1.0        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/jvmCommonMain">jvmCommon</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox"
+                        data-role="dropdown-toggle"
+                        aria-controls="platform-tags-listbox"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-label="Toggle source sets"
+                ></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/jvmCommonMain"
+                                       data-filter=":worldwind/jvmCommonMain"/>
+                                <span class="checkbox--icon"></span>
+                                jvmCommon
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button"
+                    type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config='{"defaultSize": 280, "minSize": 200, "maxSize": 400}'>
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list"
+                    data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    WorldWind Kotlin
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="member" id="content" pageIds="WorldWind Kotlin::earth.worldwind.formats.collada//loadColladaKmz/#java.io.File#earth.worldwind.geom.Position#kotlin.Double/PointingToDeclaration//-1022326867">
+  <div class="breadcrumbs"><a href="../../index.html">WorldWind Kotlin</a><span class="delimiter">/</span><a href="index.html">earth.worldwind.formats.collada</a><span class="delimiter">/</span><span class="current">loadColladaKmz</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>load</span><wbr></wbr><span>Collada</span><wbr></wbr><span><span>Kmz</span></span></h1>
+  </div>
+  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/jvmCommonMain" data-filterable-set=":worldwind/jvmCommonMain" data-active="" data-toggle=":worldwind/jvmCommonMain">jvmCommon</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmCommonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="load-collada-kmz.html"><span class="token function">loadColladaKmz</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">kmz<span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/java/io/File.html">File</a><span class="token punctuation">, </span></span><span class="parameter ">fallbackPosition<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.geom/Position///PointingToDeclaration/">Position</span><span class="token operator"> = </span>Position.fromDegrees(0.0, 0.0, 0.0)<span class="token punctuation">, </span></span><span class="parameter ">altitudeOffset<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a><span class="token operator"> = </span><span class="token constant">0.0</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="earth.worldwind.formats.collada/ColladaScene///PointingToDeclaration/">ColladaScene</span></div><p class="paragraph">Loads a <code class="lang-kotlin">.kmz</code> (zipped COLLADA) on JVM/Android directly from the archive — no extraction to disk. The <code class="lang-kotlin">.dae</code> is stream-parsed straight from its zip entry (low peak memory) and textures are decoded lazily from their entries (downsampled to <span data-unresolved-link="earth.worldwind.formats.collada/ColladaScene/textureMaxDimension/#/PointingToDeclaration/">ColladaScene.textureMaxDimension</span>, evicted by the render resource cache, re-decoded on demand). The model is anchored at the <code class="lang-kotlin">doc.kml</code> <code class="lang-kotlin">&lt;Model&gt;</code> placement (position, orientation, scale), falling back to <a href="load-collada-kmz.html">fallbackPosition</a> when the KML lacks a location.</p><p class="paragraph"><a href="load-collada-kmz.html">altitudeOffset</a> (metres) is added to the anchor altitude, correcting photogrammetry models whose KML altitude is off relative to the terrain (interpreted per the KML <span data-unresolved-link="earth.worldwind.formats.collada/ColladaScene/altitudeMode/#/PointingToDeclaration/">ColladaScene.altitudeMode</span>).</p><p class="paragraph">The archive is kept open for the scene's lifetime to back lazy texture decodes; the caller MUST call <span data-unresolved-link="earth.worldwind.formats.collada/ColladaScene/close/#/PointingToDeclaration/">ColladaScene.close</span> when discarding the scene to release the <a href="https://developer.android.com/reference/kotlin/java/util/zip/ZipFile.html">ZipFile</a>. iOS/JS callers must read the archive themselves (no in-repo zip) and use <a href="parse-stream.html">parseStream</a> plus their own texture sources.</p></div>  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>(c) WorldWind Earth</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

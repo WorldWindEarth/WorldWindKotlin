@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>gluTessProperty</title>
+    <link href="../../../images/logo-icon.svg" rel="icon" type="image/svg">
+        <script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async="async"></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async="async"></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async="async"></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer="defer"></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async="async"></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer="defer"></script>
+</head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+            <a class="library-name--link" href="../../../index.html" tabindex="1">
+                    WorldWind Kotlin
+            </a>
+        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle"
+                type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+2.1.0        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector common-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/commonMain">common</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox"
+                        data-role="dropdown-toggle"
+                        aria-controls="platform-tags-listbox"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-label="Toggle source sets"
+                ></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/commonMain"
+                                       data-filter=":worldwind/commonMain"/>
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button"
+                    type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config='{"defaultSize": 280, "minSize": 200, "maxSize": 400}'>
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list"
+                    data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    WorldWind Kotlin
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="member" id="content" pageIds="WorldWind Kotlin::earth.worldwind.util.glu/GLU/gluTessProperty/#earth.worldwind.util.glu.GLUtessellator#kotlin.Int#kotlin.Double/PointingToDeclaration//-405091373">
+  <div class="breadcrumbs"><a href="../../../index.html">WorldWind Kotlin</a><span class="delimiter">/</span><a href="../index.html">earth.worldwind.util.glu</a><span class="delimiter">/</span><a href="index.html">GLU</a><span class="delimiter">/</span><span class="current">gluTessProperty</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>glu</span><wbr></wbr><span>Tess</span><wbr></wbr><span><span>Property</span></span></h1>
+  </div>
+  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">fun </span><a href="glu-tess-property.html"><span class="token function">gluTessProperty</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">tessellator<span class="token operator">: </span><a href="../-g-l-utessellator/index.html">GLUtessellator</a><span class="token punctuation">, </span></span><span class="parameter ">which<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-double/index.html">Double</a></span></span><span class="token punctuation">)</span></div><p class="paragraph"><strong>gluTessProperty</strong> is used to control properites stored in a tessellation object.  These properties affect the way that the polygons are interpreted and rendered.  The legal value for <i>which</i> are as follows: <UL> <LI><strong>GLU_TESS_WINDING_RULE</strong> <BR></BR> Determines which parts of the polygon are on the &quot;interior&quot;. <i>value</i> may be set to one of <BR></BR><strong>GLU_TESS_WINDING_ODD</strong>, <BR></BR><strong>GLU_TESS_WINDING_NONZERO</strong>, <BR></BR><strong>GLU_TESS_WINDING_POSITIVE</strong>, or <BR></BR><strong>GLU_TESS_WINDING_NEGATIVE</strong>, or <BR></BR><strong>GLU_TESS_WINDING_ABS_GEQ_TWO</strong>. <BR></BR> To understand how the winding rule works, consider that the input contours partition the plane into regions.  The winding rule determines which of these regions are inside the polygon. <BR></BR> For a single contour C, the winding number of a point x is simply the signed number of revolutions we make around x as we travel once around C (where CCW is positive).  When there are several contours, the individual winding numbers are summed.  This procedure associates a signed integer value with each point x in the plane.  Note that the winding number is the same for all points in a single region. <BR></BR> The winding rule classifies a region as &quot;inside&quot; if its winding number belongs to the chosen category (odd, nonzero, positive, negative, or absolute value of at least two).  The previous GLU tessellator (prior to GLU 1.2) used the &quot;odd&quot; rule.  The &quot;nonzero&quot; rule is another common way to define the interior.  The other three rules are useful for polygon CSG operations. </LI> * <LI><strong>GLU_TESS_BOUNDARY_ONLY</strong> <BR></BR> Is a boolean value (&quot;value&quot; should be set to GL_TRUE or GL_FALSE). When set to GL_TRUE, a set of closed contours separating the polygon interior and exterior are returned instead of a tessellation.  Exterior contours are oriented CCW with respect to the normal; interior contours are oriented CW. The <strong>GLU_TESS_BEGIN</strong> and <strong>GLU_TESS_BEGIN_DATA</strong> callbacks use the type GL_LINE_LOOP for each contour. </LI> * <LI><strong>GLU_TESS_TOLERANCE</strong> <BR></BR> Specifies a tolerance for merging features to reduce the size of the output. For example, two vertices that are very close to each other might be replaced by a single vertex.  The tolerance is multiplied by the largest coordinate magnitude of any input vertex; this specifies the maximum distance that any feature can move as the result of a single merge operation.  If a single feature takes part in several merge operations, the toal distance moved could be larger. <BR></BR> Feature merging is completely optional; the tolerance is only a hint. The implementation is free to merge in some cases and not in others, or to never merge features at all.  The initial tolerance is 0. <BR></BR> The current implementation merges vertices only if they are exactly coincident, regardless of the current tolerance.  A vertex is spliced into an edge only if the implementation is unable to distinguish which side of the edge the vertex lies on.  Two edges are merged only when both endpoints are identical. </LI> * </UL> *</p><h4 class="tableheader">Parameters</h4><div class="table"><div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><u><span><span>tessellator</span></span></u></div></span></div><div><div class="title"><p class="paragraph">Specifies the tessellation object created with .gluNewTess</p></div></div></div></div><div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><u><span><span>which</span></span></u></div></span></div><div><div class="title"><p class="paragraph">Specifies the property to be set.  Valid values are <strong>GLU_TESS_WINDING_RULE</strong>, <strong>GLU_TESS_BOUNDARDY_ONLY</strong>, <strong>GLU_TESS_TOLERANCE</strong>.</p></div></div></div></div><div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><u><span><span>value</span></span></u></div></span></div><div><div class="title"><p class="paragraph">Specifices the value of the indicated property.</p></div></div></div></div></div><h4 class="tableheader">See also</h4><div class="table"><div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div></div></span></div><div><div class="title"><p class="paragraph">.gluNewTess         gluNewTess</p></div></div></div></div></div></div></div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>(c) WorldWind Earth</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>earth.worldwind.render</title>
+    <link href="../../images/logo-icon.svg" rel="icon" type="image/svg">
+        <script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async="async"></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async="async"></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async="async"></script>
+<script type="text/javascript" src="../../scripts/main.js" defer="defer"></script>
+<script type="text/javascript" src="../../scripts/prism.js" async="async"></script>
+<script type="text/javascript" src="../../ui-kit/ui-kit.min.js" defer="defer"></script>
+</head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+            <a class="library-name--link" href="../../index.html" tabindex="1">
+                    WorldWind Kotlin
+            </a>
+        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle"
+                type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+2.1.0        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/androidMain">android</button>
+                <button class="platform-tag platform-selector common-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/commonMain">common</button>
+                <button class="platform-tag platform-selector native-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/iosMain">ios</button>
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/jvmMain">jvm</button>
+                <button class="platform-tag platform-selector common-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/webMain">web</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox"
+                        data-role="dropdown-toggle"
+                        aria-controls="platform-tags-listbox"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-label="Toggle source sets"
+                ></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/androidMain"
+                                       data-filter=":worldwind/androidMain"/>
+                                <span class="checkbox--icon"></span>
+                                android
+                            </label>
+                        </li>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/commonMain"
+                                       data-filter=":worldwind/commonMain"/>
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                        <li role="option" class="dropdown--option platform-selector-option native-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/iosMain"
+                                       data-filter=":worldwind/iosMain"/>
+                                <span class="checkbox--icon"></span>
+                                ios
+                            </label>
+                        </li>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/jvmMain"
+                                       data-filter=":worldwind/jvmMain"/>
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/webMain"
+                                       data-filter=":worldwind/webMain"/>
+                                <span class="checkbox--icon"></span>
+                                web
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button"
+                    type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config='{"defaultSize": 280, "minSize": 200, "maxSize": 400}'>
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list"
+                    data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    WorldWind Kotlin
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="package" id="content" pageIds="WorldWind Kotlin::earth.worldwind.render////PointingToDeclaration//647801947">
+  <div class="breadcrumbs"><a href="../../index.html">WorldWind Kotlin</a><span class="delimiter">/</span><span class="current">earth.worldwind.render</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="TYPE">Types</button><button class="section-tab" data-togglable="PROPERTY,EXTENSION_PROPERTY">Properties</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="-1535075170%2FClasslikes%2F-405091373" anchor-label="AbstractRenderable" id="-1535075170%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-abstract-renderable/index.html"><span>Abstract</span><wbr></wbr><span><span>Renderable</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1535075170%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">class </span><a href="-abstract-renderable/index.html">AbstractRenderable</a> <span><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.jvm/-jvm-overloads/index.html"><span class="token annotation builtin">JvmOverloads</span></a> </span><span class="token keyword">constructor</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">var </span>displayName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span> : <a href="-renderable/index.html">Renderable</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1332933975%2FClasslikes%2F-405091373" anchor-label="AbstractSurfaceRenderable" id="1332933975%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-abstract-surface-renderable/index.html"><span>Abstract</span><wbr></wbr><span>Surface</span><wbr></wbr><span><span>Renderable</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1332933975%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">class </span><a href="-abstract-surface-renderable/index.html">AbstractSurfaceRenderable</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">sector<span class="token operator">: </span><a href="../earth.worldwind.geom/-sector/index.html">Sector</a><span class="token punctuation">, </span></span><span class="parameter ">displayName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span> : <a href="-abstract-renderable/index.html">AbstractRenderable</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-95539693%2FClasslikes%2F-405091373" anchor-label="AFLevel" id="-95539693%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-f-level/index.html"><span><span>AFLevel</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-95539693%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">enum </span><a href="-a-f-level/index.html">AFLevel</a> : <a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-enum/index.html">Enum</a><span class="token operator">&lt;</span><a href="-a-f-level/index.html">AFLevel</a><span class="token operator">&gt; </span></div><div class="brief "><p class="paragraph">Anisotropic filtering level</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1998278127%2FClasslikes%2F-405091373" anchor-label="Color" id="1998278127%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-color/index.html"><span><span>Color</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1998278127%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">class </span><a href="-color/index.html">Color</a> <span><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.jvm/-jvm-overloads/index.html"><span class="token annotation builtin">JvmOverloads</span></a> </span><span class="token keyword">constructor</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">var </span>red<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-float/index.html">Float</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">var </span>green<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-float/index.html">Float</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">var </span>blue<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-float/index.html">Float</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">var </span>alpha<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-float/index.html">Float</a><span class="token operator"> = </span><span class="token constant">1.0f</span></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Color with red, green, blue and alpha components. Each RGB component is a number between 0.0 and 1.0 indicating the component's intensity. The alpha component is a number between 0.0 (fully transparent) and 1.0 (fully opaque) indicating the color's opacity.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1454730527%2FClasslikes%2F647801947" anchor-label="Font" id="-1454730527%2FClasslikes%2F647801947" data-filterable-set=":worldwind/androidMain,:worldwind/commonMain,:worldwind/iosMain,:worldwind/jvmMain,:worldwind/webMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/androidMain,:worldwind/commonMain,:worldwind/iosMain,:worldwind/jvmMain,:worldwind/webMain" data-filterable-set=":worldwind/androidMain,:worldwind/commonMain,:worldwind/iosMain,:worldwind/jvmMain,:worldwind/webMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-font/index.html"><span><span>Font</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1454730527%2FClasslikes%2F647801947"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/androidMain" data-filterable-set=":worldwind/androidMain" data-active="" data-toggle=":worldwind/androidMain">android</button><button class="platform-bookmark" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain" data-toggle=":worldwind/commonMain">common</button><button class="platform-bookmark" data-filterable-current=":worldwind/iosMain" data-filterable-set=":worldwind/iosMain" data-toggle=":worldwind/iosMain">ios</button><button class="platform-bookmark" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain" data-toggle=":worldwind/jvmMain">jvm</button><button class="platform-bookmark" data-filterable-current=":worldwind/webMain" data-filterable-set=":worldwind/webMain" data-toggle=":worldwind/webMain">web</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/androidMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">open </span><span class="token keyword">class </span><a href="-font/index.html">Font</a></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">expect </span><span class="token keyword">open </span><span class="token keyword">class </span><a href="-font/index.html">Font</a></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/iosMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">open </span><span class="token keyword">class </span><a href="-font/index.html">Font</a></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/jvmMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">open </span><span class="token keyword">class </span><a href="-font/index.html">Font</a></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/webMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">open </span><span class="token keyword">class </span><a href="-font/index.html">Font</a></div><div class="brief "><p class="paragraph">Holds attributes controlling the style, size and other attributes of <span data-unresolved-link="earth.worldwind.shape/Label///PointingToDeclaration/">earth.worldwind.shape.Label</span> shapes and the textual features of <span data-unresolved-link="earth.worldwind.shape/Placemark///PointingToDeclaration/">earth.worldwind.shape.Placemark</span> and other shapes. The values used for these attributes are those defined by the <a href="http://www.w3schools.com/cssref/pr_font_font.asp">CSS Font property</a>.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1241070409%2FClasslikes%2F-405091373" anchor-label="FontWeight" id="1241070409%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-font-weight/index.html"><span>Font</span><wbr></wbr><span><span>Weight</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1241070409%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">enum </span><a href="-font-weight/index.html">FontWeight</a> : <a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-enum/index.html">Enum</a><span class="token operator">&lt;</span><a href="-font-weight/index.html">FontWeight</a><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1825931237%2FClasslikes%2F-405091373" anchor-label="Framebuffer" id="1825931237%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-framebuffer/index.html"><span><span>Framebuffer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1825931237%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">class </span><a href="-framebuffer/index.html">Framebuffer</a> : <a href="-render-resource/index.html">RenderResource</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-233339386%2FClasslikes%2F-405091373" anchor-label="MultisampleFramebuffer" id="-233339386%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-multisample-framebuffer/index.html"><span>Multisample</span><wbr></wbr><span><span>Framebuffer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-233339386%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">class </span><a href="-multisample-framebuffer/index.html">MultisampleFramebuffer</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">width<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">height<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">samples<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></span></span><span class="token punctuation">)</span> : <a href="-framebuffer/index.html">Framebuffer</a></div><div class="brief "><p class="paragraph">Framebuffer with a multisample color renderbuffer attached. Used as the surface-shape render target so triangle and line edges get MSAA coverage instead of binary 1-bit coverage; <a href="-multisample-framebuffer/resolve-to.html">resolveTo</a> then blits the result into a single-sample texture for sampling.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1935404611%2FClasslikes%2F-405091373" anchor-label="OesExternalTexture" id="-1935404611%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-oes-external-texture/index.html"><span>Oes</span><wbr></wbr><span>External</span><wbr></wbr><span><span>Texture</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1935404611%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">class </span><a href="-oes-external-texture/index.html">OesExternalTexture</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">width<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">height<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></span></span><span class="token punctuation">)</span> : <a href="-texture/index.html">Texture</a></div><div class="brief "><p class="paragraph">Texture wrapper for external producers (typically Android <code class="lang-kotlin">SurfaceTexture</code> from MediaPlayer / MediaCodec / Camera2) bound to <code class="lang-kotlin">GL_TEXTURE_EXTERNAL_OES</code>. Storage is owned by the external producer; this class never calls <code class="lang-kotlin">glTexImage2D</code>. Sample with the OES shader variant (<code class="lang-kotlin">samplerExternalOES</code>) - the standard <code class="lang-kotlin">sampler2D</code> won't bind to this target.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="777279264%2FClasslikes%2F-405091373" anchor-label="Renderable" id="777279264%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-renderable/index.html"><span><span>Renderable</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="777279264%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-renderable/index.html">Renderable</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="600887769%2FClasslikes%2F-405091373" anchor-label="RenderContext" id="600887769%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-render-context/index.html"><span>Render</span><wbr></wbr><span><span>Context</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="600887769%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">class </span><a href="-render-context/index.html">RenderContext</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-868929972%2FClasslikes%2F-405091373" anchor-label="RenderResource" id="-868929972%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-render-resource/index.html"><span>Render</span><wbr></wbr><span><span>Resource</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-868929972%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-render-resource/index.html">RenderResource</a></div><div class="brief "><p class="paragraph">Handle to a rendering resource, such as a GLSL program, GL texture or GL vertex buffer object.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="867322324%2FClasslikes%2F647801947" anchor-label="RenderResourceCache" id="867322324%2FClasslikes%2F647801947" data-filterable-set=":worldwind/androidMain,:worldwind/commonMain,:worldwind/iosMain,:worldwind/jvmMain,:worldwind/webMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/androidMain,:worldwind/commonMain,:worldwind/iosMain,:worldwind/jvmMain,:worldwind/webMain" data-filterable-set=":worldwind/androidMain,:worldwind/commonMain,:worldwind/iosMain,:worldwind/jvmMain,:worldwind/webMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-render-resource-cache/index.html"><span>Render</span><wbr></wbr><span>Resource</span><wbr></wbr><span><span>Cache</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="867322324%2FClasslikes%2F647801947"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/androidMain" data-filterable-set=":worldwind/androidMain" data-active="" data-toggle=":worldwind/androidMain">android</button><button class="platform-bookmark" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain" data-toggle=":worldwind/commonMain">common</button><button class="platform-bookmark" data-filterable-current=":worldwind/iosMain" data-filterable-set=":worldwind/iosMain" data-toggle=":worldwind/iosMain">ios</button><button class="platform-bookmark" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain" data-toggle=":worldwind/jvmMain">jvm</button><button class="platform-bookmark" data-filterable-current=":worldwind/webMain" data-filterable-set=":worldwind/webMain" data-toggle=":worldwind/webMain">web</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/androidMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">open </span><span class="token keyword">class </span><a href="-render-resource-cache/index.html">RenderResourceCache</a> : <span data-unresolved-link="earth.worldwind.util/LruMemoryCache///PointingToDeclaration/">LruMemoryCache</span><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token punctuation">, </span><span data-unresolved-link="earth.worldwind.render/RenderResource///PointingToDeclaration/">RenderResource</span><span class="token operator">&gt; </span>, <a href="https://developer.android.com/reference/kotlin/android/opengl/GLSurfaceView.EGLContextFactory.html">GLSurfaceView.EGLContextFactory</a></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">expect </span><span class="token keyword">class </span><a href="-render-resource-cache/index.html">RenderResourceCache</a> : <a href="../earth.worldwind.util/-lru-memory-cache/index.html">LruMemoryCache</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token punctuation">, </span><a href="-render-resource/index.html">RenderResource</a><span class="token operator">&gt; </span></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/iosMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">open </span><span class="token keyword">class </span><a href="-render-resource-cache/index.html">RenderResourceCache</a> : <span data-unresolved-link="earth.worldwind.util/LruMemoryCache///PointingToDeclaration/">LruMemoryCache</span><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token punctuation">, </span><span data-unresolved-link="earth.worldwind.render/RenderResource///PointingToDeclaration/">RenderResource</span><span class="token operator">&gt; </span></div><div class="brief "><p class="paragraph">iOS render-resource cache with the async retrieval pipeline wired up. Mirrors the JVM version's structure: separate retrieval queues for remote (URL) vs local (resource/file) sources, an absent-resource list to suppress repeated retries on missing tiles, and an eviction queue so GL deletes happen on the GL thread (<code class="lang-kotlin">releaseEvictedResources</code> called from <code class="lang-kotlin">WorldWindow.doFrame</code>).</p></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/jvmMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">open </span><span class="token keyword">class </span><a href="-render-resource-cache/index.html">RenderResourceCache</a> : <span data-unresolved-link="earth.worldwind.util/LruMemoryCache///PointingToDeclaration/">LruMemoryCache</span><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token punctuation">, </span><span data-unresolved-link="earth.worldwind.render/RenderResource///PointingToDeclaration/">RenderResource</span><span class="token operator">&gt; </span></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/webMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">open </span><span class="token keyword">class </span><a href="-render-resource-cache/index.html">RenderResourceCache</a> : <span data-unresolved-link="earth.worldwind.util/LruMemoryCache///PointingToDeclaration/">LruMemoryCache</span><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token punctuation">, </span><span data-unresolved-link="earth.worldwind.render/RenderResource///PointingToDeclaration/">RenderResource</span><span class="token operator">&gt; </span></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="310464064%2FClasslikes%2F647801947" anchor-label="TextRenderer" id="310464064%2FClasslikes%2F647801947" data-filterable-set=":worldwind/androidMain,:worldwind/commonMain,:worldwind/iosMain,:worldwind/jvmMain,:worldwind/webMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/androidMain,:worldwind/commonMain,:worldwind/iosMain,:worldwind/jvmMain,:worldwind/webMain" data-filterable-set=":worldwind/androidMain,:worldwind/commonMain,:worldwind/iosMain,:worldwind/jvmMain,:worldwind/webMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-text-renderer/index.html"><span>Text</span><wbr></wbr><span><span>Renderer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="310464064%2FClasslikes%2F647801947"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/androidMain" data-filterable-set=":worldwind/androidMain" data-active="" data-toggle=":worldwind/androidMain">android</button><button class="platform-bookmark" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain" data-toggle=":worldwind/commonMain">common</button><button class="platform-bookmark" data-filterable-current=":worldwind/iosMain" data-filterable-set=":worldwind/iosMain" data-toggle=":worldwind/iosMain">ios</button><button class="platform-bookmark" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain" data-toggle=":worldwind/jvmMain">jvm</button><button class="platform-bookmark" data-filterable-current=":worldwind/webMain" data-filterable-set=":worldwind/webMain" data-toggle=":worldwind/webMain">web</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/androidMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">open </span><span class="token keyword">class </span><a href="-text-renderer/index.html">TextRenderer</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">rc<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.render/RenderContext///PointingToDeclaration/">RenderContext</span></span></span><span class="token punctuation">)</span></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">expect </span><span class="token keyword">class </span><a href="-text-renderer/index.html">TextRenderer</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">rc<span class="token operator">: </span><a href="-render-context/index.html">RenderContext</a></span></span><span class="token punctuation">)</span></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/iosMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">open </span><span class="token keyword">class </span><a href="-text-renderer/index.html">TextRenderer</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">rc<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.render/RenderContext///PointingToDeclaration/">RenderContext</span></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">iOS <a href="-text-renderer/index.html">TextRenderer</a>. Lays text out as an <code class="lang-kotlin">NSAttributedString</code> using the engine's <a href="-font/index.html">Font</a> (mapped to a <code class="lang-kotlin">UIFont</code>), draws each line into a tightly-packed RGBA8 <code class="lang-kotlin">CGBitmapContext</code> via UIKit's text drawing APIs, then wraps the resulting bytes in an <a href="../earth.worldwind.render.image/[ios]-image-texture/index.html">ImageTexture</a> for GL upload.</p></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/jvmMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">open </span><span class="token keyword">class </span><a href="-text-renderer/index.html">TextRenderer</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">rc<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.render/RenderContext///PointingToDeclaration/">RenderContext</span></span></span><span class="token punctuation">)</span></div></div><div class="content sourceset-dependent-content" data-togglable=":worldwind/webMain"><div class="symbol monospace"><span class="token keyword">actual </span><span class="token keyword">open </span><span class="token keyword">class </span><a href="-text-renderer/index.html">TextRenderer</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">rc<span class="token operator">: </span><span data-unresolved-link="earth.worldwind.render/RenderContext///PointingToDeclaration/">RenderContext</span></span></span><span class="token punctuation">)</span></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="315267831%2FClasslikes%2F-405091373" anchor-label="Texture" id="315267831%2FClasslikes%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-texture/index.html"><span><span>Texture</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="315267831%2FClasslikes%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">class </span><a href="-texture/index.html">Texture</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>width<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>height<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">format<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">type<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">isRT<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">false</span><span class="token punctuation">, </span></span><span class="parameter ">internalFormat<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span>format<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>target<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span>GL_TEXTURE_2D</span></span><span class="token punctuation">)</span> : <a href="-render-resource/index.html">RenderResource</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="-37939400%2FProperties%2F-405091373" anchor-label="DEFAULT_FONT_SIZE" id="-37939400%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-d-e-f-a-u-l-t_-f-o-n-t_-s-i-z-e.html"><span>DEFAULT_</span><wbr></wbr><span>FONT_</span><wbr></wbr><span>SIZE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-37939400%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-d-e-f-a-u-l-t_-f-o-n-t_-s-i-z-e.html">DEFAULT_FONT_SIZE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">14</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>(c) WorldWind Earth</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

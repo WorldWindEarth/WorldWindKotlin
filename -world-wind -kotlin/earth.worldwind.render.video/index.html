@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>earth.worldwind.render.video</title>
+    <link href="../../images/logo-icon.svg" rel="icon" type="image/svg">
+        <script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async="async"></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async="async"></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async="async"></script>
+<script type="text/javascript" src="../../scripts/main.js" defer="defer"></script>
+<script type="text/javascript" src="../../scripts/prism.js" async="async"></script>
+<script type="text/javascript" src="../../ui-kit/ui-kit.min.js" defer="defer"></script>
+</head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+            <a class="library-name--link" href="../../index.html" tabindex="1">
+                    WorldWind Kotlin
+            </a>
+        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle"
+                type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+2.1.0        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/androidMain">android</button>
+                <button class="platform-tag platform-selector native-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/iosMain">ios</button>
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/jvmMain">jvm</button>
+                <button class="platform-tag platform-selector common-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/webMain">web</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox"
+                        data-role="dropdown-toggle"
+                        aria-controls="platform-tags-listbox"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-label="Toggle source sets"
+                ></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/androidMain"
+                                       data-filter=":worldwind/androidMain"/>
+                                <span class="checkbox--icon"></span>
+                                android
+                            </label>
+                        </li>
+                        <li role="option" class="dropdown--option platform-selector-option native-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/iosMain"
+                                       data-filter=":worldwind/iosMain"/>
+                                <span class="checkbox--icon"></span>
+                                ios
+                            </label>
+                        </li>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/jvmMain"
+                                       data-filter=":worldwind/jvmMain"/>
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/webMain"
+                                       data-filter=":worldwind/webMain"/>
+                                <span class="checkbox--icon"></span>
+                                web
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button"
+                    type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config='{"defaultSize": 280, "minSize": 200, "maxSize": 400}'>
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list"
+                    data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    WorldWind Kotlin
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="package" id="content" pageIds="WorldWind Kotlin::earth.worldwind.render.video////PointingToDeclaration//-978501462">
+  <div class="breadcrumbs"><a href="../../index.html">WorldWind Kotlin</a><span class="delimiter">/</span><span class="current">earth.worldwind.render.video</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="TYPE">Types</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="-69409721%2FClasslikes%2F1669686223" anchor-label="AVPlayerVideoTexture" id="-69409721%2FClasslikes%2F1669686223" data-filterable-set=":worldwind/iosMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/iosMain" data-filterable-set=":worldwind/iosMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-v-player-video-texture/index.html"><span>AVPlayer</span><wbr></wbr><span>Video</span><wbr></wbr><span><span>Texture</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-69409721%2FClasslikes%2F1669686223"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/iosMain" data-filterable-set=":worldwind/iosMain" data-active="" data-toggle=":worldwind/iosMain">ios</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/iosMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-a-v-player-video-texture/index.html">AVPlayerVideoTexture</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>player<span class="token operator">: </span><span data-unresolved-link="platform.AVFoundation/AVPlayer///PointingToDeclaration/">AVPlayer</span><span class="token punctuation">, </span></span><span class="parameter ">width<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">height<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></span></span><span class="token punctuation">)</span> : <span data-unresolved-link="earth.worldwind.render/Texture///PointingToDeclaration/">Texture</span></div><div class="brief "><p class="paragraph">iOS <span data-unresolved-link="earth.worldwind.render/Texture///PointingToDeclaration/">Texture</span> that pipes <span data-unresolved-link="platform.AVFoundation/AVPlayer///PointingToDeclaration/">AVPlayer</span> frames into a <code class="lang-kotlin">GL_TEXTURE_2D</code>. Real iOS devices honour our 32BGRA + IOSurface request and the buffer uploads directly via the packed path. Hosts that ignore the request (notably Mac &quot;Designed for iPad&quot; Simulator, which returns a Lossy GPU-resident planar buffer) take the CoreImage path: a GPU readback into a CPU BGRA8 bitmap that uploads through the same <code class="lang-kotlin">texSubImage2D</code> call.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-889426760%2FClasslikes%2F858547651" anchor-label="CallbackVideoTexture" id="-889426760%2FClasslikes%2F858547651" data-filterable-set=":worldwind/jvmMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-callback-video-texture/index.html"><span>Callback</span><wbr></wbr><span>Video</span><wbr></wbr><span><span>Texture</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-889426760%2FClasslikes%2F858547651"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain" data-active="" data-toggle=":worldwind/jvmMain">jvm</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmMain"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">class </span><a href="-callback-video-texture/index.html">CallbackVideoTexture</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">width<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">height<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">uploadFormat<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">usePbo<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">false</span></span></span><span class="token punctuation">)</span> : <span data-unresolved-link="earth.worldwind.render/Texture///PointingToDeclaration/">Texture</span></div><div class="brief "><p class="paragraph">Shared base for JVM-side video textures whose source pushes decoded frames from a worker thread (libVLC, FFmpeg, JavaCV, JavaFX <code class="lang-kotlin">MediaView</code>-snapshot, …):</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1315785176%2FClasslikes%2F858547651" anchor-label="FFmpegVideoTexture" id="1315785176%2FClasslikes%2F858547651" data-filterable-set=":worldwind/jvmMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-f-fmpeg-video-texture/index.html"><span>FFmpeg</span><wbr></wbr><span>Video</span><wbr></wbr><span><span>Texture</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1315785176%2FClasslikes%2F858547651"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain" data-active="" data-toggle=":worldwind/jvmMain">jvm</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-f-fmpeg-video-texture/index.html">FFmpegVideoTexture</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>mediaUrl<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">width<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">height<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">tryHardwareDecode<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">true</span></span></span><span class="token punctuation">)</span> : <a href="-callback-video-texture/index.html">CallbackVideoTexture</a>, <a href="-video-playback/index.html">VideoPlayback</a></div><div class="brief "><p class="paragraph">JVM video texture driven by <i>direct</i> javacpp-presets FFmpeg — no JavaCV wrapper. A worker thread runs the demux→decode→scale loop by hand:</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1114299630%2FClasslikes%2F-449907319" anchor-label="HtmlVideoTexture" id="-1114299630%2FClasslikes%2F-449907319" data-filterable-set=":worldwind/webMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/webMain" data-filterable-set=":worldwind/webMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-html-video-texture/index.html"><span>Html</span><wbr></wbr><span>Video</span><wbr></wbr><span><span>Texture</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1114299630%2FClasslikes%2F-449907319"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/webMain" data-filterable-set=":worldwind/webMain" data-active="" data-toggle=":worldwind/webMain">web</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/webMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-html-video-texture/index.html">HtmlVideoTexture</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>video<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/org.w3c.dom/-h-t-m-l-video-element/index.html">HTMLVideoElement</a><span class="token punctuation">, </span></span><span class="parameter ">width<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">height<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></span></span><span class="token punctuation">)</span> : <span data-unresolved-link="earth.worldwind.render/Texture///PointingToDeclaration/">Texture</span></div><div class="brief "><p class="paragraph">Web (js + wasmJs) <span data-unresolved-link="earth.worldwind.render/Texture///PointingToDeclaration/">earth.worldwind.render.Texture</span> that mirrors a playing <code class="lang-kotlin">HTMLVideoElement</code> onto a <code class="lang-kotlin">GL_TEXTURE_2D</code> sampler. Each <a href="-html-video-texture/bind-texture.html">bindTexture</a> call uploads the latest decoded frame via the native WebGL <code class="lang-kotlin">texImage2D(target, level, internalFormat, format, type, HTMLVideoElement)</code> overload — the browser handles decoding and color-space conversion; no CPU pixel copy.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2085200952%2FClasslikes%2F858547651" anchor-label="JavaCvVideoTexture" id="-2085200952%2FClasslikes%2F858547651" data-filterable-set=":worldwind/jvmMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-java-cv-video-texture/index.html"><span>Java</span><wbr></wbr><span>Cv</span><wbr></wbr><span>Video</span><wbr></wbr><span><span>Texture</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2085200952%2FClasslikes%2F858547651"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain" data-active="" data-toggle=":worldwind/jvmMain">jvm</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-java-cv-video-texture/index.html">JavaCvVideoTexture</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>mediaUrl<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">width<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">height<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></span></span><span class="token punctuation">)</span> : <a href="-callback-video-texture/index.html">CallbackVideoTexture</a>, <a href="-video-playback/index.html">VideoPlayback</a></div><div class="brief "><p class="paragraph">JVM video texture driven by JavaCV's high-level <span data-unresolved-link="org.bytedeco.javacv/FFmpegFrameGrabber///PointingToDeclaration/">FFmpegFrameGrabber</span>. A worker thread loops on <code class="lang-kotlin">grabImage()</code>, copies the BGRA frame bytes out, and pushes them to the <a href="-callback-video-texture/index.html">CallbackVideoTexture</a> base for GL-thread upload.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1587643703%2FClasslikes%2F858547651" anchor-label="JavaFxVideoTexture" id="-1587643703%2FClasslikes%2F858547651" data-filterable-set=":worldwind/jvmMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-java-fx-video-texture/index.html"><span>Java</span><wbr></wbr><span>Fx</span><wbr></wbr><span>Video</span><wbr></wbr><span><span>Texture</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1587643703%2FClasslikes%2F858547651"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain" data-active="" data-toggle=":worldwind/jvmMain">jvm</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-java-fx-video-texture/index.html">JavaFxVideoTexture</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>mediaUrl<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">width<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">height<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></span></span><span class="token punctuation">)</span> : <a href="-callback-video-texture/index.html">CallbackVideoTexture</a>, <a href="-video-playback/index.html">VideoPlayback</a></div><div class="brief "><p class="paragraph">JVM video texture driven by JavaFX <code class="lang-kotlin">MediaPlayer</code>. JavaFX has no per-frame callback API, so we host the <span data-unresolved-link="javafx.scene.media/MediaView///PointingToDeclaration/">MediaView</span> in an off-screen <span data-unresolved-link="javafx.scene/Scene///PointingToDeclaration/">Scene</span> (no <span data-unresolved-link="javafx.stage/Stage///PointingToDeclaration/">javafx.stage.Stage</span> attached) and snapshot the view on every JavaFX <span data-unresolved-link="javafx.animation/AnimationTimer///PointingToDeclaration/">AnimationTimer</span> pulse — that's the standard idiom for &quot;give me the current video frame as pixels&quot;.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1916956589%2FClasslikes%2F967790503" anchor-label="MediaSurfaceTexture" id="-1916956589%2FClasslikes%2F967790503" data-filterable-set=":worldwind/androidMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/androidMain" data-filterable-set=":worldwind/androidMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-media-surface-texture/index.html"><span>Media</span><wbr></wbr><span>Surface</span><wbr></wbr><span><span>Texture</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1916956589%2FClasslikes%2F967790503"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/androidMain" data-filterable-set=":worldwind/androidMain" data-active="" data-toggle=":worldwind/androidMain">android</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/androidMain"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">class </span><a href="-media-surface-texture/index.html">MediaSurfaceTexture</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">width<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">height<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></span></span><span class="token punctuation">)</span> : <span data-unresolved-link="earth.worldwind.render/OesExternalTexture///PointingToDeclaration/">OesExternalTexture</span></div><div class="brief "><p class="paragraph">Android-specific <span data-unresolved-link="earth.worldwind.render/OesExternalTexture///PointingToDeclaration/">OesExternalTexture</span> that bridges a <code class="lang-kotlin">SurfaceTexture</code> / <code class="lang-kotlin">Surface</code> consumer (typically <code class="lang-kotlin">MediaPlayer</code>, <code class="lang-kotlin">MediaCodec</code>, or <code class="lang-kotlin">Camera2</code>) to the WorldWind GL pipeline. The lifecycle is GL-thread-driven:</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1324419279%2FClasslikes%2F858547651" anchor-label="VideoPlayback" id="1324419279%2FClasslikes%2F858547651" data-filterable-set=":worldwind/jvmMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-video-playback/index.html"><span>Video</span><wbr></wbr><span><span>Playback</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1324419279%2FClasslikes%2F858547651"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain" data-active="" data-toggle=":worldwind/jvmMain">jvm</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmMain"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-video-playback/index.html">VideoPlayback</a></div><div class="brief "><p class="paragraph">Common playback contract for the JVM video textures (VLCJ, JavaCV, FFmpeg, JavaFX). Every JVM <code class="lang-kotlin">*VideoTexture</code> exposes the same minimal API; this interface formalizes that so tutorial / app code can target one type instead of carrying a per-backend adapter.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="414782560%2FClasslikes%2F858547651" anchor-label="VlcjVideoTexture" id="414782560%2FClasslikes%2F858547651" data-filterable-set=":worldwind/jvmMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-vlcj-video-texture/index.html"><span>Vlcj</span><wbr></wbr><span>Video</span><wbr></wbr><span><span>Texture</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="414782560%2FClasslikes%2F858547651"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted  with-platform-tabs" data-platform-hinted="data-platform-hinted">
+                    <div class="platform-bookmarks-row" data-toggle-list="data-toggle-list"><button class="platform-bookmark" data-filterable-current=":worldwind/jvmMain" data-filterable-set=":worldwind/jvmMain" data-active="" data-toggle=":worldwind/jvmMain">jvm</button></div>
+<div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/jvmMain"><div class="symbol monospace"><span class="token keyword">class </span><a href="-vlcj-video-texture/index.html">VlcjVideoTexture</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>mediaUrl<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">width<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">height<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></span></span><span class="token punctuation">)</span> : <a href="-callback-video-texture/index.html">CallbackVideoTexture</a>, <a href="-video-playback/index.html">VideoPlayback</a></div><div class="brief "><p class="paragraph">JVM video texture driven by VLCJ (libVLC bindings). VLCJ's <code class="lang-kotlin">CallbackVideoSurface</code> decodes frames in BGRA (RV32) into a native <code class="lang-kotlin">ByteBuffer</code>; on every render callback we copy them into the <a href="-callback-video-texture/index.html">CallbackVideoTexture</a> base and the GL thread uploads on bind.</p></div></div>                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>(c) WorldWind Earth</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>IFDTag</title>
+    <link href="../../../../images/logo-icon.svg" rel="icon" type="image/svg">
+        <script>var pathToRoot = "../../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="../../../../scripts/sourceset_dependencies.js" async="async"></script>
+<link href="../../../../styles/style.css" rel="Stylesheet">
+<link href="../../../../styles/main.css" rel="Stylesheet">
+<link href="../../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../../scripts/navigation-loader.js" async="async"></script>
+<script type="text/javascript" src="../../../../scripts/platform-content-handler.js" async="async"></script>
+<script type="text/javascript" src="../../../../scripts/main.js" defer="defer"></script>
+<script type="text/javascript" src="../../../../scripts/prism.js" async="async"></script>
+<script type="text/javascript" src="../../../../ui-kit/ui-kit.min.js" defer="defer"></script>
+</head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+            <a class="library-name--link" href="../../../../index.html" tabindex="1">
+                    WorldWind Kotlin
+            </a>
+        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle"
+                type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">
+2.1.0        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector common-like" data-active="" aria-pressed="true"
+                        data-filter=":worldwind/commonMain">common</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox"
+                        data-role="dropdown-toggle"
+                        aria-controls="platform-tags-listbox"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-label="Toggle source sets"
+                ></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option common-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":worldwind/commonMain"
+                                       data-filter=":worldwind/commonMain"/>
+                                <span class="checkbox--icon"></span>
+                                common
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button"
+                    type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config='{"defaultSize": 280, "minSize": 200, "maxSize": 400}'>
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list"
+                    data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    WorldWind Kotlin
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="classlike" id="content" pageIds="WorldWind Kotlin::earth.worldwind.formats.geotiff/TiffConstants.IFDTag///PointingToDeclaration//-405091373">
+  <div class="breadcrumbs"><a href="../../../../index.html">WorldWind Kotlin</a><span class="delimiter">/</span><a href="../../index.html">earth.worldwind.formats.geotiff</a><span class="delimiter">/</span><a href="../index.html">TiffConstants</a><span class="delimiter">/</span><span class="current">IFDTag</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>IFDTag</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">object </span><a href="index.html">IFDTag</a></div></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="-1764816575%2FProperties%2F-405091373" anchor-label="ARTIST" id="-1764816575%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-r-t-i-s-t.html"><span><span>ARTIST</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1764816575%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-a-r-t-i-s-t.html">ARTIST</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">315</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="475532493%2FProperties%2F-405091373" anchor-label="BITS_PER_SAMPLE" id="475532493%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-b-i-t-s_-p-e-r_-s-a-m-p-l-e.html"><span>BITS_</span><wbr></wbr><span>PER_</span><wbr></wbr><span>SAMPLE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="475532493%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-b-i-t-s_-p-e-r_-s-a-m-p-l-e.html">BITS_PER_SAMPLE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">258</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-947035985%2FProperties%2F-405091373" anchor-label="CELL_LENGTH" id="-947035985%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-c-e-l-l_-l-e-n-g-t-h.html"><span>CELL_</span><wbr></wbr><span>LENGTH</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-947035985%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-c-e-l-l_-l-e-n-g-t-h.html">CELL_LENGTH</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">265</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1186362559%2FProperties%2F-405091373" anchor-label="CELL_WIDTH" id="1186362559%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-c-e-l-l_-w-i-d-t-h.html"><span>CELL_</span><wbr></wbr><span>WIDTH</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1186362559%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-c-e-l-l_-w-i-d-t-h.html">CELL_WIDTH</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">264</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1234059598%2FProperties%2F-405091373" anchor-label="COLOR_MAP" id="-1234059598%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-c-o-l-o-r_-m-a-p.html"><span>COLOR_</span><wbr></wbr><span>MAP</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1234059598%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-c-o-l-o-r_-m-a-p.html">COLOR_MAP</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">320</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="702046508%2FProperties%2F-405091373" anchor-label="COMPRESSION" id="702046508%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-c-o-m-p-r-e-s-s-i-o-n.html"><span><span>COMPRESSION</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="702046508%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-c-o-m-p-r-e-s-s-i-o-n.html">COMPRESSION</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">259</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="253985579%2FProperties%2F-405091373" anchor-label="COPYRIGHT" id="253985579%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-c-o-p-y-r-i-g-h-t.html"><span><span>COPYRIGHT</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="253985579%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-c-o-p-y-r-i-g-h-t.html">COPYRIGHT</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">33432</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1665702412%2FProperties%2F-405091373" anchor-label="DATE_TIME" id="-1665702412%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-d-a-t-e_-t-i-m-e.html"><span>DATE_</span><wbr></wbr><span>TIME</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1665702412%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-d-a-t-e_-t-i-m-e.html">DATE_TIME</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">306</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1477670365%2FProperties%2F-405091373" anchor-label="DOCUMENT_NAME" id="-1477670365%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-d-o-c-u-m-e-n-t_-n-a-m-e.html"><span>DOCUMENT_</span><wbr></wbr><span>NAME</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1477670365%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-d-o-c-u-m-e-n-t_-n-a-m-e.html">DOCUMENT_NAME</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">269</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-526116789%2FProperties%2F-405091373" anchor-label="DOT_RANGE" id="-526116789%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-d-o-t_-r-a-n-g-e.html"><span>DOT_</span><wbr></wbr><span>RANGE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-526116789%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-d-o-t_-r-a-n-g-e.html">DOT_RANGE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">336</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="850750744%2FProperties%2F-405091373" anchor-label="EXTRA_SAMPLES" id="850750744%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e-x-t-r-a_-s-a-m-p-l-e-s.html"><span>EXTRA_</span><wbr></wbr><span>SAMPLES</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="850750744%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-e-x-t-r-a_-s-a-m-p-l-e-s.html">EXTRA_SAMPLES</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">338</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1796819978%2FProperties%2F-405091373" anchor-label="FILL_ORDER" id="-1796819978%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-f-i-l-l_-o-r-d-e-r.html"><span>FILL_</span><wbr></wbr><span>ORDER</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1796819978%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-f-i-l-l_-o-r-d-e-r.html">FILL_ORDER</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">266</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1291509024%2FProperties%2F-405091373" anchor-label="FREE_BYTE_COUNTS" id="-1291509024%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-f-r-e-e_-b-y-t-e_-c-o-u-n-t-s.html"><span>FREE_</span><wbr></wbr><span>BYTE_</span><wbr></wbr><span>COUNTS</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1291509024%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-f-r-e-e_-b-y-t-e_-c-o-u-n-t-s.html">FREE_BYTE_COUNTS</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">289</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="504459195%2FProperties%2F-405091373" anchor-label="FREE_OFFSETS" id="504459195%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-f-r-e-e_-o-f-f-s-e-t-s.html"><span>FREE_</span><wbr></wbr><span>OFFSETS</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="504459195%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-f-r-e-e_-o-f-f-s-e-t-s.html">FREE_OFFSETS</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">288</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-680991067%2FProperties%2F-405091373" anchor-label="GRAY_RESPONSE_CURVE" id="-680991067%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-r-a-y_-r-e-s-p-o-n-s-e_-c-u-r-v-e.html"><span>GRAY_</span><wbr></wbr><span>RESPONSE_</span><wbr></wbr><span>CURVE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-680991067%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-r-a-y_-r-e-s-p-o-n-s-e_-c-u-r-v-e.html">GRAY_RESPONSE_CURVE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">291</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-25935102%2FProperties%2F-405091373" anchor-label="GRAY_RESPONSE_UNIT" id="-25935102%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-r-a-y_-r-e-s-p-o-n-s-e_-u-n-i-t.html"><span>GRAY_</span><wbr></wbr><span>RESPONSE_</span><wbr></wbr><span>UNIT</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-25935102%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-g-r-a-y_-r-e-s-p-o-n-s-e_-u-n-i-t.html">GRAY_RESPONSE_UNIT</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">290</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-169724458%2FProperties%2F-405091373" anchor-label="HALFTONE_HINTS" id="-169724458%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-h-a-l-f-t-o-n-e_-h-i-n-t-s.html"><span>HALFTONE_</span><wbr></wbr><span>HINTS</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-169724458%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-h-a-l-f-t-o-n-e_-h-i-n-t-s.html">HALFTONE_HINTS</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">321</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1798944032%2FProperties%2F-405091373" anchor-label="HOST_COMPUTER" id="-1798944032%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-h-o-s-t_-c-o-m-p-u-t-e-r.html"><span>HOST_</span><wbr></wbr><span>COMPUTER</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1798944032%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-h-o-s-t_-c-o-m-p-u-t-e-r.html">HOST_COMPUTER</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">316</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-492166118%2FProperties%2F-405091373" anchor-label="IMAGE_DESCRIPTION" id="-492166118%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-i-m-a-g-e_-d-e-s-c-r-i-p-t-i-o-n.html"><span>IMAGE_</span><wbr></wbr><span><span>DESCRIPTION</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-492166118%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-i-m-a-g-e_-d-e-s-c-r-i-p-t-i-o-n.html">IMAGE_DESCRIPTION</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">270</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="692603710%2FProperties%2F-405091373" anchor-label="IMAGE_LENGTH" id="692603710%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-i-m-a-g-e_-l-e-n-g-t-h.html"><span>IMAGE_</span><wbr></wbr><span>LENGTH</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="692603710%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-i-m-a-g-e_-l-e-n-g-t-h.html">IMAGE_LENGTH</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">257</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-977503152%2FProperties%2F-405091373" anchor-label="IMAGE_WIDTH" id="-977503152%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-i-m-a-g-e_-w-i-d-t-h.html"><span>IMAGE_</span><wbr></wbr><span>WIDTH</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-977503152%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-i-m-a-g-e_-w-i-d-t-h.html">IMAGE_WIDTH</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">256</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2121639523%2FProperties%2F-405091373" anchor-label="INK_NAMES" id="2121639523%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-i-n-k_-n-a-m-e-s.html"><span>INK_</span><wbr></wbr><span>NAMES</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2121639523%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-i-n-k_-n-a-m-e-s.html">INK_NAMES</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">333</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2147044855%2FProperties%2F-405091373" anchor-label="INK_SET" id="-2147044855%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-i-n-k_-s-e-t.html"><span>INK_</span><wbr></wbr><span>SET</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2147044855%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-i-n-k_-s-e-t.html">INK_SET</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">332</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1565399037%2FProperties%2F-405091373" anchor-label="JPEG_AC_TABLES" id="1565399037%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-j-p-e-g_-a-c_-t-a-b-l-e-s.html"><span>JPEG_</span><wbr></wbr><span>AC_</span><wbr></wbr><span>TABLES</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1565399037%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-j-p-e-g_-a-c_-t-a-b-l-e-s.html">JPEG_AC_TABLES</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">521</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="346907738%2FProperties%2F-405091373" anchor-label="JPEG_DC_TABLES" id="346907738%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-j-p-e-g_-d-c_-t-a-b-l-e-s.html"><span>JPEG_</span><wbr></wbr><span>DC_</span><wbr></wbr><span>TABLES</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="346907738%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-j-p-e-g_-d-c_-t-a-b-l-e-s.html">JPEG_DC_TABLES</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">520</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1546929649%2FProperties%2F-405091373" anchor-label="JPEG_INTERCHANGE_FORMAT" id="1546929649%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-j-p-e-g_-i-n-t-e-r-c-h-a-n-g-e_-f-o-r-m-a-t.html"><span>JPEG_</span><wbr></wbr><span>INTERCHANGE_</span><wbr></wbr><span>FORMAT</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1546929649%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-j-p-e-g_-i-n-t-e-r-c-h-a-n-g-e_-f-o-r-m-a-t.html">JPEG_INTERCHANGE_FORMAT</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">513</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2118856028%2FProperties%2F-405091373" anchor-label="JPEG_INTERCHANGE_FORMAT_LENGTH" id="-2118856028%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-j-p-e-g_-i-n-t-e-r-c-h-a-n-g-e_-f-o-r-m-a-t_-l-e-n-g-t-h.html"><span>JPEG_</span><wbr></wbr><span>INTERCHANGE_</span><wbr></wbr><span>FORMAT_</span><wbr></wbr><span>LENGTH</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2118856028%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-j-p-e-g_-i-n-t-e-r-c-h-a-n-g-e_-f-o-r-m-a-t_-l-e-n-g-t-h.html">JPEG_INTERCHANGE_FORMAT_LENGTH</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">514</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="639536453%2FProperties%2F-405091373" anchor-label="JPEG_LOSSLESS_PREDICTORS" id="639536453%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-j-p-e-g_-l-o-s-s-l-e-s-s_-p-r-e-d-i-c-t-o-r-s.html"><span>JPEG_</span><wbr></wbr><span>LOSSLESS_</span><wbr></wbr><span>PREDICTORS</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="639536453%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-j-p-e-g_-l-o-s-s-l-e-s-s_-p-r-e-d-i-c-t-o-r-s.html">JPEG_LOSSLESS_PREDICTORS</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">517</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1028404635%2FProperties%2F-405091373" anchor-label="JPEG_POINT_TRANSFORMS" id="-1028404635%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-j-p-e-g_-p-o-i-n-t_-t-r-a-n-s-f-o-r-m-s.html"><span>JPEG_</span><wbr></wbr><span>POINT_</span><wbr></wbr><span>TRANSFORMS</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1028404635%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-j-p-e-g_-p-o-i-n-t_-t-r-a-n-s-f-o-r-m-s.html">JPEG_POINT_TRANSFORMS</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">518</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-618594107%2FProperties%2F-405091373" anchor-label="JPEG_PROC" id="-618594107%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-j-p-e-g_-p-r-o-c.html"><span>JPEG_</span><wbr></wbr><span>PROC</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-618594107%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-j-p-e-g_-p-r-o-c.html">JPEG_PROC</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">512</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="772757928%2FProperties%2F-405091373" anchor-label="JPEG_Q_TABLES" id="772757928%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-j-p-e-g_-q_-t-a-b-l-e-s.html"><span>JPEG_</span><wbr></wbr><span>Q_</span><wbr></wbr><span>TABLES</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="772757928%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-j-p-e-g_-q_-t-a-b-l-e-s.html">JPEG_Q_TABLES</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">519</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-635163930%2FProperties%2F-405091373" anchor-label="JPEG_RESTART_INTERVAL" id="-635163930%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-j-p-e-g_-r-e-s-t-a-r-t_-i-n-t-e-r-v-a-l.html"><span>JPEG_</span><wbr></wbr><span>RESTART_</span><wbr></wbr><span>INTERVAL</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-635163930%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-j-p-e-g_-r-e-s-t-a-r-t_-i-n-t-e-r-v-a-l.html">JPEG_RESTART_INTERVAL</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">515</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2082805562%2FProperties%2F-405091373" anchor-label="MAKE" id="2082805562%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-m-a-k-e.html"><span><span>MAKE</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2082805562%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-m-a-k-e.html">MAKE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">271</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1456946993%2FProperties%2F-405091373" anchor-label="MAX_SAMPLE_VALUE" id="1456946993%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-m-a-x_-s-a-m-p-l-e_-v-a-l-u-e.html"><span>MAX_</span><wbr></wbr><span>SAMPLE_</span><wbr></wbr><span>VALUE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1456946993%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-m-a-x_-s-a-m-p-l-e_-v-a-l-u-e.html">MAX_SAMPLE_VALUE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">281</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="901586335%2FProperties%2F-405091373" anchor-label="MIN_SAMPLE_VALUE" id="901586335%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-m-i-n_-s-a-m-p-l-e_-v-a-l-u-e.html"><span>MIN_</span><wbr></wbr><span>SAMPLE_</span><wbr></wbr><span>VALUE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="901586335%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-m-i-n_-s-a-m-p-l-e_-v-a-l-u-e.html">MIN_SAMPLE_VALUE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">280</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-899377015%2FProperties%2F-405091373" anchor-label="MODEL" id="-899377015%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-m-o-d-e-l.html"><span><span>MODEL</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-899377015%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-m-o-d-e-l.html">MODEL</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">272</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="276755980%2FProperties%2F-405091373" anchor-label="NEW_SUBFILE_TYPE" id="276755980%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-n-e-w_-s-u-b-f-i-l-e_-t-y-p-e.html"><span>NEW_</span><wbr></wbr><span>SUBFILE_</span><wbr></wbr><span>TYPE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="276755980%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-n-e-w_-s-u-b-f-i-l-e_-t-y-p-e.html">NEW_SUBFILE_TYPE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">254</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-405307191%2FProperties%2F-405091373" anchor-label="NUMBER_OF_INKS" id="-405307191%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-n-u-m-b-e-r_-o-f_-i-n-k-s.html"><span>NUMBER_</span><wbr></wbr><span>OF_</span><wbr></wbr><span>INKS</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-405307191%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-n-u-m-b-e-r_-o-f_-i-n-k-s.html">NUMBER_OF_INKS</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">334</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1432113150%2FProperties%2F-405091373" anchor-label="ORIENTATION" id="-1432113150%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-o-r-i-e-n-t-a-t-i-o-n.html"><span><span>ORIENTATION</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1432113150%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-o-r-i-e-n-t-a-t-i-o-n.html">ORIENTATION</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">274</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="291095319%2FProperties%2F-405091373" anchor-label="PAGE_NAME" id="291095319%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-p-a-g-e_-n-a-m-e.html"><span>PAGE_</span><wbr></wbr><span>NAME</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="291095319%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-p-a-g-e_-n-a-m-e.html">PAGE_NAME</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">285</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2127547097%2FProperties%2F-405091373" anchor-label="PAGE_NUMBER" id="2127547097%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-p-a-g-e_-n-u-m-b-e-r.html"><span>PAGE_</span><wbr></wbr><span>NUMBER</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2127547097%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-p-a-g-e_-n-u-m-b-e-r.html">PAGE_NUMBER</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">297</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="158462243%2FProperties%2F-405091373" anchor-label="PHOTOMETRIC_INTERPRETATION" id="158462243%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-p-h-o-t-o-m-e-t-r-i-c_-i-n-t-e-r-p-r-e-t-a-t-i-o-n.html"><span>PHOTOMETRIC_</span><wbr></wbr><span><span>INTERPRETATION</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="158462243%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-p-h-o-t-o-m-e-t-r-i-c_-i-n-t-e-r-p-r-e-t-a-t-i-o-n.html">PHOTOMETRIC_INTERPRETATION</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">262</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1630987753%2FProperties%2F-405091373" anchor-label="PLANAR_CONFIGURATION" id="-1630987753%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-p-l-a-n-a-r_-c-o-n-f-i-g-u-r-a-t-i-o-n.html"><span>PLANAR_</span><wbr></wbr><span><span>CONFIGURATION</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1630987753%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-p-l-a-n-a-r_-c-o-n-f-i-g-u-r-a-t-i-o-n.html">PLANAR_CONFIGURATION</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">284</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-598914026%2FProperties%2F-405091373" anchor-label="PREDICTOR" id="-598914026%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-p-r-e-d-i-c-t-o-r.html"><span><span>PREDICTOR</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-598914026%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-p-r-e-d-i-c-t-o-r.html">PREDICTOR</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">317</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1820542274%2FProperties%2F-405091373" anchor-label="PRIMARY_CHROMATICI_TIES" id="-1820542274%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-p-r-i-m-a-r-y_-c-h-r-o-m-a-t-i-c-i_-t-i-e-s.html"><span>PRIMARY_</span><wbr></wbr><span>CHROMATICI_</span><wbr></wbr><span>TIES</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1820542274%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-p-r-i-m-a-r-y_-c-h-r-o-m-a-t-i-c-i_-t-i-e-s.html">PRIMARY_CHROMATICI_TIES</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">319</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1386793347%2FProperties%2F-405091373" anchor-label="REFERENCE_BLACK_WHITE" id="-1386793347%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r-e-f-e-r-e-n-c-e_-b-l-a-c-k_-w-h-i-t-e.html"><span>REFERENCE_</span><wbr></wbr><span>BLACK_</span><wbr></wbr><span>WHITE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1386793347%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-r-e-f-e-r-e-n-c-e_-b-l-a-c-k_-w-h-i-t-e.html">REFERENCE_BLACK_WHITE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">532</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1164229595%2FProperties%2F-405091373" anchor-label="RESOLUTION_UNIT" id="1164229595%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r-e-s-o-l-u-t-i-o-n_-u-n-i-t.html"><span>RESOLUTION_</span><wbr></wbr><span>UNIT</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1164229595%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-r-e-s-o-l-u-t-i-o-n_-u-n-i-t.html">RESOLUTION_UNIT</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">296</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="490775384%2FProperties%2F-405091373" anchor-label="ROWS_PER_STRIP" id="490775384%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r-o-w-s_-p-e-r_-s-t-r-i-p.html"><span>ROWS_</span><wbr></wbr><span>PER_</span><wbr></wbr><span>STRIP</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="490775384%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-r-o-w-s_-p-e-r_-s-t-r-i-p.html">ROWS_PER_STRIP</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">278</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="256458629%2FProperties%2F-405091373" anchor-label="S_MAX_SAMPLE_VALUE" id="256458629%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-s_-m-a-x_-s-a-m-p-l-e_-v-a-l-u-e.html"><span>S_</span><wbr></wbr><span>MAX_</span><wbr></wbr><span>SAMPLE_</span><wbr></wbr><span>VALUE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="256458629%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-s_-m-a-x_-s-a-m-p-l-e_-v-a-l-u-e.html">S_MAX_SAMPLE_VALUE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">341</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-298902029%2FProperties%2F-405091373" anchor-label="S_MIN_SAMPLE_VALUE" id="-298902029%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-s_-m-i-n_-s-a-m-p-l-e_-v-a-l-u-e.html"><span>S_</span><wbr></wbr><span>MIN_</span><wbr></wbr><span>SAMPLE_</span><wbr></wbr><span>VALUE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-298902029%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-s_-m-i-n_-s-a-m-p-l-e_-v-a-l-u-e.html">S_MIN_SAMPLE_VALUE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">340</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-899913786%2FProperties%2F-405091373" anchor-label="SAMPLE_FORMAT" id="-899913786%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-s-a-m-p-l-e_-f-o-r-m-a-t.html"><span>SAMPLE_</span><wbr></wbr><span>FORMAT</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-899913786%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-s-a-m-p-l-e_-f-o-r-m-a-t.html">SAMPLE_FORMAT</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">339</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-859868188%2FProperties%2F-405091373" anchor-label="SAMPLES_PER_PIXEL" id="-859868188%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-s-a-m-p-l-e-s_-p-e-r_-p-i-x-e-l.html"><span>SAMPLES_</span><wbr></wbr><span>PER_</span><wbr></wbr><span>PIXEL</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-859868188%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-s-a-m-p-l-e-s_-p-e-r_-p-i-x-e-l.html">SAMPLES_PER_PIXEL</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">277</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-81958879%2FProperties%2F-405091373" anchor-label="SOFTWARE" id="-81958879%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-s-o-f-t-w-a-r-e.html"><span><span>SOFTWARE</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-81958879%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-s-o-f-t-w-a-r-e.html">SOFTWARE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">305</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1498788062%2FProperties%2F-405091373" anchor-label="STRIP_BYTE_COUNTS" id="1498788062%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-s-t-r-i-p_-b-y-t-e_-c-o-u-n-t-s.html"><span>STRIP_</span><wbr></wbr><span>BYTE_</span><wbr></wbr><span>COUNTS</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1498788062%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-s-t-r-i-p_-b-y-t-e_-c-o-u-n-t-s.html">STRIP_BYTE_COUNTS</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">279</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-899371847%2FProperties%2F-405091373" anchor-label="STRIP_OFFSETS" id="-899371847%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-s-t-r-i-p_-o-f-f-s-e-t-s.html"><span>STRIP_</span><wbr></wbr><span>OFFSETS</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-899371847%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-s-t-r-i-p_-o-f-f-s-e-t-s.html">STRIP_OFFSETS</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">273</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="272701195%2FProperties%2F-405091373" anchor-label="SUBFILE_TYPE" id="272701195%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-s-u-b-f-i-l-e_-t-y-p-e.html"><span>SUBFILE_</span><wbr></wbr><span>TYPE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="272701195%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-s-u-b-f-i-l-e_-t-y-p-e.html">SUBFILE_TYPE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">255</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-715874711%2FProperties%2F-405091373" anchor-label="T4_OPTIONS" id="-715874711%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-t4_-o-p-t-i-o-n-s.html"><span>T4_</span><wbr></wbr><span>OPTIONS</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-715874711%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-t4_-o-p-t-i-o-n-s.html">T4_OPTIONS</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">292</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1335109287%2FProperties%2F-405091373" anchor-label="T6_OPTIONS" id="1335109287%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-t6_-o-p-t-i-o-n-s.html"><span>T6_</span><wbr></wbr><span>OPTIONS</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1335109287%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-t6_-o-p-t-i-o-n-s.html">T6_OPTIONS</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">293</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1289444900%2FProperties%2F-405091373" anchor-label="TARGET_PRINTER" id="-1289444900%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-t-a-r-g-e-t_-p-r-i-n-t-e-r.html"><span>TARGET_</span><wbr></wbr><span>PRINTER</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1289444900%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-t-a-r-g-e-t_-p-r-i-n-t-e-r.html">TARGET_PRINTER</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">337</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-35878549%2FProperties%2F-405091373" anchor-label="THRESHHOLDING" id="-35878549%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-t-h-r-e-s-h-h-o-l-d-i-n-g.html"><span><span>THRESHHOLDING</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-35878549%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-t-h-r-e-s-h-h-o-l-d-i-n-g.html">THRESHHOLDING</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">263</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-759117858%2FProperties%2F-405091373" anchor-label="TILE_BYTE_COUNTS" id="-759117858%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-t-i-l-e_-b-y-t-e_-c-o-u-n-t-s.html"><span>TILE_</span><wbr></wbr><span>BYTE_</span><wbr></wbr><span>COUNTS</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-759117858%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-t-i-l-e_-b-y-t-e_-c-o-u-n-t-s.html">TILE_BYTE_COUNTS</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">325</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1438844421%2FProperties%2F-405091373" anchor-label="TILE_LENGTH" id="-1438844421%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-t-i-l-e_-l-e-n-g-t-h.html"><span>TILE_</span><wbr></wbr><span>LENGTH</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1438844421%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-t-i-l-e_-l-e-n-g-t-h.html">TILE_LENGTH</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">323</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-353156167%2FProperties%2F-405091373" anchor-label="TILE_OFFSETS" id="-353156167%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-t-i-l-e_-o-f-f-s-e-t-s.html"><span>TILE_</span><wbr></wbr><span>OFFSETS</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-353156167%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-t-i-l-e_-o-f-f-s-e-t-s.html">TILE_OFFSETS</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">324</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1447592435%2FProperties%2F-405091373" anchor-label="TILE_WIDTH" id="1447592435%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-t-i-l-e_-w-i-d-t-h.html"><span>TILE_</span><wbr></wbr><span>WIDTH</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1447592435%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-t-i-l-e_-w-i-d-t-h.html">TILE_WIDTH</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">322</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-706135098%2FProperties%2F-405091373" anchor-label="TRANSFER_FUNCTION" id="-706135098%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-t-r-a-n-s-f-e-r_-f-u-n-c-t-i-o-n.html"><span>TRANSFER_</span><wbr></wbr><span>FUNCTION</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-706135098%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-t-r-a-n-s-f-e-r_-f-u-n-c-t-i-o-n.html">TRANSFER_FUNCTION</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">301</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1280575487%2FProperties%2F-405091373" anchor-label="TRANSFER_RANGE" id="1280575487%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-t-r-a-n-s-f-e-r_-r-a-n-g-e.html"><span>TRANSFER_</span><wbr></wbr><span>RANGE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1280575487%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-t-r-a-n-s-f-e-r_-r-a-n-g-e.html">TRANSFER_RANGE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">342</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-781332680%2FProperties%2F-405091373" anchor-label="WHITE_POINT" id="-781332680%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-w-h-i-t-e_-p-o-i-n-t.html"><span>WHITE_</span><wbr></wbr><span>POINT</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-781332680%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-w-h-i-t-e_-p-o-i-n-t.html">WHITE_POINT</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">318</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-564946440%2FProperties%2F-405091373" anchor-label="X_POSITION" id="-564946440%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-x_-p-o-s-i-t-i-o-n.html"><span>X_</span><wbr></wbr><span>POSITION</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-564946440%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-x_-p-o-s-i-t-i-o-n.html">X_POSITION</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">286</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="105637589%2FProperties%2F-405091373" anchor-label="X_RESOLUTION" id="105637589%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-x_-r-e-s-o-l-u-t-i-o-n.html"><span>X_</span><wbr></wbr><span>RESOLUTION</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="105637589%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-x_-r-e-s-o-l-u-t-i-o-n.html">X_RESOLUTION</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">282</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1916043148%2FProperties%2F-405091373" anchor-label="Y_CB_CR_COEFFICIENTS" id="-1916043148%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-y_-c-b_-c-r_-c-o-e-f-f-i-c-i-e-n-t-s.html"><span>Y_</span><wbr></wbr><span>CB_</span><wbr></wbr><span>CR_</span><wbr></wbr><span><span>COEFFICIENTS</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1916043148%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-y_-c-b_-c-r_-c-o-e-f-f-i-c-i-e-n-t-s.html">Y_CB_CR_COEFFICIENTS</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">529</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-780104593%2FProperties%2F-405091373" anchor-label="Y_CB_CR_POSITIONING" id="-780104593%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-y_-c-b_-c-r_-p-o-s-i-t-i-o-n-i-n-g.html"><span>Y_</span><wbr></wbr><span>CB_</span><wbr></wbr><span>CR_</span><wbr></wbr><span><span>POSITIONING</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-780104593%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-y_-c-b_-c-r_-p-o-s-i-t-i-o-n-i-n-g.html">Y_CB_CR_POSITIONING</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">531</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1016779820%2FProperties%2F-405091373" anchor-label="Y_CB_CR_SUB_SAMPLING" id="1016779820%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-y_-c-b_-c-r_-s-u-b_-s-a-m-p-l-i-n-g.html"><span>Y_</span><wbr></wbr><span>CB_</span><wbr></wbr><span>CR_</span><wbr></wbr><span>SUB_</span><wbr></wbr><span>SAMPLING</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1016779820%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-y_-c-b_-c-r_-s-u-b_-s-a-m-p-l-i-n-g.html">Y_CB_CR_SUB_SAMPLING</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">530</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1160534457%2FProperties%2F-405091373" anchor-label="Y_POSITION" id="1160534457%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-y_-p-o-s-i-t-i-o-n.html"><span>Y_</span><wbr></wbr><span>POSITION</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1160534457%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-y_-p-o-s-i-t-i-o-n.html">Y_POSITION</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">287</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="435403350%2FProperties%2F-405091373" anchor-label="Y_RESOLUTION" id="435403350%2FProperties%2F-405091373" data-filterable-set=":worldwind/commonMain"></a>
+          <div class="table-row table-row_content" data-filterable-current=":worldwind/commonMain" data-filterable-set=":worldwind/commonMain">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-y_-r-e-s-o-l-u-t-i-o-n.html"><span>Y_</span><wbr></wbr><span>RESOLUTION</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="435403350%2FProperties%2F-405091373"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":worldwind/commonMain"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-y_-r-e-s-o-l-u-t-i-o-n.html">Y_RESOLUTION</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">283</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>(c) WorldWind Earth</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
