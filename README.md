@@ -63,7 +63,7 @@ BackgroundLayer(ImageSource.fromResource(MyMR.images.my_background))
 Get development build snapshots with the latest features and bug fixes:
 ```groovy
 repositories {
-    maven("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+    maven("https://central.sonatype.com/repository/maven-snapshots/")
 }
 
 dependencies {
