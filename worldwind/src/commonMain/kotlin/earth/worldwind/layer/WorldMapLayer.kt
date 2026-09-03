@@ -1,6 +1,6 @@
 package earth.worldwind.layer
 
-import earth.worldwind.MR
+import earth.worldwind.assets.MR as AssetsMR
 import earth.worldwind.WorldWind
 import earth.worldwind.draw.DrawableScreenTexture
 import earth.worldwind.geom.Location
@@ -24,7 +24,7 @@ class WorldMapLayer : AbstractLayer("World Map") {
     var margin = 11.0
     var corner = Corner.BOTTOM_RIGHT
 
-    private val mapImageSource = ImageSource.fromResource(MR.images.worldwind_worldtopobathy2004053)
+    private val mapImageSource = ImageSource.fromResource(AssetsMR.images.worldwind_worldtopobathy2004053)
     private val mapImage = ScreenImage(mapImageSource)
 
     // dot drawn over the map to indicate camera position

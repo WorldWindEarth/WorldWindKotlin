@@ -100,6 +100,9 @@ kotlin {
     sourceSets {
         commonMain {
             dependencies {
+                // Bundled imagery, star catalogue and EGM96 grid. `api` so the generated MR types
+                // stay visible to consumers that pass their own resources to the same parameters.
+                api(project(":worldwind-assets"))
                 api(libs.kotlinx.datetime)
                 api(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
@@ -268,12 +271,15 @@ val dokkaOutputDir = layout.buildDirectory.dir("dokka")
 val deleteDokkaOutputDir by tasks.register<Delete>("deleteDokkaOutputDirectory") {
     delete(dokkaOutputDir)
 }
-val javadocJar = tasks.register<Jar>("javadocJar") {
+// Not attached to any publication — kept so the docs site can be produced on demand.
+tasks.register<Jar>("javadocJar") {
     dependsOn(deleteDokkaOutputDir, tasks.dokkaGeneratePublicationHtml)
     archiveClassifier.set("javadoc")
     from(dokkaOutputDir)
 }
-// Empty javadoc jar for per-target publications; satisfies Maven Central without duplicating Dokka output
+// Empty javadoc jar for every publication; satisfies Maven Central without shipping Dokka output.
+// The full HTML from `javadocJar` is ~31 MB — 21% of a release — and it is re-uploaded verbatim on
+// every version bump. Build it on demand (`./gradlew :worldwind:javadocJar`) and host it instead.
 val emptyJavadocJar = tasks.register<Jar>("emptyJavadocJar") {
     archiveClassifier.set("javadoc")
     archiveAppendix.set("empty")
@@ -309,8 +315,8 @@ tasks.named("dokkaGeneratePublicationHtml") { dependsOn(prepareDokkaJsSources) }
 publishing {
     publications {
         withType<MavenPublication> {
-            // Full Dokka docs ship once on the root publication; targets carry an empty javadoc jar
-            artifact(if (name == "kotlinMultiplatform") javadocJar else emptyJavadocJar)
+            // Every publication carries an empty javadoc jar — see emptyJavadocJar above.
+            artifact(emptyJavadocJar)
             pom {
                 name.set("WorldWind Kotlin")
                 description.set("The WorldWind Kotlin SDK (WWK) includes the library, examples and tutorials for building multiplatform 3D virtual globe applications for Android, Web and Java.")
@@ -409,6 +415,28 @@ tasks.named("compileKotlinJs") { dependsOn(checkShaderSourcesAscii) }
 // AGP registers the Android Kotlin compile task lazily, so match by name rather than `named`.
 tasks.matching { it.name == "compileKotlinAndroid" }
     .configureEach { dependsOn(checkShaderSourcesAscii) }
+
+// moko-resources emits every resource twice for the browser targets, and both copies land in the
+// published klib: once into the compilation output at `default/resources/moko-resources-js/`, and
+// again via `processedResources/<target>/main`, which the archive task packages at the archive
+// root as `images/`, `assets/`, `files/`. That doubles ~6 MB per browser target per release.
+//
+// Only `default/resources` is load-bearing for published consumers. The generated `MR` resolves
+// resources as `require("./images/<name>.png")`, and when the klib is consumed from a repository
+// Kotlin/JS unpacks `default/resources` into the `kotlin/` directory webpack resolves against.
+// The archive-root copy is redundant there: an in-repo project dependency reads the
+// `processedResources` directory off the classpath, never the archive.
+//
+// Verified by publishing to Maven Local and building :worldwind-tutorials:jsBrowserDistribution
+// with the project dependency substituted for the published module. Excluding `default/resources`
+// instead fails that build with 18 "Can't resolve './images/...'" errors, so keep this exclusion
+// pointed at the archive root. `package.json` (npm deps) and `default/**` must survive.
+listOf("jsJar", "wasmJsJar").forEach { taskName ->
+    // named() (not matching()) so a Kotlin upgrade that renames the archive task fails the build
+    // instead of silently going back to shipping both copies. The three directory names mirror
+    // the top level of src/commonMain/moko-resources.
+    tasks.named<Jar>(taskName) { exclude("images/**", "assets/**", "files/**") }
+}
 
 // Strip moko-resources' iOS PackAppleResourcesToKLibAction on non-macOS hosts. Two failure
 // modes converge here: (a) Windows can't write the action's output directory because its name

@@ -1,6 +1,6 @@
 package earth.worldwind.layer.atmosphere
 
-import earth.worldwind.MR
+import earth.worldwind.assets.MR as AssetsMR
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Vec3
 import earth.worldwind.layer.AbstractLayer
@@ -15,7 +15,7 @@ import earth.worldwind.util.kgl.GL_ELEMENT_ARRAY_BUFFER
 
 open class AtmosphereLayer: AbstractLayer("Atmosphere") {
     override var isPickEnabled = false
-    var nightImageSource = fromResource(MR.images.black_marble_2016)
+    var nightImageSource = fromResource(AssetsMR.images.black_marble_2016)
     var nightImageOptions = ImageOptions(ImageConfig.RGB_565)
     /**
      * Eye altitude (metres) below which the ground-atmosphere scattering is fully faded out, and

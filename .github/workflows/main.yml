@@ -46,6 +46,7 @@ jobs:
       run: |
         ./gradlew \
           :worldwind:build \
+          :worldwind-assets:build \
           :worldwind-compose:build \
           :worldwind-tutorials:jsBrowserDistribution
     - name: Deploy Tutorials to GitHub Pages
@@ -58,6 +59,32 @@ jobs:
         BRANCH: gh-pages
         FOLDER: worldwind-tutorials/build/dist/js/productionExecutable
         CLEAN: true
+        # The API docs live in a sibling folder on the same branch — keep this root-level
+        # clean from deleting them on every tutorials deploy.
+        clean-exclude: |
+          api
+    - name: Build API docs
+      # The published javadoc jars are empty (Maven Central only requires the artifact to
+      # exist, and the full Dokka HTML is ~31 MB re-uploaded on every version bump), so
+      # gh-pages is where the browsable API reference actually comes from.
+      #
+      # master only: the Dokka tree is ~154 MB across 13k files, and the docs are meant to
+      # track released versions — which are themselves gated on master by the publish job.
+      # Regenerating it on every develop push would grow gh-pages history for no reader.
+      if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+      run: ./gradlew :worldwind:dokkaGeneratePublicationHtml
+    - name: Deploy API docs to GitHub Pages
+      if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+      uses: JamesIves/github-pages-deploy-action@v4
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        BRANCH: gh-pages
+        FOLDER: worldwind/build/dokka
+        TARGET_FOLDER: api
+        CLEAN: true
+        # gh-pages is generated content, so it needs no history — without this the branch
+        # would carry a new revision of a 154 MB tree per release.
+        single-commit: true
   publish:
     # macOS host is mandatory for a correct publish: moko-resources' iOS pack action
     # shells out to `xcrun`, so Apple klibs built on Linux ship with empty
@@ -82,9 +109,13 @@ jobs:
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
-    - name: Check if worldwind.version is already on Maven Central
+    - name: Check which versions are already on Maven Central
       id: check-version
       shell: bash
+      # worldwind-assets carries the bundled imagery and geoid grid and versions independently
+      # (worldwind.assetsVersion), because those files change far less often than the engine.
+      # Each coordinate is gated on its own version so an engine release does not attempt to
+      # re-upload an unchanged assets artifact, which Central would reject.
       run: |
         set -euo pipefail
         VERSION=$(grep "^worldwind.version=" gradle.properties | cut -d= -f2)
@@ -96,18 +127,36 @@ jobs:
           echo "::notice::worldwind v$VERSION not yet on Maven Central — proceeding with publish."
           echo "should_publish=true" >> "$GITHUB_OUTPUT"
         fi
+        ASSETS_VERSION=$(grep "^worldwind.assetsVersion=" gradle.properties | cut -d= -f2)
+        ASSETS_URL="https://repo1.maven.org/maven2/earth/worldwind/worldwind-assets/$ASSETS_VERSION/worldwind-assets-$ASSETS_VERSION.pom"
+        if curl -sfL -o /dev/null "$ASSETS_URL"; then
+          echo "::notice::worldwind-assets v$ASSETS_VERSION already on Maven Central — skipping (bump worldwind.assetsVersion to release a new version)."
+          echo "assets_should_publish=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "::notice::worldwind-assets v$ASSETS_VERSION not yet on Maven Central — it will be published."
+          echo "assets_should_publish=true" >> "$GITHUB_OUTPUT"
+        fi
     - name: Publish to Maven Central
-      if: github.ref == 'refs/heads/master' && steps.check-version.outputs.should_publish == 'true' && inputs.dry_run != true
+      if: github.ref == 'refs/heads/master' && inputs.dry_run != true && (steps.check-version.outputs.should_publish == 'true' || steps.check-version.outputs.assets_should_publish == 'true')
       env:
         GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         GPG_PRIVATE_PASSWORD: ${{ secrets.GPG_PRIVATE_PASSWORD }}
         SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
         SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+      shell: bash
+      # One Gradle invocation so everything lands in a single staging repo that
+      # closeSonatypeStagingRepository then closes.
       run: |
-        ./gradlew \
-          :worldwind:publishToSonatype \
-          :worldwind-compose:publishToSonatype \
-          closeSonatypeStagingRepository
+        set -euo pipefail
+        TASKS=()
+        if [ "${{ steps.check-version.outputs.should_publish }}" = "true" ]; then
+          TASKS+=(:worldwind:publishToSonatype :worldwind-compose:publishToSonatype)
+        fi
+        if [ "${{ steps.check-version.outputs.assets_should_publish }}" = "true" ]; then
+          TASKS+=(:worldwind-assets:publishToSonatype)
+        fi
+        echo "::notice::Publishing: ${TASKS[*]}"
+        ./gradlew "${TASKS[@]}" closeSonatypeStagingRepository
     - name: Dry-run publish to Maven Local
       if: github.event_name == 'workflow_dispatch' && inputs.dry_run == true
       env:
@@ -116,6 +165,7 @@ jobs:
       run: |
         ./gradlew \
           :worldwind:publishToMavenLocal \
+          :worldwind-assets:publishToMavenLocal \
           :worldwind-compose:publishToMavenLocal
     # The regression this dry run exists to catch: Apple klibs assembled on a host
     # without `xcrun` ship an empty `default/resources/`, breaking every MR.* lookup

@@ -2,6 +2,7 @@ package earth.worldwind.layer.starfield
 
 import dev.icerock.moko.resources.FileResource
 import earth.worldwind.MR
+import earth.worldwind.assets.MR as AssetsMR
 import earth.worldwind.WorldWind
 import earth.worldwind.draw.DrawableStarField
 import earth.worldwind.geom.Matrix4
@@ -31,7 +32,7 @@ import kotlin.time.Clock
  * If the star data .json file is too big, consider enabling gzip compression on your web server.
  * For more info about enabling gzip compression consult the configuration for your web server.
  */
-open class StarFieldLayer(starDataSource: FileResource = MR.files.stars_json): AbstractLayer("StarField") {
+open class StarFieldLayer(starDataSource: FileResource = AssetsMR.files.stars_json): AbstractLayer("StarField") {
     override var isPickEnabled = false // The StarField Layer is not pickable.
     /**
      * Resource for the stars data

@@ -31,6 +31,33 @@ dependencies {
 }
 ```
 
+`earth.worldwind:worldwind-assets` comes in automatically as a transitive dependency — see below.
+
+## Bundled assets
+
+The default background imagery, night-time city lights, star catalogue and EGM96 geoid grid live in a separate
+`worldwind-assets` artifact rather than inside the engine. They are about 6.7 MB of binary data, and because a Kotlin
+Multiplatform library embeds its resources into every published target, carrying them in the engine added roughly
+55 MB to every release — for files that essentially never change. Splitting them out means an engine release no longer
+re-uploads them; the assets artifact is published only when an asset actually changes.
+
+Nothing changes for applications. The engine depends on it, so it resolves automatically and every default works as
+before — `BackgroundLayer()`, `StarFieldLayer()`, `AtmosphereLayer()` and the EGM96 geoid all pick up their bundled
+resources with no setup code.
+
+The one thing worth knowing is that this artifact carries its own version, which deliberately does not track the
+engine version. Pin it explicitly only if you need a specific asset revision:
+
+```groovy
+implementation 'earth.worldwind:worldwind-assets:1.0.0'
+```
+
+To use your own imagery instead, pass it to the layer that consumes it, as always:
+
+```kotlin
+BackgroundLayer(ImageSource.fromResource(MyMR.images.my_background))
+```
+
 ## Snapshots
 
 Get development build snapshots with the latest features and bug fixes:

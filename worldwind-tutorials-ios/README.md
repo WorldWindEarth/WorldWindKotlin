@@ -57,14 +57,20 @@ the SwiftUI shell against it and launches in the simulator.
   `EAGLContext` symbols live in OpenGLES.framework). Only `-framework OpenGLES` is
   needed.
 - **Resources** — `EGM96.dat` plus `drone_motion.{mp4,json}` are referenced by relative
-  path from the host module's `moko-resources/assets` directories and copied into the
-  `.app` at build time.
-- **moko stub bundles** — `MokoStubBundles/earth.worldwind.main.bundle/` and
-  `MokoStubBundles/earth.worldwind.tutorials.main.bundle/` (each with one `Info.plist`)
-  satisfy moko-resources' `NSBundle.loadableBundle(...)` lazy lookup at runtime. The
-  generated `MR.kt` for `:worldwind` and `:worldwind-tutorials` looks up bundles named
-  `earth.worldwind.main` and `earth.worldwind.tutorials.main`. The framework is
-  static, so moko never copies its resource bundles into the `.app` on its own (and on
+  path from the owning module's `moko-resources/assets` directory and copied into the
+  `.app` at build time. `EGM96.dat` lives in `:worldwind-assets`, not `:worldwind` — the
+  bundled imagery and geoid grid were split into their own artifact so engine releases
+  stop re-uploading them.
+- **moko stub bundles** — `MokoStubBundles/earth.worldwind.main.bundle/`,
+  `MokoStubBundles/earth.worldwind.assets.main.bundle/` and
+  `MokoStubBundles/earth.worldwind.tutorials.main.bundle/` (each with one `Info.plist`
+  whose `CFBundleIdentifier` matches the directory name) satisfy moko-resources'
+  `NSBundle.loadableBundle(...)` lazy lookup at runtime. The generated `MR.kt` for
+  `:worldwind`, `:worldwind-assets` and `:worldwind-tutorials` looks up bundles named
+  `earth.worldwind.main`, `earth.worldwind.assets.main` and
+  `earth.worldwind.tutorials.main`. One stub per moko module is required: the lookup
+  throws rather than returning null, so a missing stub crashes at launch. The framework
+  is static, so moko never copies its resource bundles into the `.app` on its own (and on
   non-macOS hosts the pack action is stripped entirely) — the .app must ship its own
   stubs. The stubs are empty — `EGM96.dat` is loaded from the main bundle directly by
   the iOS `EGM96Geoid`.
@@ -115,7 +121,8 @@ mesh/Collada hit-testing) depending on the current tutorial.
   Bundle Resources` includes it).
 - **Crash at launch: `kotlin.IllegalArgumentException: bundle with identifier
   earth.worldwind.main not found`** — `MokoStubBundles/earth.worldwind.main.bundle` (or
-  `…tutorials.main.bundle`) is missing or wasn't copied into the `.app`. moko-resources'
+  `…assets.main.bundle`, or `…tutorials.main.bundle`) is missing or wasn't copied into
+  the `.app`. moko-resources'
   generated `MR.bundle` lazily calls `NSBundle.loadableBundle(...)` the first time any
   `MR.assets.<X>` is touched (e.g. `EGM96Geoid()` default arg → `MR.assets.EGM96_dat`)
   and crashes if no bundle with the matching `CFBundleIdentifier` exists. Both stubs

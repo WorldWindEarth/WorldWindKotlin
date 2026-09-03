@@ -25,7 +25,7 @@
 		F00000000000000000000005 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F00000000000000000000006 /* WorldWindTutorials.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WorldWindTutorials.framework; path = "../worldwind-tutorials/build/bin/iosSimulatorArm64/debugFramework/WorldWindTutorials.framework"; sourceTree = "<group>"; };
 		F00000000000000000000007 /* WorldWindTutorials.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WorldWindTutorials.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		F00000000000000000000008 /* EGM96.dat */ = {isa = PBXFileReference; lastKnownFileType = file; name = EGM96.dat; path = "../worldwind/src/commonMain/moko-resources/assets/EGM96.dat"; sourceTree = "<group>"; };
+		F00000000000000000000008 /* EGM96.dat */ = {isa = PBXFileReference; lastKnownFileType = file; name = EGM96.dat; path = "../worldwind-assets/src/commonMain/moko-resources/assets/EGM96.dat"; sourceTree = "<group>"; };
 		F00000000000000000000009 /* drone_motion.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; name = drone_motion.mp4; path = "../worldwind-tutorials/src/commonMain/moko-resources/assets/video/drone_motion.mp4"; sourceTree = "<group>"; };
 		F0000000000000000000000A /* drone_motion.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = drone_motion.json; path = "../worldwind-tutorials/src/commonMain/moko-resources/assets/video/drone_motion.json"; sourceTree = "<group>"; };
 /* End PBXFileReference section */

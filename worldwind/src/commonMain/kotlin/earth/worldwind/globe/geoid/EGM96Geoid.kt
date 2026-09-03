@@ -1,14 +1,14 @@
 package earth.worldwind.globe.geoid
 
 import dev.icerock.moko.resources.AssetResource
-import earth.worldwind.MR
+import earth.worldwind.assets.MR as AssetsMR
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 
 @OptIn(DelicateCoroutinesApi::class)
 expect open class EGM96Geoid(
-    offsetsFile: AssetResource = MR.assets.EGM96_dat,
+    offsetsFile: AssetResource = AssetsMR.assets.EGM96_dat,
     scope: CoroutineScope = GlobalScope
 ) : AbstractEGM96Geoid {
     override val isInitialized: Boolean
