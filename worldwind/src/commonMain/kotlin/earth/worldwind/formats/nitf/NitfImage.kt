@@ -1,6 +1,8 @@
 package earth.worldwind.formats.nitf
 
+import earth.worldwind.render.image.ArgbImage
 import earth.worldwind.render.image.ImageSource
+import earth.worldwind.render.image.toImageSource
 import earth.worldwind.geom.Sector
 
 /**
@@ -9,10 +11,10 @@ import earth.worldwind.geom.Sector
  * georeferenced sector recovered from the IGEOLO field.
  *
  * Use [toImageSource] to obtain a platform-specific [ImageSource] that a
- * [earth.worldwind.shape.SurfaceImage] can consume. The conversion is
- * `expect`/`actual` because each platform has its own bitmap type
- * (`BufferedImage` on JVM, `Bitmap` on Android, canvas on JS, `UIImage` on
- * iOS) and the cheapest path differs per target.
+ * [earth.worldwind.shape.SurfaceImage] can consume. The per-platform bitmap
+ * conversion (`BufferedImage` on JVM, `Bitmap` on Android, canvas on JS,
+ * `UIImage` on iOS) lives behind [ArgbImage], shared with every other decoder
+ * that produces pixels rather than encoded bytes.
  */
 class NitfImage(
     val width: Int,
@@ -25,8 +27,8 @@ class NitfImage(
 )
 
 /**
- * Convert a [NitfImage] into a renderer-ready [ImageSource]. Each platform
- * builds the cheapest native bitmap representation it can (no PNG-encode
- * round-trip) and hands it to the surface-image pipeline.
+ * Convert a [NitfImage] into a renderer-ready [ImageSource]. The platform builds
+ * the cheapest native bitmap representation it can (no PNG-encode round-trip)
+ * and hands it to the surface-image pipeline.
  */
-expect fun NitfImage.toImageSource(): ImageSource
+fun NitfImage.toImageSource(): ImageSource = ArgbImage(width, height, argb).toImageSource()

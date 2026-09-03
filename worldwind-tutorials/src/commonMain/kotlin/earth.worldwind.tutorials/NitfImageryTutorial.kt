@@ -22,7 +22,7 @@ import kotlin.math.roundToInt
 /**
  * Synthesises a small RGB NITF 2.1 image in memory at startup, parses it with
  * [Nitf]/[NitfImageReader], and drapes the decoded pixels over the globe as a
- * [SurfaceImage] via the platform-specific [toImageSource] bridge.
+ * [SurfaceImage] via the [toImageSource] bridge.
  *
  * The synthetic content is a 256 × 256 RGB image laid out as an 8 × 8 grid of
  * 32-pixel blocks, with a horizontal hue ramp, a vertical brightness ramp, and
@@ -31,9 +31,10 @@ import kotlin.math.roundToInt
  * imagery lands somewhere recognisable.
  *
  * Cross-platform: the synthesis, parse, and decode all live in `commonMain`.
- * The only per-platform piece is `NitfImage.toImageSource()`, which builds the
- * platform-native bitmap (`BufferedImage` / `Bitmap` / `ImageBitmap` / `UIImage`)
- * — same plumbing every SurfaceImage tutorial uses.
+ * The only per-platform piece is the shared `ArgbImage` seam behind
+ * `NitfImage.toImageSource()`, which builds the platform-native bitmap
+ * (`BufferedImage` / `Bitmap` / `ImageBitmap` / `UIImage`) — same plumbing every
+ * SurfaceImage tutorial uses.
  */
 class NitfImageryTutorial(engine: WorldWind) : AbstractTutorial(engine) {
 
