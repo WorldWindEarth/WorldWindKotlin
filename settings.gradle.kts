@@ -7,7 +7,7 @@ pluginManagement {
     resolutionStrategy {
         eachPlugin {
             if (requested.id.namespace == "com.android") {
-                useModule("com.android.tools.build:gradle:9.2.1")
+                useModule("com.android.tools.build:gradle:9.4.0")
             }
         }
     }

@@ -27,7 +27,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'earth.worldwind:worldwind:2.0.10'
+    implementation 'earth.worldwind:worldwind:2.1.0'
 }
 ```
 

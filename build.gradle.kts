@@ -1,5 +1,5 @@
 plugins {
-    val kotlinVersion = "2.4.0"
+    val kotlinVersion = "2.4.10"
     kotlin("multiplatform") version kotlinVersion apply false
     kotlin("plugin.serialization") version kotlinVersion apply false
     kotlin("plugin.compose") version kotlinVersion apply false
