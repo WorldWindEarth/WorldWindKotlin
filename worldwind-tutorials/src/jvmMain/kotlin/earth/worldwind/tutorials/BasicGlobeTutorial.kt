@@ -271,6 +271,7 @@ fun main() {
                     ).also { contentManager.attachCache(it, "WCS_3DEP") }
                 }),
                 "DTED Elevation (local)" to DtedElevationTutorial(engine),
+                "GeoTIFF (local)" to GeoTiffTutorial(engine, mainScope),
                 "GeoPackage (bundled)" to GeoPackageTutorial(engine, mainScope) {
                     SharedStagedGeoPackage.path()
                 },

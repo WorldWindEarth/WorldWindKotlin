@@ -1,0 +1,122 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>GeoTIFF Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>Tiled GeoTIFF Tutorial</h1>
+<p>
+    Demonstrates the two ways a local tiled GeoTIFF can be mounted on the globe:
+    <code>GeoTiffImageLayer</code> for raster imagery and
+    <code>GeoTiffElevationCoverage</code> for a digital elevation model. Both read the same
+    file format, so this tutorial drapes a GeoTIFF orthophoto over terrain that also came
+    out of a GeoTIFF.</p>
+<p>
+    Neither type loads the file into memory. A GeoTIFF stores its raster as a grid of
+    independently compressed tiles, and (once <code>gdaladdo</code> or a COG conversion has
+    run) a ladder of reduced-resolution overviews alongside it. Each tile the engine draws
+    picks the overview closest to its own resolution and decodes only the blocks it lands
+    on — so a multi-gigabyte orthophoto costs the same per frame as a small one.</p>
+
+<h2>Running it</h2>
+<p>
+    By default the tutorial synthesises both files into a temp directory at startup: a
+    512&nbsp;&times;&nbsp;512 Int16 DEM and a 1024&nbsp;&times;&nbsp;1024 RGB shaded-relief
+    image of the same synthetic massif, internally tiled, Deflate-compressed, with a
+    half-scale overview on the image. Set <code>GEOTIFF_IMAGE</code> and/or
+    <code>GEOTIFF_DEM</code> (environment variable or system property) to run against real
+    data instead; the two are independent, so a real DEM can be paired with the synthetic
+    relief as long as they overlap.</p>
+
+<h2>What is supported</h2>
+<ul>
+    <li>Classic TIFF and BigTIFF, striped or tiled, with overview IFDs read as a
+        resolution ladder.</li>
+    <li>Uncompressed, LZW, Deflate and PackBits blocks, with the horizontal and
+        floating-point predictors.</li>
+    <li>8/16/32/64-bit samples, signed, unsigned or IEEE float; grayscale, palette and
+        RGB(A) imagery; single-band DEMs with <code>GDAL_NODATA</code> voids.</li>
+    <li>Geographic (EPSG:4326), Web Mercator, and transverse-Mercator coordinates —
+        which covers every UTM zone.</li>
+</ul>
+<p>
+    JPEG-compressed and band-separated (planar) rasters are not decoded; those blocks
+    render as holes rather than as noise. A projection outside the list above is reported
+    in the log and the file is refused rather than placed wrongly.</p>
+
+<h2>Example</h2>
+<h3>GeoTiffFragment.kt</h3>
+<p>
+    The fragment extends <code>BasicGlobeFragment</code> and starts the shared
+    <code>GeoTiffTutorial</code> against the engine. The tutorial itself lives in the
+    JVM/Android-shared <code>jvmCommonMain</code> source set, so the desktop and Android
+    hosts run the same code.</p>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea id="kotlin-code">
+class GeoTiffFragment : BasicGlobeFragment() {
+    override fun createWorldWindow() = super.createWorldWindow().also {
+        GeoTiffTutorial(it.engine, lifecycleScope).start()
+    }
+}
+
+class GeoTiffTutorial(engine: WorldWind, private val scope: CoroutineScope) : AbstractTutorial(engine) {
+    private var imageLayer: GeoTiffImageLayer? = null
+    private var elevationCoverage: GeoTiffElevationCoverage? = null
+    private var job: Job? = null
+
+    override fun start() {
+        super.start()
+        // Generating (or just opening) the rasters is real work, so it happens off the main
+        // thread; only attaching the finished layer and coverage runs on it.
+        job = scope.launch {
+            val (layer, coverage) = withContext(Dispatchers.IO) {
+                val imageFile = customFile("GEOTIFF_IMAGE") ?: syntheticFile(IMAGE_NAME) { SyntheticGeoTiff.shadedRelief() }
+                val demFile = customFile("GEOTIFF_DEM") ?: syntheticFile(DEM_NAME) { SyntheticGeoTiff.elevation() }
+                GeoTiffImageLayer.create(imageFile, "GeoTIFF imagery") to GeoTiffElevationCoverage.create(demFile)
+            }
+            if (!isActive) { layer?.close(); coverage?.close(); return@launch }
+
+            // Terrain: the DEM's own extent becomes the coverage's tile pyramid.
+            coverage?.let {
+                elevationCoverage = it
+                engine.globe.elevationModel.apply {
+                    forEach { existing -> if (existing.isEnabled) existing.isEnabled = false } // restored in stop()
+                    addCoverage(it)
+                }
+            }
+            // Imagery: a TiledImageLayer whose tiles decode straight out of the file.
+            layer?.let {
+                imageLayer = it
+                engine.layers.addLayer(it)
+            }
+            positionCamera()
+        }
+    }
+
+    override fun stop() {
+        super.stop()
+        job?.cancel()
+        // Detach before closing: both types hold the file open while they are attached.
+        imageLayer?.let { engine.layers.removeLayer(it); it.close() }
+        elevationCoverage?.let { engine.globe.elevationModel.removeCoverage(it); it.close() }
+    }
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      var javaEditor = CodeMirror.fromTextArea(document.getElementById("kotlin-code"), {
+        lineNumbers: true,
+        matchBrackets: true,
+        mode: "google-kotlin",
+        readOnly: true
+      });
+</script>
+</body>
+</html>
