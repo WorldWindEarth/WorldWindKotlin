@@ -1,0 +1,64 @@
+<resources>
+    <string name="app_name">Tutoriales de WorldWind</string>
+
+    <string name="action_about">Acerca de</string>
+
+    <string name="navigation_drawer_open">Abrir el panel de navegación</string>
+    <string name="navigation_drawer_close">Cerrar el panel de navegación</string>
+
+    <string name="title_basic_globe">Globo básico</string>
+    <string name="title_camera_controls">Controles de cámara</string>
+    <string name="title_camera_view">Vista de cámara</string>
+    <string name="title_ellipses">Elipses</string>
+    <string name="title_ellipsoids">Elipsoides</string>
+    <string name="title_geojson">GeoJSON</string>
+    <string name="title_geopackage">GeoPackage</string>
+    <string name="title_kml">KML</string>
+    <string name="title_labels">Etiquetas</string>
+    <string name="title_look_at_view">Vista Look At</string>
+    <string name="title_navigator_event">Eventos del navegador</string>
+    <string name="title_omni_sightline">Línea de visión en tiempo real</string>
+    <string name="title_viewshed_sightline">Línea de visión de cuenca visual</string>
+    <string name="title_paths">Trayectorias</string>
+    <string name="title_placemarks">Marcadores</string>
+    <string name="title_placemarks_picking">Selección de marcadores</string>
+    <string name="title_polygons">Polígonos</string>
+    <string name="title_geographic_meshes">Mallas geográficas</string>
+    <string name="title_triangle_meshes">Mallas de triángulos</string>
+    <string name="title_shapes_dash_and_fill">Trazo y relleno de figuras</string>
+    <string name="title_milstd2525">Gráficos MilStd2525</string>
+    <string name="title_show_tessellation">Mostrar teselación</string>
+    <string name="title_mgrs_graticule">Retícula MGRS</string>
+    <string name="title_gk_graticule">Retícula Gauss-Krüger</string>
+    <string name="title_surface_image">Imagen de superficie</string>
+    <string name="title_photo_on_terrain">Foto sobre el terreno</string>
+    <string name="title_video_on_terrain">Vídeo sobre el terreno (KLV)</string>
+    <string name="title_wms_layer">Capa WMS</string>
+    <string name="title_wmts_layer">Capa WMTS</string>
+    <string name="title_wfs_layer">Capa WFS</string>
+    <string name="title_wfs_auto_refresh">WFS con actualización automática</string>
+    <string name="title_wfs_cached">WFS en caché (ventana de visualización)</string>
+    <string name="title_wfs_water_tiled">Carreteras WFS (en mosaicos)</string>
+    <string name="title_shapefile_layer">Capa Shapefile</string>
+    <string name="title_wcs_elevation_coverage">Cobertura de elevación WCS</string>
+    <string name="title_dted_elevation">Elevación DTED (local)</string>
+    <string name="title_geotiff">GeoTIFF (local)</string>
+    <string name="title_nitf_imagery">Imágenes NITF</string>
+    <string name="title_elevation_heatmap">Mapa de calor de elevación</string>
+    <string name="title_collada">Modelo COLLADA</string>
+    <string name="title_gltf">Modelo GLTF</string>
+    <string name="title_osm_buildings">Edificios de OSM</string>
+    <string name="title_ogc3d_tiles">OGC 3D Tiles</string>
+    <string name="title_google_3d_tiles">Google 3D Tiles</string>
+    <string name="title_cesium_ion_3d_tiles">Cesium Ion 3D Tiles</string>
+    <string name="title_ogc3d_tiles_archive_3tz">Archivo 3D Tiles (.3tz)</string>
+    <string name="title_ogc3d_tiles_archive_3dtiles">Archivo 3D Tiles (.3dtiles)</string>
+    <string name="title_point_cloud">Nube de puntos (LAS/LAZ)</string>
+    <string name="title_mvt_vector_tiles">Mosaicos vectoriales (MVT)</string>
+
+    <string name="spacer" />
+
+    <string name="toolbar_2d_projection_desc">Alternar la proyección de mapa plano</string>
+    <string name="toolbar_3d_projection_desc">Alternar la proyección del frustum de cámara 3D</string>
+
+</resources>

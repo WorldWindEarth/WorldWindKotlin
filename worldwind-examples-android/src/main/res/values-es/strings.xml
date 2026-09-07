@@ -1,0 +1,31 @@
+<resources>
+    <string name="app_name">Ejemplos de WorldWind</string>
+
+    <string name="action_about">Acerca de</string>
+
+    <string name="navigation_drawer_open">Abrir el panel de navegación</string>
+    <string name="navigation_drawer_close">Cerrar el panel de navegación</string>
+
+    <string name="title_basic_globe">Globo básico</string>
+    <string name="title_basic_performance_benchmark">Prueba básica de rendimiento</string>
+    <string name="title_basic_stress_test">Prueba básica de esfuerzo</string>
+    <string name="title_day_night_cycle">Ciclo día y noche</string>
+    <string name="title_general_globe">Globo de uso general</string>
+    <string name="title_multi_globe">Demostración de varios globos</string>
+    <string name="title_movable_line_of_sight">Línea de visión móvil</string>
+    <string name="title_paths_example">Ejemplo de trayectorias</string>
+    <string name="title_paths_and_polygons">Demostración de trayectorias, polígonos y etiquetas</string>
+    <string name="title_placemarks_demo">Demostración de marcadores</string>
+    <string name="title_placemarks_milstd2525">Símbolos MIL-STD-2525</string>
+    <string name="title_placemarks_milstd2525_demo">Demostración de MIL-STD-2525</string>
+    <string name="title_placemarks_milstd2525_stress_test">Prueba de esfuerzo de MIL-STD-2525</string>
+    <string name="title_placemarks_select_drag">Selección y arrastre de marcadores</string>
+    <string name="title_projected_media_surface_example">Superficie multimedia proyectada</string>
+    <string name="title_placemarks_stress_test">Prueba de esfuerzo de marcadores</string>
+    <string name="title_texture_stress_test">Prueba de esfuerzo de texturas</string>
+
+    <string name="spacer" />
+
+    <string name="toolbar_2d_projection_desc">Alternar la proyección de mapa plano</string>
+
+</resources>
