@@ -6,6 +6,9 @@ import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Vec3
 import earth.worldwind.globe.Globe
+import kotlin.math.PI
+import kotlin.math.ceil
+import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
@@ -85,10 +88,10 @@ class FixedResolutionTerrain(
             }
             if (clearance <= 0.0) {
                 val entering = previousClearance
-                val hit = if (entering != null && entering > 0.0) {
-                    refine(line, directionLength, previousDistance, distance)
-                } else {
-                    distance
+                val hit = when {
+                    entering == null -> distance
+                    entering > 0.0 -> refine(line, directionLength, previousDistance, distance)
+                    else -> previousDistance // already underground at the previous step, i.e. the origin
                 }
                 pointAt(line, directionLength, hit, result)
                 return true
@@ -198,15 +201,23 @@ class FixedResolutionTerrain(
             if (block.lastRead < oldest.lastRead) oldest = block
         }
 
+        // Blocks sit on a fixed lattice that tiles the globe exactly, so the same ground is
+        // always sampled at the same points. Rows are split evenly from pole to pole, and each
+        // row into columns wide enough to keep longitude spacing within resolutionM.
+        val rows = ceil(180.0 / (resolutionM * BLOCK_SAMPLES / METRES_PER_DEGREE)).toInt()
+        val deltaLat = 180.0 / rows
+        val row = floor((latitude.inDegrees + 90.0) / deltaLat).toInt().coerceIn(0, rows - 1)
+        val minLat = -90.0 + row * deltaLat
+        val maxLat = minLat + deltaLat
+        // Longitude spacing is widest on the row's edge nearest the equator
+        val equatorward = if (minLat >= 0.0) minLat else if (maxLat <= 0.0) maxLat else 0.0
+        val cosLat = cos(equatorward * PI / 180.0)
+        val columns = if (cosLat * 360.0 <= deltaLat) 1 else ceil(360.0 * cosLat / deltaLat).toInt()
+        val deltaLon = 360.0 / columns
+        val column = floor((longitude.inDegrees + 180.0) / deltaLon).toInt().coerceIn(0, columns - 1)
+        oldest.sector.setDegrees(minLat, -180.0 + column * deltaLon, deltaLat, deltaLon)
+
         val width = BLOCK_SAMPLES + 1
-        // Blocks sit on a fixed lattice, so the same ground is always sampled at the same points
-        val blockDelta = resolutionM * BLOCK_SAMPLES / METRES_PER_DEGREE
-        oldest.sector.setDegrees(
-            floor(latitude.inDegrees / blockDelta) * blockDelta,
-            floor(longitude.inDegrees / blockDelta) * blockDelta,
-            blockDelta,
-            blockDelta,
-        )
         if (oldest.heights.size != width * width) oldest.heights = FloatArray(width * width)
         // NaN marks cells no coverage writes, so they read as missing rather than sea level
         oldest.heights.fill(Float.NaN)

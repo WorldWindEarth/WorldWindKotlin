@@ -41,6 +41,7 @@ class FixedResolutionTerrainCostTest {
 
     private var terrain = FixedResolutionTerrain(globe, resolutionM = 30.0)
     private val scratch = Position()
+    private val rayScratch = TerrainRayScratch()
 
     /** The five points of a frame: four corners of a 60 x 40 field, plus the centre. */
     private val frame = listOf(
@@ -58,6 +59,7 @@ class FixedResolutionTerrainCostTest {
                 bearing = fromDegrees(bearingOffset),
                 depression = fromDegrees(centreDepression + depressionOffset),
                 result = scratch,
+                scratch = rayScratch,
             )
         }
     }

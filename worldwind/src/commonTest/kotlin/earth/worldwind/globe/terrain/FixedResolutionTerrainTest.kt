@@ -158,6 +158,53 @@ class FixedResolutionTerrainTest {
     }
 
     @Test
+    fun a_ray_starting_underground_hits_at_its_origin() {
+        val globe = globeWith(BandCoverage(minLat = 50.08, maxLat = 50.10, heightM = 400f))
+        val terrain = FixedResolutionTerrain(globe, resolutionM = 30.0)
+        val result = Position()
+
+        assertTrue(
+            terrain.firstHitFrom(
+                globe, fromDegrees(50.09), fromDegrees(cameraLon), 300.0,
+                bearing = fromDegrees(0.0), depression = fromDegrees(10.0), result = result,
+            )
+        )
+        assertEquals(50.09, result.latitude.inDegrees, 1e-9)
+        assertEquals(300.0, result.altitude, 1e-3)
+    }
+
+    /** Flat ground that records every block sector read from it. */
+    private class RecordingCoverage : AbstractElevationCoverage() {
+        val sectors = mutableListOf<Sector>()
+        override fun doGetElevation(latitude: Angle, longitude: Angle, retrieve: Boolean) = 0f
+        override fun doGetElevationGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray) {
+            sectors += Sector(gridSector)
+            result.fill(0f, 0, gridWidth * gridHeight)
+        }
+        override fun doGetElevationLimits(sector: Sector, result: FloatArray) { result.fill(0f) }
+        override fun clear() {}
+    }
+
+    @Test
+    fun blocks_keep_longitude_spacing_near_resolution_and_stay_on_the_globe() {
+        val coverage = RecordingCoverage()
+        val globe = globeWith(coverage)
+        val terrain = FixedResolutionTerrain(globe, resolutionM = 30.0)
+        val points = listOf(0.3 to 30.0, 60.5 to 30.0, -60.5 to 179.9999, 10.0 to -180.0, 89.999 to 0.0, -90.0 to 0.0)
+        for ((lat, lon) in points) assertTrue(terrain.surfacePoint(fromDegrees(lat), fromDegrees(lon), Vec3()))
+
+        assertEquals(points.size, coverage.sectors.size)
+        for (sector in coverage.sectors) {
+            assertTrue(sector.minLatitude.inDegrees >= -90.0 && sector.maxLatitude.inDegrees <= 90.0 + 1e-9, "$sector")
+            assertTrue(sector.minLongitude.inDegrees >= -180.0 && sector.maxLongitude.inDegrees <= 180.0 + 1e-9, "$sector")
+        }
+        // At 60 degrees cos(lat) = 0.5, so a block spans twice as many degrees of longitude
+        val sixty = coverage.sectors[1]
+        val ratio = sixty.deltaLongitude.inDegrees / sixty.deltaLatitude.inDegrees
+        assertTrue(ratio in 1.9..2.05, "longitude/latitude ratio $ratio at 60 degrees")
+    }
+
+    @Test
     fun says_nothing_where_the_model_has_no_data() {
         val globe = Globe(geoid = flatGeoid)
         val terrain = FixedResolutionTerrain(globe, resolutionM = 30.0)
