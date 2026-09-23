@@ -61,9 +61,10 @@ class FixedResolutionTerrain(
         while (distance < reach) {
             distance = min(distance + step, reach)
             val clearance = clearanceAt(line, directionLength, distance)
-            // Stop once the ray climbs above all ground
+            // Stop once the ray climbs above all ground or sinks below it
             val altitude = scratchPosition.altitude
             if (altitude > MAX_TERRAIN_ALTITUDE && altitude > previousAltitude) return false
+            if (altitude < MIN_TERRAIN_ALTITUDE) return false
             previousAltitude = altitude
             if (clearance == null) {
                 // No data here, so there is no surface to stop on
@@ -199,6 +200,8 @@ class FixedResolutionTerrain(
         private const val METRES_PER_DEGREE = 111_320.0
         /** Highest possible ground in metres above the ellipsoid. */
         private const val MAX_TERRAIN_ALTITUDE = 9_000.0
+        /** Lowest possible ground in metres above the ellipsoid. */
+        private const val MIN_TERRAIN_ALTITUDE = -1_000.0
         /** Above this a sample is the model's "no data" value rather than an elevation. */
         private const val MAX_MEASURED_HEIGHT = 1e5f
         private const val REFINE_FRACTION = 0.05
