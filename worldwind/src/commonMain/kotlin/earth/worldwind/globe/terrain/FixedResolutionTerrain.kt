@@ -25,6 +25,13 @@ class FixedResolutionTerrain(
     var resolutionM: Double = 30.0,
     /** Use each cell's highest corner instead of interpolating, so narrow crests still occlude. */
     var conservative: Boolean = false,
+    /**
+     * Highest possible ground in metres above the ellipsoid. Ray steps above it are not sampled.
+     * Must be a true bound for the area, or ridges above it are missed.
+     */
+    var maxTerrainAltitude: Double = 9_000.0,
+    /** Lowest possible ground in metres above the ellipsoid. Lower it for bathymetry. */
+    var minTerrainAltitude: Double = -1_000.0,
     override val sector: Sector = Sector().setFullSphere(),
 ) : Terrain {
 
@@ -55,7 +62,7 @@ class FixedResolutionTerrain(
         globe.cartesianToGeographic(line.origin.x, line.origin.y, line.origin.z, scratchPosition)
         // Horizon distance from the origin plus from the highest possible ground
         val reach = globe.horizonDistance(max(scratchPosition.altitude, 0.0)) +
-            globe.horizonDistance(MAX_TERRAIN_ALTITUDE)
+            globe.horizonDistance(maxTerrainAltitude)
         if (reach <= 0.0) return false
 
         var previousDistance = 0.0
@@ -67,8 +74,8 @@ class FixedResolutionTerrain(
             val clearance = clearanceAt(line, directionLength, distance)
             // Stop once the ray climbs above all ground or sinks below it
             val altitude = scratchPosition.altitude
-            if (altitude > MAX_TERRAIN_ALTITUDE && altitude > previousAltitude) return false
-            if (altitude < MIN_TERRAIN_ALTITUDE) return false
+            if (altitude > maxTerrainAltitude && altitude > previousAltitude) return false
+            if (altitude < minTerrainAltitude) return false
             previousAltitude = altitude
             if (clearance == null) {
                 // No data here, so there is no surface to stop on
@@ -138,6 +145,8 @@ class FixedResolutionTerrain(
             line.origin.z + line.direction.z * scale,
             scratchPosition,
         )
+        // Above all possible ground, so no need to read it
+        if (scratchPosition.altitude > maxTerrainAltitude) return Double.POSITIVE_INFINITY
         val terrain = heightAt(scratchPosition.latitude, scratchPosition.longitude) ?: return null
         return scratchPosition.altitude - terrain
     }
@@ -218,10 +227,6 @@ class FixedResolutionTerrain(
         /** Blocks held at once, 66 KB each; enough for about one footprint's rays and the next frame's. */
         private const val BLOCK_CACHE = 24
         private const val METRES_PER_DEGREE = 111_320.0
-        /** Highest possible ground in metres above the ellipsoid. */
-        private const val MAX_TERRAIN_ALTITUDE = 9_000.0
-        /** Lowest possible ground in metres above the ellipsoid. */
-        private const val MIN_TERRAIN_ALTITUDE = -1_000.0
         /** Above this a sample is the model's "no data" value rather than an elevation. */
         private const val MAX_MEASURED_HEIGHT = 1e5f
         private const val REFINE_FRACTION = 0.05

@@ -39,7 +39,7 @@ class FixedResolutionTerrainCostTest {
         override fun getOffset(latitude: Angle, longitude: Angle) = 0f
     }).apply { elevationModel.addCoverage(coverage) }
 
-    private val terrain = FixedResolutionTerrain(globe, resolutionM = 30.0)
+    private var terrain = FixedResolutionTerrain(globe, resolutionM = 30.0)
     private val scratch = Position()
 
     /** The five points of a frame: four corners of a 60 x 40 field, plus the centre. */
@@ -64,22 +64,27 @@ class FixedResolutionTerrainCostTest {
 
     @Test
     fun what_one_footprint_costs() {
-        println("FIXED RESOLUTION TERRAIN - grid fetches per footprint, 30 m spacing, 5 rays")
-        println("%8s %6s %10s %8s %8s %9s".format("alt m", "tilt", "range km", "fetches", "distinct", "ms"))
-        for ((altitude, tilt) in listOf(300.0 to 30.0, 500.0 to 45.0, 2000.0 to 45.0, 2000.0 to 65.0, 2000.0 to 75.0)) {
-            coverage.gridFetches = 0
-            coverage.sectors.clear()
-            val start = System.nanoTime()
-            traceFootprint(50.0, 30.0, altitude, tilt)
-            val ms = (System.nanoTime() - start) / 1e6
-            val rangeKm = altitude * kotlin.math.tan(tilt * kotlin.math.PI / 180) / 1000
-            val topEdge = 90.0 - tilt - 20.0
-            println(
-                "%8.0f %6.0f %10.1f %8d %8d %9.2f  %s".format(
-                    altitude, tilt, rangeKm, coverage.gridFetches, coverage.sectors.size, ms,
-                    if (topEdge <= 0.0) "top corners above horizon" else "",
-                ),
-            )
+        // Global bound, then a regional one (Ukraine's highest point is 2061 m). Each row starts cold
+        for (maxTerrainAltitude in listOf(9_000.0, 2_200.0)) {
+            println("FIXED RESOLUTION TERRAIN - grid fetches per footprint, 30 m spacing, 5 rays, ground bound %.0f m".format(maxTerrainAltitude))
+            println("%8s %6s %10s %8s %8s %9s".format("alt m", "tilt", "range km", "fetches", "distinct", "ms"))
+            for ((altitude, tilt) in listOf(300.0 to 30.0, 500.0 to 45.0, 2000.0 to 45.0, 2000.0 to 65.0, 2000.0 to 75.0)) {
+                terrain = FixedResolutionTerrain(globe, resolutionM = 30.0, maxTerrainAltitude = maxTerrainAltitude)
+                coverage.gridFetches = 0
+                coverage.sectors.clear()
+                val start = System.nanoTime()
+                traceFootprint(50.0, 30.0, altitude, tilt)
+                val ms = (System.nanoTime() - start) / 1e6
+                val rangeKm = altitude * kotlin.math.tan(tilt * kotlin.math.PI / 180) / 1000
+                val topEdge = 90.0 - tilt - 20.0
+                println(
+                    "%8.0f %6.0f %10.1f %8d %8d %9.2f  %s".format(
+                        altitude, tilt, rangeKm, coverage.gridFetches, coverage.sectors.size, ms,
+                        if (topEdge <= 0.0) "top corners above horizon" else "",
+                    ),
+                )
+            }
+            println()
         }
     }
 

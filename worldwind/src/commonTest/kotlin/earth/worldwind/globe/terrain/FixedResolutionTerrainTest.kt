@@ -144,6 +144,20 @@ class FixedResolutionTerrainTest {
     }
 
     @Test
+    fun a_tighter_altitude_bound_saves_reads_without_moving_the_answer() {
+        val globe = globeWith(BandCoverage(minLat = 50.08, maxLat = 50.10, heightM = 400f))
+        val global = Vec3()
+        val regional = Vec3()
+
+        assertTrue(FixedResolutionTerrain(globe, resolutionM = 30.0).intersect(rayNorth(globe, 10.0), global))
+        assertTrue(
+            FixedResolutionTerrain(globe, resolutionM = 30.0, maxTerrainAltitude = 450.0)
+                .intersect(rayNorth(globe, 10.0), regional)
+        )
+        assertEquals(global, regional)
+    }
+
+    @Test
     fun says_nothing_where_the_model_has_no_data() {
         val globe = Globe(geoid = flatGeoid)
         val terrain = FixedResolutionTerrain(globe, resolutionM = 30.0)
