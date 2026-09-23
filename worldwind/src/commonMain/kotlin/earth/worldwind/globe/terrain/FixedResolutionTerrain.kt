@@ -14,7 +14,8 @@ import kotlin.math.sqrt
 /**
  * Terrain sampled from the globe's elevation model at a fixed resolution, independent of what the
  * renderer currently draws. Unlike [BasicTerrain], the same ray always gives the same answer, so
- * results are suitable for recording or sending onward.
+ * results are suitable for recording or sending onward. Samples read before their elevation tiles
+ * loaded are re-read once the model reports a change.
  *
  * Heights are above the ellipsoid, geoid offset included. Not thread safe.
  */
@@ -30,12 +31,14 @@ class FixedResolutionTerrain(
     private val scratchPosition = Position()
     private val blocks = Array(BLOCK_CACHE) { Block() }
     private var reads = 0L
+    private var checkedTimestamp = Long.MIN_VALUE
 
     private class Block {
         val sector = Sector()
         var heights = FloatArray(0)
         var resolutionM = 0.0
         var lastRead = 0L
+        var elevationTimestamp = 0L
     }
 
     /** Marches the ray in [resolutionM] steps and returns the first ground it meets. */
@@ -47,6 +50,7 @@ class FixedResolutionTerrain(
             direction.x * direction.x + direction.y * direction.y + direction.z * direction.z
         )
         if (directionLength == 0.0) return false
+        dropStaleBlocks()
 
         globe.cartesianToGeographic(line.origin.x, line.origin.y, line.origin.z, scratchPosition)
         // Horizon distance from the origin plus from the highest possible ground
@@ -89,6 +93,7 @@ class FixedResolutionTerrain(
     }
 
     override fun surfacePoint(latitude: Angle, longitude: Angle, result: Vec3): Boolean {
+        dropStaleBlocks()
         val height = heightAt(latitude, longitude) ?: return false
         globe.geographicToCartesian(latitude, longitude, height, result)
         return true
@@ -97,6 +102,19 @@ class FixedResolutionTerrain(
     /** This terrain has no levels, so the model's own limits over [sector] are returned. */
     override fun heightLimits(levelNumberDepth: Int, result: FloatArray) =
         globe.getElevationLimits(sector, result)
+
+    /** Evicts held blocks whose elevation changed since they were read. */
+    private fun dropStaleBlocks() {
+        val timestamp = globe.elevationModel.timestamp
+        if (timestamp == checkedTimestamp) return
+        checkedTimestamp = timestamp
+        for (block in blocks) {
+            if (block.resolutionM != 0.0 && globe.isElevationChangedSince(block.elevationTimestamp, block.sector)) {
+                block.resolutionM = 0.0 // matches no request, so the slot is refilled on next use
+                block.lastRead = 0L // and is the first to be reused
+            }
+        }
+    }
 
     /** Bisects the bracket found by the march to locate the ground crossing. */
     private fun refine(line: Line, directionLength: Double, from: Double, to: Double): Double {
@@ -183,6 +201,8 @@ class FixedResolutionTerrain(
         if (oldest.heights.size != width * width) oldest.heights = FloatArray(width * width)
         // NaN marks cells no coverage writes, so they read as missing rather than sea level
         oldest.heights.fill(Float.NaN)
+        // Taken before the read, so an update landing during it still marks the block stale
+        oldest.elevationTimestamp = globe.elevationModel.timestamp
         globe.getElevationGrid(oldest.sector, width, width, oldest.heights)
         oldest.resolutionM = resolutionM
         oldest.lastRead = reads

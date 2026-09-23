@@ -7,6 +7,7 @@ import earth.worldwind.geom.Position
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Vec3
 import earth.worldwind.globe.Globe
+import earth.worldwind.globe.elevation.ElevationModel
 import earth.worldwind.globe.elevation.coverage.AbstractElevationCoverage
 import earth.worldwind.globe.geoid.Geoid
 import kotlin.math.abs
@@ -14,6 +15,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.time.Clock
 
 /** Ray marching, resolution, missing data and late-arriving elevation in [FixedResolutionTerrain]. */
 class FixedResolutionTerrainTest {
@@ -63,7 +65,10 @@ class FixedResolutionTerrainTest {
     }
 
     private fun globeWith(coverage: AbstractElevationCoverage) =
-        Globe(geoid = flatGeoid).apply { elevationModel.addCoverage(coverage) }
+        Globe(geoid = flatGeoid).apply {
+            elevationModel.addCoverage(coverage)
+            if (coverage is LateCoverage) coverage.model = elevationModel
+        }
 
     private val cameraLat = 50.0
     private val cameraLon = 30.0
@@ -165,5 +170,86 @@ class FixedResolutionTerrainTest {
 
         assertTrue(terrain.surfacePoint(fromDegrees(50.09), fromDegrees(cameraLon), onRidge))
         assertEquals(400.0, altitudeOf(globe, onRidge), 1.0)
+    }
+
+    /** Flat ground at [heightM] with no data until [arrive] is called. Counts grid reads. */
+    private class LateCoverage(private val heightM: Float) : AbstractElevationCoverage() {
+        lateinit var model: ElevationModel
+        private var loaded = false
+        var gridReads = 0
+
+        /** Makes the data available and reports the change for [sector], or globally if null. */
+        fun arrive(sector: Sector?) {
+            afterTheModelsLastChange()
+            loaded = true
+            updateTimestamp(sector)
+        }
+
+        /** Reports a change in [sector] without changing this coverage's data. */
+        fun arriveElsewhere(sector: Sector) {
+            afterTheModelsLastChange()
+            updateTimestamp(sector)
+        }
+
+        /** Timestamps are in milliseconds, so wait until the clock passes the model's last change. */
+        private fun afterTheModelsLastChange() {
+            val last = model.timestamp
+            while (Clock.System.now().toEpochMilliseconds() <= last) { /* spins a few ms at most */ }
+        }
+
+        override fun doGetElevation(latitude: Angle, longitude: Angle, retrieve: Boolean) =
+            if (loaded) heightM else BandCoverage.NO_DATA
+
+        override fun doGetElevationGrid(gridSector: Sector, gridWidth: Int, gridHeight: Int, result: FloatArray) {
+            gridReads++
+            if (loaded) result.fill(heightM, 0, gridWidth * gridHeight)
+        }
+
+        override fun doGetElevationLimits(sector: Sector, result: FloatArray) {
+            result[0] = 0f
+            result[1] = heightM
+        }
+
+        override fun clear() {}
+    }
+
+    @Test
+    fun answers_from_data_that_arrived_after_the_first_ray() {
+        val coverage = LateCoverage(heightM = 400f)
+        val globe = globeWith(coverage)
+        val terrain = FixedResolutionTerrain(globe, resolutionM = 30.0)
+        val result = Vec3()
+
+        assertFalse(terrain.intersect(rayNorth(globe, 10.0), result))
+        coverage.arrive(Sector.fromDegrees(49.0, 29.0, 2.0, 2.0))
+        assertTrue(terrain.intersect(rayNorth(globe, 10.0), result))
+        assertEquals(400.0, altitudeOf(globe, result), 20.0)
+    }
+
+    @Test
+    fun surface_point_sees_data_that_arrived_after_it_was_first_asked() {
+        val coverage = LateCoverage(heightM = 400f)
+        val globe = globeWith(coverage)
+        val terrain = FixedResolutionTerrain(globe, resolutionM = 30.0)
+        val point = Vec3()
+
+        assertFalse(terrain.surfacePoint(fromDegrees(50.0), fromDegrees(cameraLon), point))
+        coverage.arrive(null)
+        assertTrue(terrain.surfacePoint(fromDegrees(50.0), fromDegrees(cameraLon), point))
+        assertEquals(400.0, altitudeOf(globe, point), 1.0)
+    }
+
+    @Test
+    fun keeps_its_blocks_when_ground_elsewhere_changes() {
+        val coverage = LateCoverage(heightM = 400f)
+        val globe = globeWith(coverage)
+        coverage.arrive(null)
+        val terrain = FixedResolutionTerrain(globe, resolutionM = 30.0)
+
+        assertTrue(terrain.intersect(rayNorth(globe, 10.0), Vec3()))
+        val readsBefore = coverage.gridReads
+        coverage.arriveElsewhere(Sector.fromDegrees(-40.0, -120.0, 1.0, 1.0))
+        assertTrue(terrain.intersect(rayNorth(globe, 10.0), Vec3()))
+        assertEquals(readsBefore, coverage.gridReads)
     }
 }
