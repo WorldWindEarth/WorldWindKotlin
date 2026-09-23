@@ -1,0 +1,43 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Terrain Ray Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>Terrain Ray Tutorial</h1>
+<p>
+    Shows where a camera&rsquo;s frame actually lands. A camera stands off the north face of
+    Mount St.&nbsp;Helens and looks at it; each corner of its frame is a ray, and
+    <code>Terrain.firstHitFrom</code> follows one and answers where the ground first rises to meet it.
+    The quad joining those answers is the footprint &mdash; what the camera can see.
+</p>
+<h2>The first surface wins</h2>
+<p>
+    The rays are drawn from the camera to where they stopped. Aimed across a ridge, a ray stops on the
+    near face rather than carrying on to the valley behind it, and the footprint is pulled in with it.
+    A projection onto a level plane would put that corner kilometres further out, on ground the camera
+    cannot see.
+</p>
+<h2>The caller chooses the resolution</h2>
+<p>
+    <code>FixedResolutionTerrain</code> samples the elevation model at a spacing given to it, not the
+    one the renderer happens to be drawing, so the answer does not change as you zoom. Switch between
+    <b>30&nbsp;m</b> and <b>500&nbsp;m</b> and watch the footprint move: at 500&nbsp;m the ridge is
+    averaged away and the rays run past it.
+</p>
+<p>
+    <b>Conservative cells</b> takes each cell&rsquo;s greatest sample instead of interpolating its
+    corners, so a crest narrower than the sampling step over-occludes rather than vanishing.
+</p>
+<p>
+    Elevation data arrives asynchronously, so the first trace on cold tiles may decline &mdash; the
+    footprint stays hidden rather than guessing. Run an action again once the terrain has drawn.
+</p>
+</body>
+</html>

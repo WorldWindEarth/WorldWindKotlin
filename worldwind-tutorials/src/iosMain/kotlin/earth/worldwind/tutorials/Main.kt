@@ -190,6 +190,7 @@ object Tutorials {
         // Sightlines
         TutorialFactory("sightline", "Real-time sightline", ::SightlineTutorial),
         TutorialFactory("viewshedSightline", "Viewshed sightline", ::ViewshedSightlineTutorial),
+        TutorialFactory("terrainRay", "Terrain ray", ::TerrainRayTutorial),
         // Surface & media overlays
         TutorialFactory("surfaceImage", "Surface image", ::SurfaceImageTutorial),
         TutorialFactory("nitfImagery", "NITF Imagery", ::NitfImageryTutorial),
