@@ -106,6 +106,9 @@ jobs:
     # macOS arm64 runner images ship without the Android SDK.
     - name: Set up Android SDK
       uses: android-actions/setup-android@v3
+      with:
+        # Default 'tools platform-tools' fails: the legacy 'tools' package is gone from the repo.
+        packages: 'platform-tools'
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
