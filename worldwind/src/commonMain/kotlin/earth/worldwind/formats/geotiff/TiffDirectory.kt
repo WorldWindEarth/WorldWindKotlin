@@ -64,6 +64,43 @@ class TiffDirectory internal constructor(
     /** Index of the alpha band within a chunky pixel, or -1 when the raster has no alpha. */
     val alphaBand get() = if (extraSamples.isNotEmpty() && extraSamples[0] in 1..2) samplesPerPixel - 1 else -1
 
+    /**
+     * GeoKey directory flattened to `key -> value`. Keys stored in the double-parameter array
+     * resolve to their referenced entry; ASCII keys are skipped, since none of the keys the
+     * engine acts on are textual.
+     *
+     * Lazy because most rasters never need it, and shared across the threads that decode
+     * tiles, so the default synchronized initialization is the right one.
+     */
+    val geoKeys: Map<Int, Double> by lazy { parseGeoKeys() }
+
+    /**
+     * True when the raster carries a vertical CRS — the one place GeoTIFF states outright that
+     * its pixels are heights, since only a height field is georeferenced vertically. Absent
+     * from most DEMs all the same, so it confirms elevation rather than ruling it out.
+     */
+    val hasVerticalCrs get() = geoKeys.containsKey(GeoTiffConstants.VERTICAL_CS_TYPE_GEO_KEY) ||
+        geoKeys.containsKey(GeoTiffConstants.VERTICAL_DATUM_GEO_KEY) ||
+        geoKeys.containsKey(GeoTiffConstants.VERTICAL_UNITS_GEO_KEY)
+
+    private fun parseGeoKeys(): Map<Int, Double> {
+        if (geoKeyDirectory.size < 4) return emptyMap()
+        val count = geoKeyDirectory[3]
+        val keys = HashMap<Int, Double>(count.coerceIn(0, 256))
+        for (i in 0 until count) {
+            val at = 4 + i * 4
+            if (at + 3 >= geoKeyDirectory.size) break
+            val keyId = geoKeyDirectory[at]
+            val location = geoKeyDirectory[at + 1]
+            val valueOffset = geoKeyDirectory[at + 3]
+            when (location) {
+                0 -> keys[keyId] = valueOffset.toDouble()
+                GeoTiffConstants.GEO_DOUBLE_PARAMS -> geoDoubleParams.getOrNull(valueOffset)?.let { keys[keyId] = it }
+            }
+        }
+        return keys
+    }
+
     fun blockIndex(blockX: Int, blockY: Int) = blockY * blocksAcross + blockX
 
     /** Log [message] at most once for this raster. An unsupported layout or a damaged

@@ -38,13 +38,63 @@ class GeoTiffDataset private constructor(
     /** Native resolution in degrees of latitude per pixel — the finest detail the file holds. */
     val degreesPerPixel = nativeDegreesPerPixel()
     /**
-     * True when the raster looks like a height field rather than a picture: one band of
-     * 16-bit-or-wider samples with no palette. Callers that know better (a single-band
-     * 8-bit hillshade, say) can ignore it and use the sampler they want.
+     * Whether the file holds a picture or a height field, inferred from its tags, with the
+     * evidence attached. Resource managers filing an imported file under "maps" or "terrain"
+     * want this; see [probeContent] for the [GeoTiffContent.AMBIGUOUS] case.
      */
-    val isElevation get() = primary.samplesPerPixel == 1 &&
-        primary.bitsPerFirstSample >= 16 &&
-        primary.photometricInterpretation != TiffConstants.PhotometricInterpretation.RGB_PALETTE
+    val contentHint: GeoTiffContentVerdict by lazy { classifyGeoTiff(primary) }
+
+    /**
+     * True unless the tags say the raster is a picture. Deliberately includes
+     * [GeoTiffContent.AMBIGUOUS], so a caller that asked for terrain gets it; a caller
+     * deciding *which* category a file belongs to should read [contentHint] instead.
+     */
+    val isElevation get() = contentHint.content != GeoTiffContent.IMAGERY
+
+    /**
+     * Settle [GeoTiffContent.AMBIGUOUS] from the pixels, returning [contentHint] unchanged for
+     * files the tags already decided.
+     *
+     * Reads a few blocks of the coarsest overview — cheap, but it is file I/O, so call it off
+     * the render thread. Two observations are conclusive: a negative sample can only be a
+     * height, and a sample beyond [TERRAIN_CEILING_METRES] can only be a sensor count, which
+     * is what separates full-range 16-bit imagery (Landsat, Sentinel) from terrain. A raster
+     * whose values fit both readings stays [GeoTiffContent.AMBIGUOUS] rather than being
+     * guessed at: 12-bit imagery and lowland terrain occupy the same numbers, and nothing in
+     * the pixels distinguishes them.
+     */
+    fun probeContent(): GeoTiffContentVerdict {
+        val hint = contentHint
+        if (hint.content != GeoTiffContent.AMBIGUOUS) return hint
+        val dir = levels.last() // coarsest overview: fewest blocks for the widest view of the data
+        var min = Double.MAX_VALUE
+        var max = -Double.MAX_VALUE
+        var seen = 0
+        // Spread the probed blocks across the raster so one empty corner can't speak for it.
+        val step = (dir.blockOffsets.size / PROBE_BLOCKS).coerceAtLeast(1)
+        var index = 0
+        while (index < dir.blockOffsets.size && seen < PROBE_SAMPLE_LIMIT) {
+            TiffBlockCodec.decodeBlock(source, dir, isLittleEndian, index)?.let { block ->
+                for (value in block) {
+                    if (value.isNaN() || value <= -SENTINEL_MAGNITUDE || value >= SENTINEL_MAGNITUDE) continue
+                    val d = value.toDouble()
+                    if (d < min) min = d
+                    if (d > max) max = d
+                    seen++
+                }
+            }
+            index += step
+        }
+        if (seen == 0) return GeoTiffContentVerdict(GeoTiffContent.AMBIGUOUS, "no readable samples to probe")
+        if (min < 0.0) return GeoTiffContentVerdict(GeoTiffContent.ELEVATION, "negative samples (down to $min)")
+        if (max > TERRAIN_CEILING_METRES) return GeoTiffContentVerdict(
+            GeoTiffContent.IMAGERY, "samples up to $max, beyond any terrain height in metres"
+        )
+        return GeoTiffContentVerdict(
+            GeoTiffContent.AMBIGUOUS,
+            "samples span $min..$max, plausible as both terrain in metres and 12-bit imagery"
+        )
+    }
 
     /** Release the underlying source. */
     fun close() = source.close()
@@ -346,6 +396,11 @@ class GeoTiffDataset private constructor(
         private const val MAX_CACHED_BLOCKS = 24
         private const val NO_DATA_TOLERANCE = 1e-6
         private const val SENTINEL_MAGNITUDE = 1e30f
+        /** Blocks [probeContent] decodes, and the sample budget it scans across them. */
+        private const val PROBE_BLOCKS = 4
+        private const val PROBE_SAMPLE_LIMIT = 1 shl 20
+        /** Above this, a sample cannot be a height in metres — Everest is 8849 m. */
+        private const val TERRAIN_CEILING_METRES = 12_000.0
 
         /**
          * Open [source] as a pyramid-addressable GeoTIFF. Returns `null` when the file has no

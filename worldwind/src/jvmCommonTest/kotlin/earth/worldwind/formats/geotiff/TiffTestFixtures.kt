@@ -13,6 +13,8 @@ import java.util.zip.Deflater
  */
 internal object TiffTestFixtures {
     const val DEFLATE = 32946
+    /** Geographic model, pixel-is-area, WGS 84 — the GeoKeys most fixtures want. */
+    val DEFAULT_GEO_KEYS = intArrayOf(1, 1, 0, 3, 1024, 0, 1, 2, 1025, 0, 1, 1, 2048, 0, 1, 4326)
     const val PACK_BITS = TiffConstants.Compression.PACK_BITS
     private const val TYPE_LONG8 = 16
 
@@ -48,6 +50,10 @@ internal object TiffTestFixtures {
         bigTiff: Boolean = false,
         bigEndian: Boolean = false,
         noData: String? = null,
+        /** `ExtraSamples` entries; a leading 1 or 2 marks the last band as alpha. */
+        extraSamples: IntArray = IntArray(0),
+        /** GeoKey directory to write; defaults to geographic / pixel-is-area / WGS 84. */
+        geoKeys: IntArray = DEFAULT_GEO_KEYS,
         overviewFactors: IntArray = IntArray(0),
         sample: (Int, Int, Int) -> Double,
     ): ByteArray {
@@ -65,7 +71,7 @@ internal object TiffTestFixtures {
         }
         return assemble(
             rasters, samplesPerPixel, bitsPerSample, sampleFormat, photometric, compression,
-            predictor, pixelScale, tiePoint, bigTiff, order, noData
+            predictor, pixelScale, tiePoint, bigTiff, order, noData, extraSamples, geoKeys
         )
     }
 
@@ -157,6 +163,7 @@ internal object TiffTestFixtures {
         rasters: List<Raster>, samplesPerPixel: Int, bitsPerSample: Int, sampleFormat: Int,
         photometric: Int, compression: Int, predictor: Int, pixelScale: DoubleArray,
         tiePoint: DoubleArray, bigTiff: Boolean, order: ByteOrder, noData: String?,
+        extraSamples: IntArray, geoKeys: IntArray,
     ): ByteArray {
         val headerSize = if (bigTiff) 16 else 8
         val inlineSize = if (bigTiff) 8 else 4
@@ -209,6 +216,10 @@ internal object TiffTestFixtures {
                 TiffConstants.IFDTag.SAMPLE_FORMAT, TiffConstants.Type.SHORT, samplesPerPixel,
                 ints(order, IntArray(samplesPerPixel) { sampleFormat }, 2)
             )
+            if (extraSamples.isNotEmpty()) fields += Field(
+                TiffConstants.IFDTag.EXTRA_SAMPLES, TiffConstants.Type.SHORT, extraSamples.size,
+                ints(order, extraSamples, 2)
+            )
             if (index == 0) {
                 noData?.let {
                     val text = it.toByteArray(Charsets.US_ASCII) + 0
@@ -218,9 +229,10 @@ internal object TiffTestFixtures {
                     GeoTiffConstants.MODEL_PIXEL_SCALE, TiffConstants.Type.DOUBLE, pixelScale.size, doubles(order, pixelScale)
                 )
                 fields += Field(GeoTiffConstants.MODEL_TIEPOINT, TiffConstants.Type.DOUBLE, tiePoint.size, doubles(order, tiePoint))
-                // GeoKeys: geographic model, pixel-is-area, WGS 84.
-                val geoKeys = intArrayOf(1, 1, 0, 3, 1024, 0, 1, 2, 1025, 0, 1, 1, 2048, 0, 1, 4326)
-                fields += Field(GeoTiffConstants.GEO_KEY_DIRECTORY, TiffConstants.Type.SHORT, geoKeys.size, ints(order, geoKeys, 2))
+                fields += Field(
+                    GeoTiffConstants.GEO_KEY_DIRECTORY, TiffConstants.Type.SHORT, geoKeys.size,
+                    ints(order, geoKeys, 2)
+                )
             }
             fields.sortBy { it.tag }
             fields

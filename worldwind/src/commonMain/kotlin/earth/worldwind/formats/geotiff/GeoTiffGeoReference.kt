@@ -163,7 +163,7 @@ class GeoTiffGeoReference internal constructor(
         /** Build the georeference for [dir], or `null` when the file carries no usable
          *  transform or sits in a projection the engine can't invert. */
         fun from(dir: TiffDirectory): GeoTiffGeoReference? {
-            val keys = parseGeoKeys(dir)
+            val keys = dir.geoKeys
             val crs = resolveCrs(dir, keys) ?: return null
             val transform = dir.modelTransformation
             var a: Double; var b: Double; var c: Double
@@ -208,29 +208,6 @@ class GeoTiffGeoReference internal constructor(
                 }
             }
             return GeoTiffGeoReference(a, b, c, d, e, f, crs)
-        }
-
-        /** Flatten the GeoKey directory into `key -> value`. Keys stored in the double / ASCII
-         *  parameter arrays resolve to their referenced entry; ASCII keys are skipped (none of
-         *  the keys we act on are textual). */
-        private fun parseGeoKeys(dir: TiffDirectory): Map<Int, Double> {
-            val directory = dir.geoKeyDirectory
-            if (directory.size < 4) return emptyMap()
-            val count = directory[3]
-            val keys = HashMap<Int, Double>(count.coerceIn(0, 256))
-            for (i in 0 until count) {
-                val at = 4 + i * 4
-                if (at + 3 >= directory.size) break
-                val keyId = directory[at]
-                val location = directory[at + 1]
-                val valueOffset = directory[at + 3]
-                when (location) {
-                    0 -> keys[keyId] = valueOffset.toDouble()
-                    GeoTiffConstants.GEO_DOUBLE_PARAMS ->
-                        dir.geoDoubleParams.getOrNull(valueOffset)?.let { keys[keyId] = it }
-                }
-            }
-            return keys
         }
 
         private fun resolveCrs(dir: TiffDirectory, keys: Map<Int, Double>): GeoTiffCrs? {

@@ -66,9 +66,11 @@ open class GeoTiffElevationCoverage protected constructor(
 
         /** Build a coverage over an already-open [dataset]. */
         fun create(dataset: GeoTiffDataset, displayName: String): GeoTiffElevationCoverage {
+            // The tags say this is a picture, not a height field — name the evidence so a
+            // misfiled import is obvious in the log, then read band 1 anyway as asked.
             if (!dataset.isElevation) log(
-                WARN, "GeoTIFF '$displayName' has ${dataset.primary.samplesPerPixel} band(s) of " +
-                    "${dataset.primary.bitsPerFirstSample}-bit samples — reading band 1 as elevation anyway"
+                WARN, "GeoTIFF '$displayName' looks like imagery (${dataset.contentHint.reason}) — " +
+                    "reading band 1 as elevation anyway"
             )
             return GeoTiffElevationCoverage(dataset).also { it.displayName = displayName }
         }
