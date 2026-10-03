@@ -80,7 +80,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         BRANCH: gh-pages
         FOLDER: worldwind/build/dokka
-        TARGET_FOLDER: api
+        target-folder: api
         CLEAN: true
         # gh-pages is generated content, so it needs no history — without this the branch
         # would carry a new revision of a 154 MB tree per release.
