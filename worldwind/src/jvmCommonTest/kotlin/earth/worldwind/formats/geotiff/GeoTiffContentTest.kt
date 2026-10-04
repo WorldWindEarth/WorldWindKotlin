@@ -73,10 +73,24 @@ class GeoTiffContentTest {
     }
 
     @Test
-    fun noDataMakesAnUnsignedBandElevation() {
-        val hint = raster(noData = "0").contentHint
+    fun negativeNoDataMakesAnUnsignedBandElevation() {
+        // -9999 is a DEM void convention; no imagery product marks absent pixels that way.
+        val hint = raster(noData = "-9999").contentHint
         assertEquals(GeoTiffContent.ELEVATION, hint.content)
         assertTrue("GDAL_NODATA" in hint.reason, hint.reason)
+    }
+
+    @Test
+    fun zeroNoDataDoesNotMakeAReflectanceBandElevation() {
+        // The shape of a single Sentinel-2 L2A band: one unsigned 16-bit band of 1..10000 with
+        // nodata declared as 0. Nothing here is terrain evidence — DEMs use 0 for voids too — and
+        // the range is equally plausible as metres, so neither the tags nor the pixels may decide.
+        // Treating a declared nodata as an elevation signal classified these as terrain outright.
+        val dataset = raster(noData = "0") { x, _, _ -> (x * 300 + 1).toDouble() }
+        assertEquals(GeoTiffContent.AMBIGUOUS, dataset.contentHint.content)
+        val probe = dataset.probeContent()
+        assertEquals(GeoTiffContent.AMBIGUOUS, probe.content)
+        assertTrue("plausible as both" in probe.reason, probe.reason)
     }
 
     @Test

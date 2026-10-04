@@ -17,9 +17,11 @@ enum class GeoTiffContent {
     ELEVATION,
 
     /**
-     * One unsigned integer band whose header fits both readings — terrain in metres and
-     * 12-bit sensor counts both live inside `0..4095`. [GeoTiffDataset.probeContent] settles
-     * the cases it can from the pixels; when it cannot, ask rather than guess.
+     * One unsigned integer band whose header fits both readings. Terrain in metres and sensor
+     * counts occupy the same numbers, and all three of these ship as single-band unsigned
+     * 16-bit rasters: published lidar DEMs in whole metres, Sentinel-2 reflectance bands over
+     * `1..10000`, and 12-bit imagery over `0..4095`. [GeoTiffDataset.probeContent] settles the
+     * cases it can from the pixels; when it cannot, ask rather than guess.
      */
     AMBIGUOUS,
 }
@@ -39,7 +41,7 @@ class GeoTiffContentVerdict internal constructor(
  * Structural imagery evidence is tested first: a raster with several bands or a colour model
  * cannot be a height field whatever else it carries. The elevation signals that follow are
  * each conclusive on a single band — a vertical CRS, float samples, signed samples, or a
- * nodata value — leaving only unsigned integers undecided.
+ * negative nodata sentinel — leaving unsigned integers undecided.
  */
 internal fun classifyGeoTiff(dir: TiffDirectory): GeoTiffContentVerdict {
     if (dir.samplesPerPixel >= 3) return verdict(GeoTiffContent.IMAGERY, "${dir.samplesPerPixel} bands")
@@ -68,14 +70,20 @@ internal fun classifyGeoTiff(dir: TiffDirectory): GeoTiffContentVerdict {
         // Signed integers mean the author expected values below zero, which only heights have.
         TiffConstants.SampleFormat.SIGNED ->
             verdict(GeoTiffContent.ELEVATION, "single band of signed ${dir.bitsPerFirstSample}-bit samples")
-        else -> if (dir.noData != null) {
-            // DEM voids are marked this way; imagery carries transparency as an alpha band or mask.
-            verdict(GeoTiffContent.ELEVATION, "GDAL_NODATA value ${dir.noData} on a single band")
-        } else {
-            verdict(
-                GeoTiffContent.AMBIGUOUS,
-                "single unsigned ${dir.bitsPerFirstSample}-bit band with no nodata or vertical CRS"
-            )
+        else -> {
+            // A nodata value points at terrain only when it follows the DEM void conventions — a
+            // negative sentinel such as -9999 or -32768. Zero carries no information either way:
+            // Sentinel-2 reflectance products declare nodata 0 exactly as some DEMs do, so a band
+            // marked that way stays undecided instead of being called terrain on no evidence.
+            val noData = dir.noData
+            if (noData != null && noData < 0.0) {
+                verdict(GeoTiffContent.ELEVATION, "negative GDAL_NODATA void value $noData on a single band")
+            } else {
+                verdict(
+                    GeoTiffContent.AMBIGUOUS,
+                    "single unsigned ${dir.bitsPerFirstSample}-bit band with no decisive elevation signal"
+                )
+            }
         }
     }
 }
