@@ -223,9 +223,7 @@ open class Ogc3dTilesPointsProgram(
         """.trimIndent()
 
         private val FRAGMENT_SHADER: String = """
-            #if defined(GL_ES) && (defined(SHADOWS_ENABLED) || defined(SIGHTLINE_ENABLED)) && defined(GL_FRAGMENT_PRECISION_HIGH)
-            precision highp float;
-            #elif defined(GL_ES)
+            #ifdef GL_ES
             precision mediump float;
             #endif
 
@@ -235,10 +233,10 @@ open class Ogc3dTilesPointsProgram(
 
             varying vec4 pointColor;
             #if defined(SHADOWS_ENABLED) || defined(SIGHTLINE_ENABLED)
-            varying vec3 worldPos;
+            varying highp vec3 worldPos;
             #endif
             #ifdef SHADOWS_ENABLED
-            varying float viewDepth;
+            varying highp float viewDepth;
             ${ShadowReceiverGlsl.fragmentDeclarations()}
             #endif
 

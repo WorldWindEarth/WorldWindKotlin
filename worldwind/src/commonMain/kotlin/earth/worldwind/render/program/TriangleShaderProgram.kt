@@ -143,9 +143,7 @@ open class TriangleShaderProgram(
         // the fragment shader gates the `dFdx` call so a platform that doesn't opt in (currently
         // none) would still compile - lighting silently no-ops there.
         defines() + """
-            #if defined(GL_ES) && defined(SHADOWS_ENABLED) && defined(GL_FRAGMENT_PRECISION_HIGH)
-            precision highp float;
-            #elif defined(GL_ES)
+            #ifdef GL_ES
             precision mediump float;
             #endif
 
@@ -164,8 +162,9 @@ open class TriangleShaderProgram(
 
             ${LightingGlsl.DECLARATIONS}
             #ifdef SHADOWS_ENABLED
-            uniform mat4 modelMatrix;
-            varying float viewDepth;
+            /* highp: shared with the vertex stage, and its translation is camera-relative metres. */
+            uniform highp mat4 modelMatrix;
+            varying highp float viewDepth;
             varying vec3 terrainNormal;
 
             ${ShadowReceiverGlsl.fragmentDeclarations(lit = true)}
@@ -209,7 +208,7 @@ open class TriangleShaderProgram(
                     /* Reconstruct the camera-relative position for shadow-map sampling.
                        modelMatrix is translation-only here; its 4th column carries the
                        eye-relative vertexOrigin offset (composed on the CPU in double). */
-                    vec3 worldPos = localPos + modelMatrix[3].xyz;
+                    highp vec3 worldPos = localPos + modelMatrix[3].xyz;
                     if (enableLighting) {
                         /* Zero normal: view-winding face normals (two-sided walls) are
                            unusable for the normal-offset bias - sample depth-only. */

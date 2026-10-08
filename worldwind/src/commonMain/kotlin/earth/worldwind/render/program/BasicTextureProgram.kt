@@ -83,9 +83,7 @@ open class BasicTextureProgram(
             }
         """.trimIndent(),
         defines() + """
-            #if defined(GL_ES) && defined(SHADOWS_ENABLED) && defined(GL_FRAGMENT_PRECISION_HIGH)
-            precision highp float;
-            #elif defined(GL_ES)
+            #ifdef GL_ES
             precision mediump float;
             #endif
 
@@ -107,9 +105,10 @@ open class BasicTextureProgram(
 
             ${LightingGlsl.DECLARATIONS}
             #ifdef SHADOWS_ENABLED
-            varying vec3 worldPos;
+            /* Camera-relative metres: fp16 would quantise shadow lookups to the metre. */
+            varying highp vec3 worldPos;
             varying vec3 worldNormal;
-            varying float viewDepth;
+            varying highp float viewDepth;
 
             ${ShadowReceiverGlsl.fragmentDeclarations(lit = true)}
             #endif

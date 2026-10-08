@@ -1,6 +1,7 @@
 package earth.worldwind.layer.sightline
 
 import earth.worldwind.draw.DrawContext
+import earth.worldwind.render.program.PrecisionGlsl
 
 /**
  * Reusable GLSL fragments that any program can splice into its fragment shader to make its
@@ -48,13 +49,15 @@ object SightlineReceiverGlsl {
 
     /**
      * Block to splice into the **fragment** shader. Provides `computeSightlineTint` which
-     * returns the premultiplied tint to blend into the surface colour.
+     * returns the premultiplied tint to blend into the surface colour. Runs in highp (local
+     * positions span the sightline range in metres) and restores the including shader's
+     * mediump default afterwards (see [PrecisionGlsl]).
      *
      * The depth cube sampler lives on texture unit 5 (units 1..4 hold the shadow cascades);
      * the binding is baked in at program init time and the matching texture is bound via
      * [applySightlineReceiverUniforms] before draw.
      */
-    val FRAGMENT_DECLARATIONS: String = """
+    val FRAGMENT_DECLARATIONS: String = PrecisionGlsl.FRAGMENT_HIGHP + "\n" + """
         uniform bool applySightline;
         #ifdef WW_SHADOW_SAMPLERS
         uniform highp samplerCubeShadow sightlineDepthSampler;
@@ -168,5 +171,5 @@ object SightlineReceiverGlsl {
             occluded /= 16.0;
             return mix(sightlineColors[0], sightlineColors[1], occluded);
         }
-    """.trimIndent()
+    """.trimIndent() + "\n" + PrecisionGlsl.FRAGMENT_MEDIUMP
 }

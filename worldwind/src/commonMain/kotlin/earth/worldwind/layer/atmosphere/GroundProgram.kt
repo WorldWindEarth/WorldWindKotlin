@@ -148,12 +148,9 @@ class GroundProgram: AbstractAtmosphereProgram() {
             }
         """.trimIndent(),
         """
-            #ifdef GL_FRAGMENT_PRECISION_HIGH
-            precision highp float;
-            precision mediump int; /* fragMode is used in both shaders, so we must use a common precision */
-            #elif defined(GL_ES)
+            #ifdef GL_ES
             precision mediump float;
-            precision mediump int;
+            precision mediump int; /* fragMode is used in both shaders, so we must use a common precision */
             #endif
 
             const int FRAGMODE_PRIMARY = 1;
@@ -165,7 +162,8 @@ class GroundProgram: AbstractAtmosphereProgram() {
 
             varying vec3 primaryColor;
             varying vec3 secondaryColor;
-            varying vec2 texCoord;
+            /* Tile footprints cover a sliver of the night image; fp16 would stair-step it. */
+            varying highp vec2 texCoord;
 
             void main () {
                 if (fragMode == FRAGMODE_PRIMARY) {

@@ -55,8 +55,8 @@ open class SurfaceQuadShaderProgram : AbstractShaderProgram() {
             uniform mat3 texCoordMatrix;
             uniform bool enablePickMode;
             uniform bool enableTexture;
-            uniform vec4 color;
-            uniform float opacity;
+            uniform mediump vec4 color;
+            uniform mediump float opacity;
             uniform sampler2D texSampler;
 
             varying vec2 P;

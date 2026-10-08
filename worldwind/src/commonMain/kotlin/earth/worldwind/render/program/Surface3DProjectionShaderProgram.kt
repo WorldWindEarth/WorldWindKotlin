@@ -55,12 +55,12 @@ open class Surface3DProjectionShaderProgram : AbstractShaderProgram() {
             #endif
 
             uniform mat3 texCoordMatrix;
-            uniform vec4 color;
-            uniform float opacity;
+            uniform mediump vec4 color;
+            uniform mediump float opacity;
             // Width (in normalised UV units) of the inner soft-fade margin where the
             // projection ramps from 0 to 1 alpha. 0 = hard cutoff at the unit-square
             // boundary (default; fragment-coherent uniform branch makes this free).
-            uniform float fadeMargin;
+            uniform mediump float fadeMargin;
             uniform sampler2D texSampler;
 
             varying vec4 imageClip;
@@ -75,9 +75,9 @@ open class Surface3DProjectionShaderProgram : AbstractShaderProgram() {
                 // Outside the image frustum: terrain not seen by the camera; transparent.
                 if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) discard;
 
-                float fade = 1.0;
+                mediump float fade = 1.0;
                 if (fadeMargin > 0.0) {
-                    float edge = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
+                    mediump float edge = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
                     fade = smoothstep(0.0, fadeMargin, edge);
                 }
 

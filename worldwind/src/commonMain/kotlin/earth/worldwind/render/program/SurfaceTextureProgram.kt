@@ -97,9 +97,7 @@ open class SurfaceTextureProgram(
             }
         """.trimIndent(),
         defines() + """
-            #if defined(GL_ES) && defined(SHADOWS_ENABLED) && defined(GL_FRAGMENT_PRECISION_HIGH)
-            precision highp float;
-            #elif defined(GL_ES)
+            #ifdef GL_ES
             precision mediump float;
             #endif
 
@@ -107,15 +105,16 @@ open class SurfaceTextureProgram(
             uniform vec4 color;
             uniform int texCount;
             uniform highp vec4 texScaleTrans[$unitCount];
-            uniform vec4 texRect[$unitCount];
+            /* highp keeps the 1e-5 coverage pad (COVERAGE_EPSILON) from rounding away. */
+            uniform highp vec4 texRect[$unitCount];
             uniform float texOpacity[$unitCount];
         """.trimIndent() + "\n" +
         (0 until unitCount).joinToString("\n") { "            uniform sampler2D texSampler$it;" } + """
 
             varying highp vec2 tileCoord;
             #ifdef SHADOWS_ENABLED
-            varying vec3 worldPos;
-            varying float viewDepth;
+            varying highp vec3 worldPos;
+            varying highp float viewDepth;
             varying vec3 terrainNormal;
 
             ${LightingGlsl.DECLARATIONS}
@@ -127,7 +126,7 @@ open class SurfaceTextureProgram(
                 if (enablePickMode) {
                     /* Pick renders one texture per draw; modulate the pick color by the texture's
                        rounded alpha and by the texture's sub-rectangle mask. */
-                    vec2 uv = tileCoord * texScaleTrans[0].xy + texScaleTrans[0].zw;
+                    highp vec2 uv = tileCoord * texScaleTrans[0].xy + texScaleTrans[0].zw;
                     vec2 lo = step(texRect[0].xy, tileCoord);
                     vec2 hi = step(tileCoord, texRect[0].zw);
                     float texMask = floor(texture2D(texSampler0, uv).a + 0.5);
@@ -142,7 +141,7 @@ open class SurfaceTextureProgram(
                         vec2 lo$k = step(texRect[$k].xy, tileCoord);
                         vec2 hi$k = step(tileCoord, texRect[$k].zw);
                         float mask$k = lo$k.x * lo$k.y * hi$k.x * hi$k.y;
-                        vec2 uv$k = tileCoord * texScaleTrans[$k].xy + texScaleTrans[$k].zw;
+                        highp vec2 uv$k = tileCoord * texScaleTrans[$k].xy + texScaleTrans[$k].zw;
                         /* Sampling stays outside divergent control flow on every platform:
                            implicit-LOD inside a fragment-varying branch is undefined and fetches
                            wrong mips at rectangle edges (dark seams along the coverage grid on

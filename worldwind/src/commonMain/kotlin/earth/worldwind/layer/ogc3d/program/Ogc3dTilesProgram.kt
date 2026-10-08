@@ -343,9 +343,7 @@ open class Ogc3dTilesProgram(
         """.trimIndent()
 
         private val FRAGMENT_SHADER: String = """
-            #if defined(GL_ES) && (defined(SHADOWS_ENABLED) || defined(SIGHTLINE_ENABLED)) && defined(GL_FRAGMENT_PRECISION_HIGH)
-            precision highp float;
-            #elif defined(GL_ES)
+            #ifdef GL_ES
             precision mediump float;
             #endif
 
@@ -371,10 +369,11 @@ open class Ogc3dTilesProgram(
 
             ${LightingGlsl.DECLARATIONS}
             #if defined(SHADOWS_ENABLED) || defined(SIGHTLINE_ENABLED)
-            varying vec3 worldPos;
+            /* Camera-relative metres: fp16 would quantise shadow lookups to the metre. */
+            varying highp vec3 worldPos;
             #endif
             #ifdef SHADOWS_ENABLED
-            varying float viewDepth;
+            varying highp float viewDepth;
             ${ShadowReceiverGlsl.fragmentDeclarations(lit = true)}
             #endif
 

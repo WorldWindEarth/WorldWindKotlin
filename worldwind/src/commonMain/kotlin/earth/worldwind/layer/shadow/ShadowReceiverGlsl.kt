@@ -1,6 +1,7 @@
 package earth.worldwind.layer.shadow
 
 import earth.worldwind.draw.DrawContext
+import earth.worldwind.render.program.PrecisionGlsl
 
 /**
  * Reusable GLSL fragments concatenated into every shadow receiver's fragment shader.
@@ -84,7 +85,9 @@ object ShadowReceiverGlsl {
     /**
      * Builds the fragment-shader declaration block. [lit] additionally emits
      * `shadowLitFactor` for receivers with a lighting model (requires
-     * `LightingGlsl.DECLARATIONS` above this block).
+     * `LightingGlsl.DECLARATIONS` above this block). The block runs in highp - camera-relative
+     * positions and cascade projections lose street-scale detail at fp16 - and restores the
+     * including shader's mediump default afterwards (see [PrecisionGlsl]).
      */
     fun fragmentDeclarations(lit: Boolean = false): String {
         val soft = DrawContext.softShadows()
@@ -113,7 +116,7 @@ object ShadowReceiverGlsl {
             /* Single tap - plain sampler2D has no free bilinear (harder than the sampler2DShadow tap). */
             float casterDepth = texture2D(shadowMap, uv).r;
             return step(clamp(receiverDepth, 0.0, 1.0), casterDepth);"""
-        return """
+        return PrecisionGlsl.FRAGMENT_HIGHP + "\n" + """
         uniform bool applyShadow;
         #ifdef WW_SHADOW_SAMPLERS
         /* Depth-compare samplers: each tap returns hardware-filtered 2x2 PCF against the
@@ -370,7 +373,7 @@ object ShadowReceiverGlsl {
             if (applyShadow && debugShadowMode != 0) return visibility;
             return mix(ambientShadow, 1.0, visibility);
         }
-    """.trimIndent() + if (lit) "\n" + """
+    """.trimIndent() + (if (lit) "\n" + """
         /* Lit receivers: the full lighting multiplier with only the direct sun term
            shadow-attenuated. Lambert owns the dark side, so back faces can never be
            double-darkened by the cascade term. */
@@ -401,6 +404,6 @@ object ShadowReceiverGlsl {
             }
             return min(shadowLitFactor(relief, 1.0, position, viewDepth, n), 1.0);
         }
-    """.trimIndent() else ""
+    """.trimIndent() else "") + "\n" + PrecisionGlsl.FRAGMENT_MEDIUMP
     }
 }
