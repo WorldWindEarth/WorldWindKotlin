@@ -19,37 +19,49 @@ open class BasicTerrain(
         var found = false
         val triStripElements = triStripElements ?: return found
 
-        // Tiles considered as sorted by L1 distance on cylinder from camera
+        // Nearest hit so far, as a ray parameter. Tiles are sorted by distance from the camera,
+        // which is not ray order when the ray starts elsewhere, so the nearest hit must be kept.
+        var nearest = Double.POSITIVE_INFINITY
+
         for (i in tiles.indices) {
             val tile = tiles[i]
             // Translate the line to the terrain tile's local coordinate system.
             line.origin.subtract(tile.origin)
 
-            // Compute the first intersection of the terrain tile with the line. The line is interpreted as a ray;
-            // intersection points behind the line's origin are ignored. Store the nearest intersection found so far
-            // in the result argument. Tiles whose local bounds the ray misses skip the strip walk entirely -
-            // most visible tiles are off the ray.
-            if (rayIntersectsBounds(line, tile.localBounds) &&
+            // Skip tiles whose bounds the ray misses or enters beyond the nearest hit so far.
+            if (rayBoundsEntry(line, tile.localBounds) < nearest &&
                 line.triStripIntersection(tile.points, 3, triStripElements, triStripElements.size, intersectPoint)
             ) {
-                result.copy(intersectPoint).add(tile.origin)
-                found = true
+                val distance = rayParameterOf(line, intersectPoint)
+                if (distance < nearest) {
+                    nearest = distance
+                    result.copy(intersectPoint).add(tile.origin)
+                    found = true
+                }
             }
 
             // Restore the line's origin to its previous coordinate system.
             line.origin.add(tile.origin)
-
-            // Do not analyze other tiles as they are sorted by distance from camera
-            if (found) break
         }
         return found
     }
 
+    /** Ray parameter of [point], which is assumed to lie on the ray, in [rayBoundsEntry] units. */
+    private fun rayParameterOf(line: Line, point: Vec3): Double {
+        val direction = line.direction
+        val lengthSquared = direction.x * direction.x + direction.y * direction.y + direction.z * direction.z
+        if (lengthSquared == 0.0) return Double.POSITIVE_INFINITY
+        val origin = line.origin
+        return ((point.x - origin.x) * direction.x + (point.y - origin.y) * direction.y +
+            (point.z - origin.z) * direction.z) / lengthSquared
+    }
+
     /**
-     * Ray-slab test against tile-local bounds (minX, maxX, minY, maxY, minZ, maxZ). Ignores
+     * Ray-slab test against tile-local bounds (minX, maxX, minY, maxY, minZ, maxZ). Returns the ray
+     * parameter where the ray enters them, or [Double.POSITIVE_INFINITY] when it misses. Ignores
      * intersections behind the ray's origin, matching [Line.triStripIntersection] semantics.
      */
-    private fun rayIntersectsBounds(line: Line, bounds: FloatArray): Boolean {
+    private fun rayBoundsEntry(line: Line, bounds: FloatArray): Double {
         var tMin = 0.0
         var tMax = Double.MAX_VALUE
         val origin = line.origin
@@ -60,17 +72,17 @@ open class BasicTerrain(
             val min = bounds[axis * 2].toDouble()
             val max = bounds[axis * 2 + 1].toDouble()
             if (d == 0.0) {
-                if (o < min || o > max) return false
+                if (o < min || o > max) return Double.POSITIVE_INFINITY
             } else {
                 var t0 = (min - o) / d
                 var t1 = (max - o) / d
                 if (t0 > t1) { val t = t0; t0 = t1; t1 = t }
                 if (t0 > tMin) tMin = t0
                 if (t1 < tMax) tMax = t1
-                if (tMin > tMax) return false
+                if (tMin > tMax) return Double.POSITIVE_INFINITY
             }
         }
-        return true
+        return tMin
     }
 
     override fun surfacePoint(latitude: Angle, longitude: Angle, result: Vec3): Boolean {
