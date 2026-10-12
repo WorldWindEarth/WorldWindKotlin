@@ -88,6 +88,8 @@ open class Label @JvmOverloads constructor(
      * Optional lambda to control current label visibility based on its attributes, frame render context and camera distance
      */
     var isVisible: ((Label, RenderContext, Double) -> Boolean)? = null
+    /** Dp beyond the viewport within which this label is still prepared; [Double.POSITIVE_INFINITY] never culls. */
+    var offScreenCullMargin = DEFAULT_OFF_SCREEN_CULL_MARGIN
     /**
      * The amount of screen depth offset applied to this label's text during rendering. Values less than zero bias depth
      * values toward the viewer, causing the text to appear above nearby terrain rather than being clipped by it. The
@@ -105,6 +107,9 @@ open class Label @JvmOverloads constructor(
          * bias depth values toward the viewer.
          */
         const val DEFAULT_DEPTH_OFFSET = -0.03
+
+        /** Default [offScreenCullMargin], in dp. */
+        const val DEFAULT_OFF_SCREEN_CULL_MARGIN = 512.0
 
         /**
          * The label's properties associated with the current render pass.
@@ -151,6 +156,9 @@ open class Label @JvmOverloads constructor(
         // Project the label's model point to screen coordinates, using the screen depth offset to push the screen
         // point's z component closer to the eye point.
         if (!rc.projectWithDepth(renderData.placePoint, screenDepthOffset, renderData.screenPlacePoint)) return  // clipped by the near plane or the far plane
+
+        // Skip labels far off screen
+        if (!rc.isPickMode && rc.isOutsideViewport(renderData.screenPlacePoint, offScreenCullMargin)) return
 
         // Select the currently active attributes. Don't render anything if the attributes are unspecified.
         determineActiveAttributes(rc)
