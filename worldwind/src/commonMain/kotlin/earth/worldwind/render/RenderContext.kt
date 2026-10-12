@@ -352,6 +352,13 @@ open class RenderContext {
         return true
     }
 
+    /** Whether [screenPoint] lies more than [margin] dp outside the viewport. */
+    internal fun isOutsideViewport(screenPoint: Vec3, margin: Double): Boolean {
+        val m = margin * densityFactor
+        return screenPoint.x < viewport.x - m || screenPoint.x > viewport.x + viewport.width + m ||
+            screenPoint.y < viewport.y - m || screenPoint.y > viewport.y + viewport.height + m
+    }
+
     /**
      * Projects a Cartesian point to screen coordinates, applying an offset to the point's projected depth value. The
      * resultant screen point is in OpenGL screen coordinates, with the origin in the bottom-left corner and axes that

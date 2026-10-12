@@ -67,6 +67,8 @@ open class Placemark @JvmOverloads constructor(
      * respectfully for the normal and highlighted states.
      */
     var levelOfDetailSelector: LevelOfDetailSelector? = null
+    /** Dp beyond the viewport within which this placemark is still prepared; [Double.POSITIVE_INFINITY] never culls. */
+    var offScreenCullMargin = DEFAULT_OFF_SCREEN_CULL_MARGIN
     /**
      * Enables or disables the eye distance scaling feature for this placemark. When enabled, the placemark's size is
      * reduced at higher eye distances. If true, this placemark's size is scaled inversely proportional to the eye
@@ -157,6 +159,8 @@ open class Placemark @JvmOverloads constructor(
     /**
      * Presents an interfaced for dynamically determining the PlacemarkAttributes based on the distance between the
      * placemark and the camera.
+     *
+     * Runs only for placemarks near the view (see [offScreenCullMargin]) and must not render other placemarks.
      */
     interface LevelOfDetailSelector {
         /**
@@ -199,6 +203,9 @@ open class Placemark @JvmOverloads constructor(
         // disappear as soon as there is no terrain at the placemark's position. This can occur at the window edges.
         val effectiveAltitudeMode = if (rc.globe.is2D) AltitudeMode.CLAMP_TO_GROUND else altitudeMode
         pointMemo.geographicToCartesian(rc, position, effectiveAltitudeMode, placePoint)
+
+        // Skip placemarks far off screen before level of detail, attributes and texture
+        if (!rc.isPickMode && isFarOffScreen(rc)) return
 
         // Compute the squared camera distance to the place point for ordering and comparisons; compute the actual
         // distance only when needed for math (eye-distance scaling, billboard pixel size, level-of-detail selector).
@@ -538,7 +545,20 @@ open class Placemark @JvmOverloads constructor(
         activeAttributes.isDrawLeader && (isLeaderPickingEnabled || !rc.isPickMode) &&
                 altitudeMode != AltitudeMode.CLAMP_TO_GROUND && !rc.globe.is2D
 
+    /** Whether [placePoint] is far off screen and no leader from it crosses the view. */
+    private fun isFarOffScreen(rc: RenderContext): Boolean {
+        // Billboarding may lift a clipped point back into view
+        if (!rc.project(placePoint, screenPlacePoint)) return !isBillboardingEnabled
+        if (!rc.isOutsideViewport(screenPlacePoint, offScreenCullMargin)) return false
+        // Attributes are not selected yet: test any leader the altitude mode allows
+        if (altitudeMode == AltitudeMode.CLAMP_TO_GROUND || rc.globe.is2D) return true
+        pointMemo.geographicToCartesian(rc, position, AltitudeMode.CLAMP_TO_GROUND, groundPoint)
+        return !rc.frustum.intersectsSegment(groundPoint, placePoint)
+    }
+
     companion object {
+        /** Default [offScreenCullMargin], in dp. */
+        const val DEFAULT_OFF_SCREEN_CULL_MARGIN = 512.0
         /**
          * The default eye distance above which to reduce the size of this placemark, in meters.
          * If [Placemark.isEyeDistanceScaling] is true, this placemark's image, label and leader sizes are reduced as
