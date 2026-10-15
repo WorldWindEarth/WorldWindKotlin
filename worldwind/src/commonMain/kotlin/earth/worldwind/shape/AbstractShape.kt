@@ -119,6 +119,11 @@ abstract class AbstractShape(
     // True when the shape is off-camera but inside a sightline volume; subclasses propagate
     // this onto every DrawShapeState in makeDrawable so draw() skips while drawSightlineDepth runs.
     protected var isOccluderOnly = false
+    /**
+     * Whether a [PathProbe] treats this shape as solid. Turn it off for shapes that only mark
+     * things up, such as a drawn trajectory or a range fan, so they don't block probes.
+     */
+    var isProbeObstacle = true
     // Monotonic counter advanced by [assembleGeometry] each time it emits fresh vertex data;
     // gates the [offerGLBufferUpload] writes. Advancing here (not in [reset]) lets [prepareGeometry]
     // fall through with the prior GL buffer when the per-frame assembly budget is exhausted —

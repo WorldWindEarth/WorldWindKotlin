@@ -185,6 +185,7 @@ open class Path @JvmOverloads constructor(
         drawState.enableLighting = activeAttributes.isLightingEnabled
         drawState.shadowMode = activeAttributes.shadowMode
         drawState.isOccluderOnly = isOccluderOnly
+        drawState.isProbeObstacle = isProbeObstacle
         drawState.depthOffset = clampToGroundDepthOffset(rc)
 
         // Enqueue the drawable for processing on the OpenGL thread.
@@ -280,6 +281,7 @@ open class Path @JvmOverloads constructor(
             drawStateExtrusion.enableLighting = activeAttributes.isLightingEnabled
             drawStateExtrusion.shadowMode = activeAttributes.shadowMode
             drawStateExtrusion.isOccluderOnly = isOccluderOnly
+            drawStateExtrusion.isProbeObstacle = isProbeObstacle
             drawStateExtrusion.texture = null
             drawStateExtrusion.texCoordAttrib.size = 2
             drawStateExtrusion.texCoordAttrib.offset = 12

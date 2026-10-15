@@ -286,6 +286,16 @@ open class DrawableSightline protected constructor() : Drawable {
     }
 
     /**
+     * Points the occluder matrix helpers ([loadOccluderMatrix], [loadOccluderTranslation],
+     * [drawShapeStateOccluder]) at [caster] and [projectionView], so a subclass with its own
+     * camera can reuse every [SightlineOccluder] unchanged.
+     */
+    protected fun beginOccluderPass(caster: DepthCasterProgram, projectionView: Matrix4) {
+        activeDepthCaster = caster
+        faceProjectionView.copy(projectionView)
+    }
+
+    /**
      * True when the world-space sphere intersects the observer's range sphere - only then
      * can it occlude a fragment within the sightline's reach (an occluder of a point at
      * distance <= range lies between observer and point, so inside the range sphere).
