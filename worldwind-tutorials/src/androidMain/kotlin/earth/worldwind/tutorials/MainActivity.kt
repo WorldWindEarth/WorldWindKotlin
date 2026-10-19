@@ -279,6 +279,11 @@ class MainActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelected
                 "file:///android_asset/viewshed_sightline_tutorial.html",
                 R.string.title_viewshed_sightline
             )
+            R.id.nav_terrain_ray_activity -> loadTutorial(
+                TerrainRayFragment::class.java,
+                "file:///android_asset/terrain_ray_tutorial.html",
+                R.string.title_terrain_ray
+            )
             R.id.nav_elevation_heatmap_activity -> loadTutorial(
                 ElevationHeatmapFragment::class.java,
                 "file:///android_asset/elevation_heatmap_tutorial.html",
