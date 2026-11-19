@@ -19,6 +19,7 @@
     <string name="title_navigator_event">Eventos del navegador</string>
     <string name="title_omni_sightline">Línea de visión en tiempo real</string>
     <string name="title_viewshed_sightline">Línea de visión de cuenca visual</string>
+    <string name="title_sensor_footprint">Huellas de sensores</string>
     <string name="title_paths">Trayectorias</string>
     <string name="title_placemarks">Marcadores</string>
     <string name="title_placemarks_picking">Selección de marcadores</string>

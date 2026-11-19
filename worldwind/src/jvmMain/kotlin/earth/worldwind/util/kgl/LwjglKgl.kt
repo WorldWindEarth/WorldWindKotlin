@@ -204,6 +204,7 @@ class LwjglKgl : Kgl {
     override fun colorMask(r: Boolean, g: Boolean, b: Boolean, a: Boolean) = GL33.glColorMask(r, g, b, a)
 
     override fun viewport(x: Int, y: Int, width: Int, height: Int) = GL33.glViewport(x, y, width, height)
+    override fun scissor(x: Int, y: Int, width: Int, height: Int) = GL33.glScissor(x, y, width, height)
 
     override fun clear(mask: Int) = GL33.glClear(mask)
 

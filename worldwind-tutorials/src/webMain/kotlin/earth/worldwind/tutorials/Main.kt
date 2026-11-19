@@ -143,6 +143,7 @@ fun main() {
             // Sightlines
             "Real-time sightline" to SightlineTutorial(wwd.engine),
             "Viewshed sightline" to ViewshedSightlineTutorial(wwd.engine),
+            "Sensor footprints" to SensorFootprintTutorial(wwd.engine),
             // Surface & media overlays
             "Surface image" to SurfaceImageTutorial(wwd.engine),
             "NITF Imagery" to NitfImageryTutorial(wwd.engine),

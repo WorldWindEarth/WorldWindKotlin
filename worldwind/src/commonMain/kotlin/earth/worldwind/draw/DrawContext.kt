@@ -32,6 +32,10 @@ open class DrawContext(val gl: Kgl) {
          * framebuffer (see [MSAA_SAMPLES]); the texture itself stays at the historical 1024.
          */
         const val SCRATCH_FRAMEBUFFER_SIZE = 1024
+        /** Side of the sensor frames' depth atlas; holds `(SIZE / CELL)²` = 16 sensors. */
+        const val SENSOR_FRAME_DEPTH_SIZE = 2048
+        /** Side of one sensor's cell in the depth atlas. */
+        const val SENSOR_FRAME_DEPTH_CELL = 512
         /** Byte budget for [surfaceShapeTiles] (composited surface-shape RTT textures, ~5 MB each at
          *  1024² RGBA+mip). Bounds GPU memory regardless of how many terrain tiles are panned through;
          *  sized to hold a typical visible terrain-tile set plus a pan margin. */
@@ -197,6 +201,8 @@ open class DrawContext(val gl: Kgl) {
     private var sightlineCubeFramebufferCache: Framebuffer? = null
     private val shadowCascadeFramebufferCache = arrayOfNulls<Framebuffer>(ShadowState.DEFAULT_CASCADE_COUNT)
     private var multisampleFramebufferCache: MultisampleFramebuffer? = null
+    private var sensorFrameDepthFramebufferCache: Framebuffer? = null
+    private var sensorFrameDepthTextureCache: Texture? = null
     private val gaussianPassFramebufferCache = mutableMapOf<Any, Array<Framebuffer?>>()
     private val gaussianPassFramebufferParity = mutableMapOf<Any, Int>()
     private var unitSquareBufferCache: BufferObject? = null
@@ -435,6 +441,39 @@ open class DrawContext(val gl: Kgl) {
     }
 
     /**
+     * Depth atlas of the sensor frames' depth pass ([DrawableSensorFrameDepth]): one
+     * [SENSOR_FRAME_DEPTH_SIZE]² `GL_DEPTH_COMPONENT24` texture, each sensor rendering its view
+     * of the terrain into one [SENSOR_FRAME_DEPTH_CELL]² cell. Set up like a shadow cascade:
+     * depth-only, clamp-to-edge, and LINEAR + COMPARE_REF_TO_TEXTURE where receivers tap it
+     * through `sampler2DShadow`, raw NEAREST depth otherwise.
+     */
+    val sensorFrameDepthFramebuffer get() = sensorFrameDepthFramebufferCache ?: Framebuffer().apply {
+        val depthAttachment = createDepthTextureAttachment(SENSOR_FRAME_DEPTH_SIZE)
+        depthAttachment.setTexParameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+        depthAttachment.setTexParameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+        if (gl.hasShadowSamplers) {
+            depthAttachment.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+            depthAttachment.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+            depthAttachment.setTexParameter(GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE)
+            depthAttachment.setTexParameter(GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL)
+        }
+        attachTexture(this@DrawContext, depthAttachment, GL_DEPTH_ATTACHMENT)
+        sensorFrameDepthTextureCache = depthAttachment
+        // No colour attachment: draw and read buffers NONE, as for the shadow cascades
+        val previousFramebuffer = currentFramebuffer
+        bindFramebuffer(this@DrawContext)
+        gl.drawBuffers(NO_DRAW_BUFFERS)
+        gl.readBuffer(GL_NONE)
+        this@DrawContext.bindFramebuffer(previousFramebuffer)
+    }.also { sensorFrameDepthFramebufferCache = it }
+
+    /** The depth texture of [sensorFrameDepthFramebuffer]. */
+    val sensorFrameDepthTexture: Texture get() {
+        sensorFrameDepthFramebuffer
+        return sensorFrameDepthTextureCache!!
+    }
+
+    /**
      * Returns the multisample framebuffer used as the render target for surface shape
      * rasterization, or `null` when the GL implementation doesn't support MSAA (WebGL1).
      * Callers blit (resolve) into [scratchFramebuffer]'s color attachment after rendering.
@@ -584,6 +623,8 @@ open class DrawContext(val gl: Kgl) {
         sightlineCubeFramebufferCache?.release(this)
         for (i in shadowCascadeFramebufferCache.indices) shadowCascadeFramebufferCache[i]?.release(this)
         multisampleFramebufferCache?.release(this)
+        sensorFrameDepthFramebufferCache?.release(this)
+        sensorFrameDepthTextureCache?.release(this)
         for (slots in gaussianPassFramebufferCache.values) for (framebuffer in slots) framebuffer?.release(this)
         unitSquareBufferCache?.release(this)
         rectangleElementsBufferCache?.release(this)
@@ -604,6 +645,8 @@ open class DrawContext(val gl: Kgl) {
         sightlineCubeFramebufferCache = null
         for (i in shadowCascadeFramebufferCache.indices) shadowCascadeFramebufferCache[i] = null
         multisampleFramebufferCache = null
+        sensorFrameDepthFramebufferCache = null
+        sensorFrameDepthTextureCache = null
         gaussianPassFramebufferCache.clear()
         gaussianPassFramebufferParity.clear()
         unitSquareBufferCache = null

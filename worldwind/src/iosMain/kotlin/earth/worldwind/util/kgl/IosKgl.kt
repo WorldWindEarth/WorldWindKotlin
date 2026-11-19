@@ -117,6 +117,7 @@ import platform.gles3.glUniformMatrix4fv
 import platform.gles3.glUnmapBuffer
 import platform.gles3.glUseProgram
 import platform.gles3.glVertexAttribPointer
+import platform.gles3.glScissor
 import platform.gles3.glViewport
 
 /**
@@ -419,6 +420,7 @@ class IosKgl : Kgl {
     override fun clearStencil(s: Int) { glClearStencil(s) }
     override fun blendFunc(sFactor: Int, dFactor: Int) { glBlendFunc(sFactor.toUInt(), dFactor.toUInt()) }
     override fun viewport(x: Int, y: Int, width: Int, height: Int) { glViewport(x, y, width, height) }
+    override fun scissor(x: Int, y: Int, width: Int, height: Int) { glScissor(x, y, width, height) }
     override fun clearColor(r: Float, g: Float, b: Float, a: Float) { glClearColor(r, g, b, a) }
     override fun clear(mask: Int) { glClear(mask.toUInt()) }
 

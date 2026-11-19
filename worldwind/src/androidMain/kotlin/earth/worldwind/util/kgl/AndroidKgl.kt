@@ -242,6 +242,7 @@ class AndroidKgl : Kgl {
     override fun colorMask(r: Boolean, g: Boolean, b: Boolean, a: Boolean) = GLES20.glColorMask(r, g, b, a)
 
     override fun viewport(x: Int, y: Int, width: Int, height: Int) = GLES20.glViewport(x, y, width, height)
+    override fun scissor(x: Int, y: Int, width: Int, height: Int) = GLES20.glScissor(x, y, width, height)
 
     override fun clear(mask: Int) = GLES20.glClear(mask)
 

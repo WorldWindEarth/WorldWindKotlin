@@ -570,6 +570,7 @@ interface Kgl {
     fun blendFunc(sFactor: Int, dFactor: Int)
 
     fun viewport(x: Int, y: Int, width: Int, height: Int)
+    fun scissor(x: Int, y: Int, width: Int, height: Int)
     fun clearColor(r: Float, g: Float, b: Float, a: Float)
     fun clear(mask: Int)
 
