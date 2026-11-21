@@ -46,7 +46,7 @@ internal object JsMilStd2525Renderer : MilStd2525Renderer {
         ) ?: return null
         val symbolBounds = info.getSymbolBounds()
         return MilStd2525Symbol(
-            canvas = createMilStdCanvas(info),
+            canvas = createMilStdCanvas(info, symbolCode),
             symbolCenterX = info.getSymbolCenterX().toDouble(),
             symbolCenterY = info.getSymbolCenterY().toDouble(),
             symbolWidth = symbolBounds.getWidth().toDouble(),
@@ -80,14 +80,16 @@ internal object JsMilStd2525Renderer : MilStd2525Renderer {
 
         val result = mutableListOf<MilStd2525Shape>()
         val symbolShapes = mss.getSymbolShapes()
-        for (i in symbolShapes.indices) convertShape(symbolShapes[i], ipc)?.let(result::add)
+        for (i in symbolShapes.indices) convertShape(symbolShapes[i], ipc, symbolID)?.let(result::add)
         val modifierShapes = mss.getModifierShapes()
-        for (i in modifierShapes.indices) convertShape(modifierShapes[i], ipc)?.let(result::add)
+        for (i in modifierShapes.indices) convertShape(modifierShapes[i], ipc, symbolID)?.let(result::add)
         return result
     }
 
     @OptIn(ExperimentalJsCollectionsApi::class)
-    private fun convertShape(si: ShapeInfo, ipc: IPointConversion): MilStd2525Shape? = when (si.getShapeType()) {
+    private fun convertShape(
+        si: ShapeInfo, ipc: IPointConversion, symbolId: String,
+    ): MilStd2525Shape? = when (si.getShapeType()) {
         ShapeInfo.SHAPE_TYPE_POLYLINE -> {
             val lineColor = si.getLineColor()
             val dash = si.getStroke().getDashArray()?.toList()
@@ -111,7 +113,7 @@ internal object JsMilStd2525Renderer : MilStd2525Renderer {
                     convertColor(RendererUtilities.getIdealOutlineColor(it).apply { setAlpha(0.5f) })
                 },
                 dashFactor = if (!dash.isNullOrEmpty()) dash[0].toInt() else null,
-                patternFillCanvas = si.getPatternFillImageInfo()?.let { createMilStdCanvas(it) },
+                patternFillCanvas = si.getPatternFillImageInfo()?.let { createMilStdCanvas(it, symbolId) },
             )
         }
 
@@ -121,7 +123,7 @@ internal object JsMilStd2525Renderer : MilStd2525Renderer {
                 val geo = ipc.PixelsToGeo(si.getModifierPosition() ?: return null)
                 MilStd2525ModifierImage(
                     position = Position.fromDegrees(geo.getY().toDouble(), geo.getX().toDouble(), 0.0),
-                    canvas = createMilStdCanvas(image),
+                    canvas = createMilStdCanvas(image, symbolId),
                     text = si.getModifierString(),
                     angle = si.getModifierAngle().toDouble().degrees,
                 )
@@ -181,14 +183,32 @@ internal object JsMilStd2525Renderer : MilStd2525Renderer {
         } ?: emptyMap()
 }
 
-/** Rasterize a mil-sym [SVGSymbolInfo] to a canvas via canvg. Shared by the renderer and the
- *  per-target [MilStd2525TacticalGraphic] (which builds its SVGSymbolInfo via the multipoint API). */
-internal fun createMilStdCanvas(info: SVGSymbolInfo): HTMLCanvasElement {
+private val loggedCanvasFailures = mutableSetOf<String>()
+
+/**
+ * Rasterize a mil-sym [SVGSymbolInfo] to a canvas via canvg.
+ * Used for point symbols and for pattern fills and modifier images on [MilStd2525TacticalGraphic].
+ */
+internal fun createMilStdCanvas(info: SVGSymbolInfo, symbolId: String): HTMLCanvasElement {
     val canvas = document.createElement("canvas") as HTMLCanvasElement
     val imageBounds = info.getImageBounds()
-    canvas.width = imageBounds.getWidth().toInt()
-    canvas.height = imageBounds.getHeight().toInt()
+    val width = imageBounds.getWidth().toInt()
+    val height = imageBounds.getHeight().toInt()
+    canvas.width = width
+    canvas.height = height
     val ctx = canvas.getContext("2d") as CanvasRenderingContext2D
-    Canvg.fromString(ctx, info.getSVG()).start()
+    try {
+        Canvg.fromString(ctx, info.getSVG()).start()
+    } catch (e: Throwable) {
+        // Reset the bitmap in case canvg resized it or drew part of the SVG before failing.
+        canvas.width = width
+        canvas.height = height
+        // canvg also sets inline dimensions from the SVG.
+        canvas.style.removeProperty("width")
+        canvas.style.removeProperty("height")
+        if (loggedCanvasFailures.add(symbolId)) {
+            Logger.log(Logger.ERROR, "Failed to rasterize MIL-STD-2525 symbol '$symbolId'", e)
+        }
+    }
     return canvas
 }
