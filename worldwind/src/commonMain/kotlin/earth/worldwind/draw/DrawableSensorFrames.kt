@@ -64,6 +64,10 @@ open class DrawableSensorFrames protected constructor() : Drawable {
         var statTiles = 0
         var statDraws = 0
 
+        /** Diagnostics: whether tiles no frame reaches are skipped, and whether draws are scissored. */
+        var isTileCullingEnabled = true
+        var isScissorEnabled = true
+
         @JvmStatic
         fun obtain(pool: Pool<DrawableSensorFrames>): DrawableSensorFrames {
             val instance = pool.acquire() ?: DrawableSensorFrames()
@@ -132,7 +136,7 @@ open class DrawableSensorFrames protected constructor() : Drawable {
             // The frames this tile reaches
             var n = 0
             for (k in 0 until count) {
-                if (radius <= 0.0 || reaches(frameMatrices[k], frameParams[4 * k + 2].toDouble(), origin.x, origin.y, origin.z, radius)) {
+                if (!isTileCullingEnabled || radius <= 0.0 || reaches(frameMatrices[k], frameParams[4 * k + 2].toDouble(), origin.x, origin.y, origin.z, radius)) {
                     reached[n++] = k
                 }
             }
@@ -170,6 +174,10 @@ open class DrawableSensorFrames protected constructor() : Drawable {
      * False when none of them covers anything on screen, so the draw can be skipped.
      */
     private fun scissorTo(dc: DrawContext, start: Int, size: Int): Boolean {
+        if (!isScissorEnabled) {
+            dc.gl.disable(GL_SCISSOR_TEST)
+            return true
+        }
         var x0 = Int.MAX_VALUE; var y0 = Int.MAX_VALUE; var x1 = Int.MIN_VALUE; var y1 = Int.MIN_VALUE
         for (j in 0 until size) {
             val k = reached[start + j]
