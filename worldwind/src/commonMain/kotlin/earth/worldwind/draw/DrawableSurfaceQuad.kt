@@ -23,6 +23,7 @@ open class DrawableSurfaceQuad protected constructor() : Drawable {
     private var pool: Pool<DrawableSurfaceQuad>? = null
     private val mvpMatrix = Matrix4()
     private val textureMvpMatrix = Matrix4()
+    private val modelMatrix = Matrix4()
     private val filteredShapes = ArrayList<DrawableSurfaceQuad>()
 
     companion object {
@@ -204,10 +205,8 @@ open class DrawableSurfaceQuad protected constructor() : Drawable {
             program.enableOneVertexMode(true)
             program.enablePickMode(false)
             program.enableTexture(true)
-            // The tile is drawn as the shapes were rasterized: a lit or shadowed state left by
-            // an earlier 3D shape would otherwise shade the quad's outline with the terrain.
+            // A lit state left by an earlier 3D shape would otherwise shade the quad with the terrain.
             program.enableLighting(false)
-            dc.applyShadowReceiverUniforms(program, applyShadow = false)
             program.loadTexCoordMatrix(identityMatrix3)
             program.loadColor(color)
             program.loadOpacity(opacity)
@@ -219,6 +218,17 @@ open class DrawableSurfaceQuad protected constructor() : Drawable {
             mvpMatrix.multiplyByTranslation(terrainOrigin.x, terrainOrigin.y, terrainOrigin.z)
             program.loadModelviewProjection(mvpMatrix)
             program.loadClipDistance(0.0f)
+
+            // Receive 3D-caster shadows like surface shapes do; modelMatrix is only read on shadow frames.
+            dc.applyShadowReceiverUniforms(program)
+            if (dc.shadowState != null) {
+                modelMatrix.setToTranslation(
+                    terrainOrigin.x - dc.eyePoint.x,
+                    terrainOrigin.y - dc.eyePoint.y,
+                    terrainOrigin.z - dc.eyePoint.z,
+                )
+                program.loadModelMatrix(modelMatrix)
+            }
 
             // Draw the terrain as triangles.
             terrain.drawTriangles(dc)
@@ -297,7 +307,8 @@ open class DrawableSurfaceQuad protected constructor() : Drawable {
         // (a 3D path, an extruded polygon) switched on, and the derivative-based face normal of
         // a line in texture space then darkens its segments at random. Same guard as
         // [DrawableSurfaceShape.drawShapesToTexture]. Shadows do not apply here either: the
-        // orthographic texture-space projection gives the receiver nothing to look up with.
+        // orthographic texture-space projection gives the receiver nothing to look up with;
+        // they are applied when the tile is drawn onto the terrain.
         program.enableLighting(false)
         dc.applyShadowReceiverUniforms(program, applyShadow = false)
 
