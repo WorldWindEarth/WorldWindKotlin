@@ -32,8 +32,10 @@ import earth.worldwind.render.OesExternalTexture
  * the texture itself is one for all of them; the `SurfaceTexture` wrapping it, though, belongs
  * to the EGL context it was created on, and `updateTexImage` from another window's GL thread
  * throws. The window that wrapped it is the only one to pull frames; the others sample the
- * texture as it was last left. Should that window's GL thread end, the next one to bind takes
- * the wrap over.
+ * texture as it was last left. Should that window stop binding the texture for
+ * [OWNER_IDLE_NANOS] (paused, hidden, the surface out of its view) or its GL thread end, the
+ * next window to bind wraps it again on its own context and re-fires [onSurfaceReady]. The
+ * wrap state is shared by those GL threads, so it is only touched under a lock.
  *
  * `setOnFrameAvailableListener` fires on the listener's caller thread by default; producer
  * frames typically arrive on a binder / decoder thread. The listener requests a redraw
@@ -56,8 +58,12 @@ open class MediaSurfaceTexture(width: Int, height: Int) : OesExternalTexture(wid
     private var surfaceTexture: SurfaceTexture? = null
     /** Last GL name id we wrapped — used to detect context-loss regeneration. */
     private var boundNameId: Int = -1
+    /** Guards the wrap state, which every GL thread binding this texture reads and writes. */
+    private val lock = Any()
     /** The GL thread the wrap was made on, the only one that can pull frames through it. */
     private var ownerThread: Thread? = null
+    /** When [ownerThread] last bound this texture, from [System.nanoTime]. */
+    private var ownerBindNanos = 0L
 
     /** `Surface` wrapping the underlying [SurfaceTexture]. Null until [onSurfaceReady] fires. */
     var surface: Surface? = null
@@ -81,45 +87,50 @@ open class MediaSurfaceTexture(width: Int, height: Int) : OesExternalTexture(wid
 
     override fun bindTexture(dc: DrawContext): Boolean {
         if (!super.bindTexture(dc)) return false
-        val owner = ownerThread
-        if (owner != null && owner !== Thread.currentThread()) {
-            // Another window sharing the context draws what the owner last pulled
-            if (owner.isAlive) return true
-            releaseBindings()
-        }
-        if (name.id != boundNameId) {
-            // Drop the previous producer side first so an in-flight updateTexImage can't
-            // race with deletion, then wrap the freshly allocated GL name.
-            releaseBindings()
-            val st = SurfaceTexture(name.id).also { surfaceTexture = it }
-            st.setDefaultBufferSize(width, height)
-            st.setOnFrameAvailableListener {
-                // Trigger a fresh render frame so the GL thread re-runs bindTexture and
-                // updateTexImage picks up the new frame.
-                WorldWind.requestRedraw()
-                onFrameAvailable?.invoke()
+        synchronized(lock) {
+            val current = Thread.currentThread()
+            val owner = ownerThread
+            if (owner != null && owner !== current) {
+                // Another window sharing the context samples what the owner last pulled
+                if (owner.isAlive && System.nanoTime() - ownerBindNanos < OWNER_IDLE_NANOS) return true
+                // The owner stopped drawing this texture: wrap it again on this thread's context
+                releaseBindings()
             }
-            surface = Surface(st)
-            boundNameId = name.id
-            ownerThread = Thread.currentThread()
-            onSurfaceReady?.invoke()
-        }
-        // Pull the latest producer frame into the OES texture we just bound. After an
-        // activity pause/resume the driver sometimes reuses the same texture id under a
-        // freshly created EGL context — the id check above won't catch that, but
-        // `updateTexImage` will throw `invalid current EGLContext`. Treat the throw as
-        // a "context cycled" signal: drop the cached wrap so the next bind allocates
-        // fresh state on the current context.
-        return try {
-            surfaceTexture?.updateTexImage()
-            true
-        } catch (_: IllegalStateException) {
-            releaseBindings()
-            false
+            if (name.id != boundNameId) {
+                // Drop the previous producer side first so an in-flight updateTexImage can't
+                // race with deletion, then wrap the freshly allocated GL name.
+                releaseBindings()
+                val st = SurfaceTexture(name.id).also { surfaceTexture = it }
+                st.setDefaultBufferSize(width, height)
+                st.setOnFrameAvailableListener {
+                    // Trigger a fresh render frame so the GL thread re-runs bindTexture and
+                    // updateTexImage picks up the new frame.
+                    WorldWind.requestRedraw()
+                    onFrameAvailable?.invoke()
+                }
+                surface = Surface(st)
+                boundNameId = name.id
+                ownerThread = current
+                onSurfaceReady?.invoke()
+            }
+            ownerBindNanos = System.nanoTime()
+            // Pull the latest producer frame into the OES texture we just bound. After an
+            // activity pause/resume the driver sometimes reuses the same texture id under a
+            // freshly created EGL context — the id check above won't catch that, but
+            // `updateTexImage` will throw `invalid current EGLContext`. Treat the throw as
+            // a "context cycled" signal: drop the cached wrap so the next bind allocates
+            // fresh state on the current context.
+            return try {
+                surfaceTexture?.updateTexImage()
+                true
+            } catch (_: IllegalStateException) {
+                releaseBindings()
+                false
+            }
         }
     }
 
-    /** Releases the cached `SurfaceTexture` + `Surface` and resets the bind-tracking state. */
+    /** Releases the cached `SurfaceTexture` + `Surface` and resets the bind-tracking state. Call under [lock]. */
     private fun releaseBindings() {
         surface?.release()
         surface = null
@@ -131,7 +142,12 @@ open class MediaSurfaceTexture(width: Int, height: Int) : OesExternalTexture(wid
 
     override fun deleteTexture(dc: DrawContext) {
         // Drop the producer side first so updateTexImage can't race with deletion.
-        releaseBindings()
+        synchronized(lock) { releaseBindings() }
         super.deleteTexture(dc)
+    }
+
+    companion object {
+        /** How long the owning window may go without binding before another window takes the wrap over. */
+        const val OWNER_IDLE_NANOS = 500_000_000L
     }
 }
