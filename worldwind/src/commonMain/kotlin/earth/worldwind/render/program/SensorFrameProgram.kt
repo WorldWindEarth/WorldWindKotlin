@@ -110,28 +110,30 @@ class SensorFrameProgram : AbstractShaderProgram() {
                  * comparisons, no division. Fragments a quad straddling the frame's edge shares
                  * all lie within the margin, so the derivatives below still see a whole quad.
                  */
-                if (clip.w <= 0.0 || abs(clip.x) > clip.w * 1.05 || abs(clip.y) > clip.w * 1.05) return vec4(0.0);
-                HP vec2 ndc = clip.xy / clip.w;
+                /*
+                 * The edge distances and their derivatives come first, for every fragment: a
+                 * return before them leaves the derivatives of a quad straddling the return
+                 * undefined, which drew a faint ring of the outline colour along the rejection
+                 * boundary, a few percent outside the frame.
+                 */
+                HP float w = max(clip.w, 1e-6);
+                HP vec2 ndc = clip.xy / w;
                 /* d: distance to the frame's nearest side in screen pixels, positive inside */
                 HP float e = 1.0 - max(abs(ndc.x), abs(ndc.y));
-            #ifdef WW_HAS_DERIVATIVES
-                HP float d = e / max(fwidth(e), 1e-6);
-            #else
-                HP float d = e / 2e-3;
-            #endif
                 /*
                  * The range is the frame's far edge, drawn like its sides: the slant distance comes
                  * back from the frame matrix, which divided the lateral offsets by tan(FOV/2), and
                  * the metres left to the range turn into screen pixels the same way as e.
                  */
                 HP vec2 lateral = clip.xy * params.xy;
-                HP float er = params.z - sqrt(dot(lateral, lateral) + clip.w * clip.w);
+                HP float er = params.z - sqrt(dot(lateral, lateral) + w * w);
             #ifdef WW_HAS_DERIVATIVES
-                d = min(d, er / max(fwidth(er), 1e-6));
+                HP float d = min(e / max(fwidth(e), 1e-6), er / max(fwidth(er), 1e-6));
             #else
-                d = min(d, er / 2.0);
+                HP float d = min(e / 2e-3, er / 2.0);
             #endif
-                if (d < -0.5) return vec4(0.0);
+                /* Outside the frame, past its range, or behind the sensor */
+                if (clip.w <= 0.0 || d < -0.5) return vec4(0.0);
                 float visible = frameVisibility(clip, ndc, params, cell);
                 float inside = clamp(d + 0.5, 0.0, 1.0);
                 float line = inside * clamp(outlineWidth + 0.5 - d, 0.0, 1.0);
