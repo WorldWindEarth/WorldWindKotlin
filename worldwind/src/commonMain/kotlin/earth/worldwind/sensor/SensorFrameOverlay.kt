@@ -61,6 +61,7 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
         internal var limitsLatitude = Double.NaN
         internal var limitsLongitude = 0.0
         internal var limitsRange = 0.0
+        internal var limitsTimestamp = 0L
     }
 
     val frames = mutableListOf<Frame>()
@@ -131,19 +132,23 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
 
     /**
      * The terrain's height range within the sensor's range, from the elevation model's limits:
-     * read again only when the sensor has moved a tenth of its range, since it changes slowly.
+     * read again when the sensor has moved a tenth of its range, or when the elevation data has
+     * changed since, as tiles under the frame arrive. The limits of data still loading are those
+     * of what is loaded, so a hill that arrives later would otherwise stay outside the band, and
+     * the frame on it outside the scissor, until the sensor moved far enough.
      */
     private fun updateHeightLimits(rc: RenderContext, frame: Frame) {
         val sensor = frame.sensor
         val lat = sensor.position.latitude.inDegrees
         val lon = sensor.position.longitude.inDegrees
         val range = sensor.maxRange
+        val timestamp = rc.globe.elevationModel.timestamp
         val moved = if (frame.limitsLatitude.isNaN()) Double.POSITIVE_INFINITY else {
             val dy = (lat - frame.limitsLatitude) * 111_320.0
             val dx = (lon - frame.limitsLongitude) * 111_320.0 * cos(lat * PI / 180.0)
             sqrt(dx * dx + dy * dy)
         }
-        if (moved < 0.1 * range && range == frame.limitsRange) return
+        if (moved < 0.1 * range && range == frame.limitsRange && timestamp == frame.limitsTimestamp) return
         val dLat = range / 111_320.0
         val dLon = dLat / max(cos(lat * PI / 180.0), 0.01)
         val sector = Sector.fromDegrees(lat - dLat, lon - dLon, 2 * dLat, 2 * dLon)
@@ -151,9 +156,10 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
         limits[1] = -Float.MAX_VALUE
         rc.globe.getElevationLimits(sector, limits)
         if (limits[0] <= limits[1]) {
-            // A margin for finer data arriving with higher peaks or deeper valleys
-            frame.lowAltitude = limits[0] - 100.0
-            frame.highAltitude = limits[1] + 100.0
+            // A margin for finer data arriving with higher peaks or deeper valleys, and for the
+            // limits of coarse levels, which smooth the peaks away
+            frame.lowAltitude = limits[0] - HEIGHT_MARGIN
+            frame.highAltitude = limits[1] + HEIGHT_MARGIN
         } else {
             frame.lowAltitude = -500.0
             frame.highAltitude = 9000.0
@@ -161,9 +167,15 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
         frame.limitsLatitude = lat
         frame.limitsLongitude = lon
         frame.limitsRange = range
+        frame.limitsTimestamp = timestamp
     }
 
     private val limits = FloatArray(2)
+
+    private companion object {
+        /** Metres added above and below the elevation limits read for the scissor's height band. */
+        const val HEIGHT_MARGIN = 300.0
+    }
 
     private fun premultiplied(color: Color, out: FloatArray, offset: Int) {
         out[offset] = color.red * color.alpha
