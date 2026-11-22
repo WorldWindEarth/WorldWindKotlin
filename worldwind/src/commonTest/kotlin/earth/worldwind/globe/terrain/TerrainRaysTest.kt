@@ -62,12 +62,12 @@ class TerrainRaysTest {
     private val originAltitude = 2000.0
 
     /** Ten degrees below horizontal from 2 km reaches the ground about 11.3 km away. */
-    private fun castOn(bearingDeg: Double, depressionDeg: Double = 10.0): Position {
+    private fun castOn(bearingDeg: Double, depressionDeg: Double = 10.0, lat: Double = originLat): Position {
         val result = Position()
         assertTrue(
             terrain.firstHitFrom(
                 globe = globe,
-                latitude = fromDegrees(originLat),
+                latitude = fromDegrees(lat),
                 longitude = fromDegrees(originLon),
                 altitude = originAltitude,
                 bearing = fromDegrees(bearingDeg),
@@ -118,5 +118,12 @@ class TerrainRaysTest {
     @Test
     fun the_ground_it_lands_on_is_the_ground_the_terrain_describes() {
         assertEquals(0.0, castOn(0.0).altitude, 1.0)
+    }
+
+    @Test
+    fun south_from_the_north_pole_runs_down_the_given_meridian() {
+        val hit = castOn(bearingDeg = 180.0, lat = 90.0)
+        assertTrue(hit.latitude.inDegrees < 89.92, "went to ${hit.latitude.inDegrees}")
+        assertEquals(originLon, hit.longitude.inDegrees, 0.01)
     }
 }
