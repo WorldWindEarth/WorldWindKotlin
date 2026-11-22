@@ -185,6 +185,9 @@ internal object JsMilStd2525Renderer : MilStd2525Renderer {
 
 private val loggedCanvasFailures = mutableSetOf<String>()
 
+// Draw once: canvg defaults to a redraw loop and mouse handlers that never stop.
+private val staticRenderOptions: dynamic = js("({ enableRedraw: false, ignoreMouse: true, ignoreAnimation: true })")
+
 /**
  * Rasterize a mil-sym [SVGSymbolInfo] to a canvas via canvg.
  * Used for point symbols and for pattern fills and modifier images on [MilStd2525TacticalGraphic].
@@ -198,7 +201,12 @@ internal fun createMilStdCanvas(info: SVGSymbolInfo, symbolId: String): HTMLCanv
     canvas.height = height
     val ctx = canvas.getContext("2d") as CanvasRenderingContext2D
     try {
-        Canvg.fromString(ctx, info.getSVG()).start()
+        val canvg = Canvg.fromString(ctx, info.getSVG())
+        canvg.start(staticRenderOptions)
+        // With redraw off, an SVG still loading images or fonts is never drawn.
+        if (!canvg.isReady() && loggedCanvasFailures.add(symbolId)) {
+            Logger.log(Logger.WARN, "MIL-STD-2525 symbol '$symbolId' waits on external resources and is left blank")
+        }
     } catch (e: Throwable) {
         // Reset the bitmap in case canvg resized it or drew part of the SVG before failing.
         canvas.width = width
