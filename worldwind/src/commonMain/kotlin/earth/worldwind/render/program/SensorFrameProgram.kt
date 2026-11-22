@@ -119,10 +119,19 @@ class SensorFrameProgram : AbstractShaderProgram() {
             #else
                 HP float d = e / 2e-3;
             #endif
-                if (d < -0.5) return vec4(0.0);
-                /* Slant range: the frame matrix divided the lateral offsets by tan(FOV/2) */
+                /*
+                 * The range is the frame's far edge, drawn like its sides: the slant distance comes
+                 * back from the frame matrix, which divided the lateral offsets by tan(FOV/2), and
+                 * the metres left to the range turn into screen pixels the same way as e.
+                 */
                 HP vec2 lateral = clip.xy * params.xy;
-                if (dot(lateral, lateral) + clip.w * clip.w > params.z * params.z) return vec4(0.0);
+                HP float er = params.z - sqrt(dot(lateral, lateral) + clip.w * clip.w);
+            #ifdef WW_HAS_DERIVATIVES
+                d = min(d, er / max(fwidth(er), 1e-6));
+            #else
+                d = min(d, er / 2.0);
+            #endif
+                if (d < -0.5) return vec4(0.0);
                 float visible = frameVisibility(clip, ndc, params, cell);
                 float inside = clamp(d + 0.5, 0.0, 1.0);
                 float line = inside * clamp(outlineWidth + 0.5 - d, 0.0, 1.0);
