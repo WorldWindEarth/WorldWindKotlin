@@ -74,6 +74,8 @@ open class BasicTerrain(
     }
 
     override fun surfacePoint(latitude: Angle, longitude: Angle, result: Vec3): Boolean {
+        // The terrain sector bounds all tiles
+        if (!sector.contains(latitude, longitude)) return false
         for (i in tiles.indices) {
             val tile = tiles[i]
             val sector = tile.sector

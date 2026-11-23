@@ -6,6 +6,7 @@ import earth.worldwind.geom.Angle.Companion.fromDegrees
 import earth.worldwind.geom.Sector
 import earth.worldwind.geom.Vec3
 import earth.worldwind.globe.Globe
+import earth.worldwind.globe.geoid.Geoid
 import earth.worldwind.globe.elevation.coverage.AbstractElevationCoverage
 import earth.worldwind.globe.projection.MercatorProjection
 import earth.worldwind.globe.terrain.BasicTerrain
@@ -24,7 +25,11 @@ class PointMemoTest {
 
     @BeforeTest
     fun setUp() {
-        globe = Globe()
+        // A loaded geoid: the memo caches only then
+        globe = Globe(geoid = object : Geoid {
+            override val displayName = "fixed"
+            override fun getOffset(latitude: Angle, longitude: Angle) = 12f
+        })
         rc = RenderContext()
         rc.globe = globe
         rc.globeState = globe.state

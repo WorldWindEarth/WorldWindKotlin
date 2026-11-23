@@ -58,6 +58,8 @@ open class Globe(
      * Current globe state.
      */
     val state get() = State(ellipsoid, projection.displayName, geoid.displayName)
+    /** Unique per globe, for per-globe caches; globes are created on the main thread. */
+    internal val id = ++idSequence
     /**
      * The globe offset in 2D continuous projection. Center is the default for 3D.
      */
@@ -295,4 +297,7 @@ open class Globe(
         else -> Position(position)
     }
 
+    private companion object {
+        var idSequence = 0
+    }
 }
