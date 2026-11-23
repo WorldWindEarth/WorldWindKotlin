@@ -11,6 +11,9 @@ interface Geoid {
      */
     val displayName: String
 
+    /** Whether [getOffset] returns real offsets; it returns 0 while they load. */
+    val isLoaded: Boolean get() = true
+
     /**
      * Calculates Gravitational Model offset at specified location
      *

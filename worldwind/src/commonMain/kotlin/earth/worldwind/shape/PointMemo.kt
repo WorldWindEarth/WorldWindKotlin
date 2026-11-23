@@ -11,13 +11,16 @@ import earth.worldwind.render.RenderContext
 
 /**
  * Per-shape memo of the window-independent terms of a geographic to Cartesian conversion, reused
- * across frames and rendering windows by point shapes ([Placemark], [Label]).
+ * across frames by point shapes ([Placemark], [Label]).
  *
  * Cached terms: the altitude-zero base point and the altitude direction (every projection is
  * linear in altitude: cartesian(lat, lon, h) = base + normal * h), the global elevation model
- * height and the geoid offset. All of them are identical for every window, so one memo per shape
- * is correct in multi-window rendering. Terrain-clamped surface points are NOT memoized - the
- * tessellated terrain differs per window and per LoD and is still resolved each frame.
+ * height and the geoid offset. Terrain-clamped surface points are NOT memoized - the tessellated
+ * terrain differs per window and per LoD and is still resolved each frame.
+ *
+ * The terms are kept per [Globe.State] in slots that grow up to [MAX_SLOTS], then reuse the least
+ * recently used; each slot keeps a base point per globe offset. Windows with the same globe
+ * configuration share a slot, as they share one elevation model. No globe is kept alive.
  *
  * Position and globe configuration changes are detected by value, so in-place position edits stay
  * safe. Altitude mode handling mirrors [RenderContext.geographicToCartesian] (without the useEM
@@ -25,32 +28,48 @@ import earth.worldwind.render.RenderContext
  * both paths for every altitude mode.
  */
 open class PointMemo {
+    /** The terms of one globe configuration. */
+    private class Slot(var globeState: Globe.State?) {
+        /** False for the first slot until a globe state claims it. */
+        var isClaimed = false
+        /** [useCount] at last use, for least recently used reuse. */
+        var lastUse = 0L
+        val normal = Vec3()
+        var hasNormal = false
+        // Base point per globe offset, allocated on first use
+        val basePoints = arrayOfNulls<Vec3>(Globe.Offset.entries.size)
+        var baseMask = 0
+        var elevation = 0.0
+        var elevationTimestamp = 0L
+        var hasElevation = false
+        var geoidOffset = 0f
+        var hasGeoid = false
+
+        fun reset() {
+            hasNormal = false
+            baseMask = 0
+            hasElevation = false
+            hasGeoid = false
+        }
+    }
+
     private var latitude = ZERO
     private var longitude = ZERO
-    private var globeState: Globe.State? = null
-    // 2D continuous globes render each frame at up to three globe offsets; keep a base point per
-    // offset so the passes do not evict each other. Center is used by every mode; the Right and
-    // Left slots allocate lazily on the first 2D pass. The normal, elevation and geoid offset do
-    // not depend on the globe offset and are shared.
-    private val basePoints = arrayOfNulls<Vec3>(Globe.Offset.entries.size)
-    private var basePoint = Vec3().also { basePoints[Globe.Offset.Center.ordinal] = it }
-    private var baseMask = 0
-    private val normal = Vec3()
+    private var hasLocation = false
     private val sector = Sector()
-    private var hasBase = false
-    private var elevation = 0.0
-    private var elevationTimestamp = 0L
-    private var hasElevation = false
-    private var geoidOffset = 0f
-    private var hasGeoid = false
+    /** Slot of the current call, checked first. */
+    private var slot = Slot(null)
+    private var slots = arrayOf<Slot?>(slot)
+    private var slotCount = 1
+    private var useCount = 0L
+    /** Base point of the current call's globe offset. */
+    private var basePoint = Vec3()
 
     /**
      * Forgets all cached terms, forcing recomputation on next use.
      */
     fun invalidate() {
-        hasBase = false
-        hasElevation = false
-        hasGeoid = false
+        for (slot in slots) slot?.reset()
     }
 
     /**
@@ -92,48 +111,75 @@ open class PointMemo {
      */
     fun geographicToCartesianNormal(rc: RenderContext, latitude: Angle, longitude: Angle, result: Vec3): Vec3 {
         prepare(rc, latitude, longitude)
-        return result.copy(normal)
+        return result.copy(slot.normal)
     }
 
     /**
-     * Revalidates the memoized terms against the position and globe configuration, and selects
-     * the base point slot of the globe offset rendered by the current pass.
+     * Revalidates the terms against the position and selects the slot of the current globe
+     * configuration.
      */
     private fun prepare(rc: RenderContext, latitude: Angle, longitude: Angle) {
-        if (!hasBase || latitude != this.latitude || longitude != this.longitude || rc.globeState != globeState) {
+        if (!hasLocation || latitude != this.latitude || longitude != this.longitude) {
             this.latitude = latitude
             this.longitude = longitude
+            hasLocation = true
             // Small non-degenerate sector around the location for elevation update intersection tests
             sector.setDegrees(
                 latitude.inDegrees - SECTOR_RADIUS_DEGREES, longitude.inDegrees - SECTOR_RADIUS_DEGREES,
                 2 * SECTOR_RADIUS_DEGREES, 2 * SECTOR_RADIUS_DEGREES
             )
-            globeState = rc.globeState
-            rc.globe.geographicToCartesianNormal(latitude, longitude, normal)
-            baseMask = 0
-            hasBase = true
-            hasElevation = false
-            hasGeoid = false
+            invalidate()
         }
-        val index = rc.globe.offset.ordinal
-        basePoint = basePoints[index] ?: Vec3().also { basePoints[index] = it }
-        if (baseMask and (1 shl index) == 0) {
-            rc.globe.geographicToCartesian(latitude, longitude, 0.0, basePoint)
-            baseMask = baseMask or (1 shl index)
+        val globe = rc.globe
+        val state = rc.globeState
+        if (!slot.isClaimed || slot.globeState != state) slot = slotOf(state)
+        val slot = slot
+        slot.lastUse = ++useCount
+        if (!slot.hasNormal) {
+            globe.geographicToCartesianNormal(latitude, longitude, slot.normal)
+            slot.hasNormal = true
+        }
+        val index = globe.offset.ordinal
+        basePoint = slot.basePoints[index] ?: Vec3().also { slot.basePoints[index] = it }
+        if (slot.baseMask and (1 shl index) == 0) {
+            globe.geographicToCartesian(latitude, longitude, 0.0, basePoint)
+            slot.baseMask = slot.baseMask or (1 shl index)
         }
     }
 
-    private fun pointAt(altitude: Double, result: Vec3) = result.set(
-        basePoint.x + normal.x * altitude,
-        basePoint.y + normal.y * altitude,
-        basePoint.z + normal.z * altitude
-    )
+    /** Slot of [state]: existing, unclaimed, new, or the least recently used at [MAX_SLOTS]. */
+    private fun slotOf(state: Globe.State?): Slot {
+        var lru = 0
+        for (i in 0 until slotCount) {
+            val slot = slots[i]!!
+            if (slot.isClaimed && slot.globeState == state) return slot
+            if (slot.lastUse < slots[lru]!!.lastUse) lru = i
+        }
+        val reused = slots[lru]!!
+        if (reused.isClaimed && slotCount < MAX_SLOTS) {
+            if (slotCount == slots.size) slots = slots.copyOf(minOf(slots.size * 2, MAX_SLOTS))
+            return Slot(state).also { it.isClaimed = true; slots[slotCount++] = it }
+        }
+        return reused.also {
+            it.globeState = state
+            it.isClaimed = true
+            it.reset()
+        }
+    }
 
-    private fun offsetAlongNormal(distance: Double, point: Vec3) = point.set(
-        point.x + normal.x * distance,
-        point.y + normal.y * distance,
-        point.z + normal.z * distance
-    )
+    private fun pointAt(altitude: Double, result: Vec3): Vec3 {
+        val normal = slot.normal
+        return result.set(
+            basePoint.x + normal.x * altitude,
+            basePoint.y + normal.y * altitude,
+            basePoint.z + normal.z * altitude
+        )
+    }
+
+    private fun offsetAlongNormal(distance: Double, point: Vec3): Vec3 {
+        val normal = slot.normal
+        return point.set(point.x + normal.x * distance, point.y + normal.y * distance, point.z + normal.z * distance)
+    }
 
     /**
      * The global elevation model height incl. geoid offset, matching [Globe.getElevation].
@@ -142,21 +188,26 @@ open class PointMemo {
      * update log window.
      */
     private fun elevation(rc: RenderContext): Double {
+        val slot = slot
         val timestamp = rc.elevationModelTimestamp
-        if (!hasElevation || timestamp != elevationTimestamp && rc.globe.isElevationChangedSince(elevationTimestamp, sector)) {
-            elevation = rc.globe.getElevation(latitude, longitude)
-            hasElevation = true
+        if (!slot.hasElevation ||
+            timestamp != slot.elevationTimestamp && rc.globe.isElevationChangedSince(slot.elevationTimestamp, sector)
+        ) {
+            slot.elevation = rc.globe.getElevation(latitude, longitude)
+            // Includes the geoid offset: cache only once the geoid has loaded
+            slot.hasElevation = rc.globe.geoid.isLoaded
         }
-        elevationTimestamp = timestamp
-        return elevation
+        slot.elevationTimestamp = timestamp
+        return slot.elevation
     }
 
     private fun geoidOffset(rc: RenderContext): Float {
-        if (!hasGeoid) {
-            geoidOffset = rc.globe.geoid.getOffset(latitude, longitude)
-            hasGeoid = true
+        val slot = slot
+        if (!slot.hasGeoid) {
+            slot.geoidOffset = rc.globe.geoid.getOffset(latitude, longitude)
+            slot.hasGeoid = rc.globe.geoid.isLoaded
         }
-        return geoidOffset
+        return slot.geoidOffset
     }
 
     companion object {
@@ -166,5 +217,7 @@ open class PointMemo {
          * tile size (~11 meters).
          */
         private const val SECTOR_RADIUS_DEGREES = 1.0e-4
+        /** Most globe configurations kept before the least recently used slot is reused. */
+        internal const val MAX_SLOTS = 32
     }
 }

@@ -27,6 +27,8 @@ abstract class AbstractEGM96Geoid(
     private var isLoadDataRequested = false
     private var loadJob: Job? = null
     protected abstract val isInitialized: Boolean
+    // Also once a load attempt failed: offsets stay 0, so callers may cache them
+    override val isLoaded get() = isInitialized || loadJob?.isCompleted == true
 
     /**
      * Request data load once
