@@ -27,7 +27,7 @@ import earth.worldwind.util.kgl.KglUniformLocation
  *
  * Vertices arrive tile-origin-relative; the per-tile frame matrices fold the tile origin in.
  */
-class SensorFrameProgram : AbstractShaderProgram() {
+open class SensorFrameProgram : AbstractShaderProgram() {
 
     override var programSources = arrayOf(
         """
@@ -211,6 +211,8 @@ class SensorFrameProgram : AbstractShaderProgram() {
          * cube (5); the pass parks a plain texture back on it when done.
          */
         const val DEPTH_UNIT = 6
+        /** Texture unit of a frame's media, see [SensorFrameMediaProgram]. */
+        const val MEDIA_UNIT = 7
         private const val CELL_PIXELS = earth.worldwind.draw.DrawContext.SENSOR_FRAME_DEPTH_CELL
         internal val CELL_PIXELS_FLOAT = "$CELL_PIXELS.0"
     }

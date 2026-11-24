@@ -6,6 +6,9 @@ import earth.worldwind.render.program.DirectionalDepthProgram
 import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
+import earth.worldwind.render.Texture
+import earth.worldwind.render.program.SensorFrameMediaProgram
+import earth.worldwind.render.program.SensorFrameMediaProgramOES
 import earth.worldwind.render.program.SensorFrameProgram
 import earth.worldwind.geom.Sector
 import kotlin.math.PI
@@ -55,6 +58,12 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
         var occludedColor: Color = Color(0f, 0f, 0f, 0f),
     ) {
         var isEnabled = true
+        /**
+         * The sensor's picture, shown on the ground it sees inside the frame, with [mediaOpacity];
+         * null for none. Its coordinate transform maps the frame's 0..1 to the texture.
+         */
+        var media: Texture? = null
+        var mediaOpacity = 1f
         // Terrain height range under the frame, refreshed as the sensor moves (for the scissor)
         internal var lowAltitude = 0.0
         internal var highAltitude = 0.0
@@ -108,6 +117,12 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
             premultiplied(frame.outlineColor, d.outlineColors, 4 * k)
             premultiplied(frame.fillColor, d.fillColors, 4 * k)
             premultiplied(frame.occludedColor, d.occludedColors, 4 * k)
+            d.media[k] = frame.media
+            d.mediaOpacity[k] = frame.mediaOpacity
+            if (frame.media != null && d.mediaProgram == null) {
+                d.mediaProgram = rc.getShaderProgram { SensorFrameMediaProgram() }
+                d.mediaProgramOes = rc.getShaderProgram { SensorFrameMediaProgramOES() }
+            }
             d.frameParams[4 * k] = tan(sensor.horizontalFov.inRadians / 2).toFloat()
             d.frameParams[4 * k + 1] = tan(sensor.verticalFov.inRadians / 2).toFloat()
             d.frameParams[4 * k + 2] = min(sensor.maxRange, Float.MAX_VALUE.toDouble()).toFloat()

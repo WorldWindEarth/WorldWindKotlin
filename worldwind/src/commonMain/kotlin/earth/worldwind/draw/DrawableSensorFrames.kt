@@ -1,11 +1,14 @@
 package earth.worldwind.draw
 
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.render.Texture
+import earth.worldwind.render.program.SensorFrameMediaProgram
 import earth.worldwind.render.program.SensorFrameProgram
 import earth.worldwind.render.program.SensorFrameProgram.Companion.MAX_FRAMES
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.GL_SCISSOR_TEST
 import earth.worldwind.util.kgl.GL_TEXTURE0
+import earth.worldwind.util.kgl.GL_TEXTURE_EXTERNAL_OES
 import kotlin.jvm.JvmStatic
 import kotlin.math.sqrt
 
@@ -24,6 +27,10 @@ import kotlin.math.sqrt
  * Frames with a cell in the depth atlas ([DrawableSensorFrameDepth], rendered earlier in the
  * frame) are occluded: their fill is drawn only where the sensor sees the ground, and their
  * occluded colour where a ridge hides it. The outline is drawn either way.
+ *
+ * A frame with [media] is drawn once more on its own, after the others, with
+ * [SensorFrameMediaProgram]: the picture where the sensor sees the ground, its tint and outline
+ * over it.
  */
 open class DrawableSensorFrames protected constructor() : Drawable {
     /** World → frame transforms (see `Sensor.frameTransform`), the first [count] used. */
@@ -37,12 +44,18 @@ open class DrawableSensorFrames protected constructor() : Drawable {
     val frameParams = FloatArray(4 * MAX_TOTAL)
     /** Depth atlas cell per frame: origin u, v, size, and 1 when occluded (0 to draw it unoccluded). */
     val depthCells = FloatArray(4 * MAX_TOTAL)
+    /** A frame's media texture and its opacity, where it has one. */
+    val media = arrayOfNulls<Texture>(MAX_TOTAL)
+    val mediaOpacity = FloatArray(MAX_TOTAL)
     var count = 0
     var outlineWidth = 2f
     /** Screen rectangle per frame (x, y, width, height, window coordinates), or width -1 for none. */
     val frameRects = IntArray(4 * MAX_TOTAL)
 
     var program: SensorFrameProgram? = null
+    /** For the frames with media: a plain texture, and an external one. */
+    var mediaProgram: SensorFrameMediaProgram? = null
+    var mediaProgramOes: SensorFrameMediaProgram? = null
     private var pool: Pool<DrawableSensorFrames>? = null
     private val mvp = Matrix4()
     private val tileMatrix = Matrix4()
@@ -96,8 +109,11 @@ open class DrawableSensorFrames protected constructor() : Drawable {
     }
 
     override fun recycle() {
+        media.fill(null, 0, count)
         count = 0
         program = null
+        mediaProgram = null
+        mediaProgramOes = null
         pool?.release(this)
         pool = null
     }
@@ -114,10 +130,17 @@ open class DrawableSensorFrames protected constructor() : Drawable {
         }
         if (!occlusion) for (k in 0 until count) depthCells[4 * k + 3] = 0f
         program.loadOutlineWidth(outlineWidth)
+        var mediaBound = false
         try {
             drawTiles(dc, program)
+            mediaBound = drawMedia(dc)
         } finally {
             dc.gl.disable(GL_SCISSOR_TEST)
+            if (mediaBound) {
+                dc.activeTextureUnit(GL_TEXTURE0 + SensorFrameProgram.MEDIA_UNIT)
+                dc.defaultTexture.bindTexture(dc)
+                dc.activeTextureUnit(GL_TEXTURE0)
+            }
             // Park a plain texture on the depth unit: other programs sample it as a sampler2D,
             // and the next depth pass renders into the atlas
             if (occlusion) {
@@ -167,6 +190,50 @@ open class DrawableSensorFrames protected constructor() : Drawable {
                 start += size
             }
         }
+    }
+
+    /**
+     * Draws each frame with media on its own over the tiles it reaches, the media bound on
+     * [SensorFrameProgram.MEDIA_UNIT]. True when a media texture was bound.
+     */
+    private fun drawMedia(dc: DrawContext): Boolean {
+        var bound = false
+        for (k in 0 until count) {
+            val texture = media[k] ?: continue
+            val program = (if (texture.target == GL_TEXTURE_EXTERNAL_OES) mediaProgramOes else mediaProgram) ?: continue
+            if (!program.useProgram(dc)) continue
+            dc.activeTextureUnit(GL_TEXTURE0 + SensorFrameProgram.MEDIA_UNIT)
+            val ok = texture.bindTexture(dc)
+            dc.activeTextureUnit(GL_TEXTURE0)
+            if (!ok) continue
+            bound = true
+            program.loadOutlineWidth(outlineWidth)
+            program.loadMedia(texture.coordTransform, mediaOpacity[k])
+            outlineColors.copyInto(chunkOutline, 0, 4 * k, 4 * k + 4)
+            fillColors.copyInto(chunkFill, 0, 4 * k, 4 * k + 4)
+            occludedColors.copyInto(chunkOccluded, 0, 4 * k, 4 * k + 4)
+            frameParams.copyInto(chunkParams, 0, 4 * k, 4 * k + 4)
+            depthCells.copyInto(chunkCells, 0, 4 * k, 4 * k + 4)
+            program.loadFrames(1, chunkOutline, chunkFill, chunkOccluded, chunkParams, chunkCells)
+            reached[0] = k
+            if (!scissorTo(dc, 0, 1)) continue
+            val range = frameParams[4 * k + 2].toDouble()
+            for (idx in 0 until dc.drawableTerrainCount) {
+                val terrain = dc.getDrawableTerrain(idx)
+                val origin = terrain.vertexOrigin
+                val radius = terrain.boundingSphereRadius
+                if (isTileCullingEnabled && radius > 0.0 && !reaches(frameMatrices[k], range, origin.x, origin.y, origin.z, radius)) continue
+                if (!terrain.useVertexPointAttrib(dc, 0 /*vertexPoint*/)) continue
+                mvp.copy(dc.modelviewProjection).multiplyByTranslation(origin.x, origin.y, origin.z)
+                program.loadModelviewProjection(mvp)
+                tileMatrix.copy(frameMatrices[k]).multiplyByTranslation(origin.x, origin.y, origin.z)
+                tileMatrix.transposeToArray(chunkMatrices, 0)
+                program.loadFrameMatrices(chunkMatrices)
+                terrain.drawTriangles(dc)
+                statDraws++
+            }
+        }
+        return bound
     }
 
     /**
