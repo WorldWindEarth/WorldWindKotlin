@@ -140,8 +140,10 @@ class SensorFrameProgram : AbstractShaderProgram() {
             }
             #endif
 
-            /* The frame's seen ground at this fragment: 1 inside and seen, the mean of nine depth tests
-               around it, 0 outside the frame, past its range or behind the sensor */
+            /* The frame's seen ground at this fragment: 1 inside and seen, 0 outside the frame, past its
+               range, behind the sensor or hidden. One plain test, as the fill: averaging the sensor's
+               depth texels fails on ground the sensor sees at a grazing angle, where the next texel is
+               already much deeper; the edge pass averages screen pixels of this mask instead. */
             float frameMask(HP vec4 clip, HP vec4 params, HP vec4 cell) {
                 if (clip.w <= 0.0) return 0.0;
                 HP float ec = clip.w - max(abs(clip.x), abs(clip.y));
@@ -149,15 +151,7 @@ class SensorFrameProgram : AbstractShaderProgram() {
                 HP float er = params.z - sqrt(dot(lateral, lateral) + clip.w * clip.w);
                 if (ec < 0.0 || er < 0.0) return 0.0;
                 if (cell.w < 0.5) return 1.0;
-                HP vec2 ndc = clip.xy / clip.w;
-                HP float t = 2.0 / $CELL_PIXELS_FLOAT;
-                float v = 0.0;
-                for (int j = -1; j <= 1; j++) {
-                    for (int i = -1; i <= 1; i++) {
-                        v += frameVisibility(clip, ndc + vec2(float(i), float(j)) * t, params, cell);
-                    }
-                }
-                return v / 9.0;
+                return frameVisibility(clip, clip.xy / clip.w, params, cell);
             }
 
             /* Premultiplied tint of one frame at this fragment; vec4(0) outside it. */

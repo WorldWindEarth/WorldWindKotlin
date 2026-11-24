@@ -162,6 +162,18 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
                     d.outlineColors.copyInto(it.edgeColors, 0, 0, 4 * n)
                     it.count = n
                     it.edgeWidth = seenEdgeWidth
+                    // The union of the frames' screen rectangles, or the whole viewport when one is unbounded
+                    var x0 = Int.MAX_VALUE; var y0 = Int.MAX_VALUE; var x1 = Int.MIN_VALUE; var y1 = Int.MIN_VALUE
+                    var unbounded = false
+                    for (k in 0 until n) {
+                        val w = d.frameRects[4 * k + 2]
+                        if (w < 0) unbounded = true
+                        if (w <= 0 || d.frameRects[4 * k + 3] == 0) continue
+                        x0 = minOf(x0, d.frameRects[4 * k]); y0 = minOf(y0, d.frameRects[4 * k + 1])
+                        x1 = maxOf(x1, d.frameRects[4 * k] + w); y1 = maxOf(y1, d.frameRects[4 * k + 1] + d.frameRects[4 * k + 3])
+                    }
+                    if (unbounded || x0 >= x1 || y0 >= y1) it.rect[2] = -1
+                    else { it.rect[0] = x0; it.rect[1] = y0; it.rect[2] = x1 - x0; it.rect[3] = y1 - y0 }
                     it.program = rc.getShaderProgram { SensorEdgeProgram() }
                 }
                 rc.offerScreenDrawable(edges, SEEN_EDGE_Z_ORDER)

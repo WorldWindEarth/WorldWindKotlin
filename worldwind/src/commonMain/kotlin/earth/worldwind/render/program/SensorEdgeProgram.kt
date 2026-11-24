@@ -23,6 +23,7 @@ class SensorEdgeProgram : AbstractShaderProgram() {
     private var frameCountId = KglUniformLocation.NONE
     private var edgeColorId = KglUniformLocation.NONE
     private var edgeWidthId = KglUniformLocation.NONE
+    private var texelSizeId = KglUniformLocation.NONE
 
     override fun initProgram(dc: DrawContext) {
         super.initProgram(dc)
@@ -31,12 +32,16 @@ class SensorEdgeProgram : AbstractShaderProgram() {
         frameCountId = gl.getUniformLocation(program, "frameCount")
         edgeColorId = gl.getUniformLocation(program, "edgeColor")
         edgeWidthId = gl.getUniformLocation(program, "edgeWidth")
+        texelSizeId = gl.getUniformLocation(program, "texelSize")
         for (j in 0 until TARGETS) gl.uniform1i(gl.getUniformLocation(program, "mask$j"), j)
         gl.uniform1i(maskCountId, 0)
         gl.uniform1i(frameCountId, 0)
     }
 
     fun loadTexScale(x: Float, y: Float) = gl.uniform2f(texScaleId, x, y)
+
+    /** One mask texel in texture coordinates. */
+    fun loadTexelSize(x: Float, y: Float) = gl.uniform2f(texelSizeId, x, y)
 
     /** [colors] premultiplied, 4 floats per frame, in the masks' channel order. */
     fun loadEdges(frameCount: Int, maskCount: Int, colors: FloatArray, width: Float) {
@@ -72,7 +77,20 @@ class SensorEdgeProgram : AbstractShaderProgram() {
                 uniform int frameCount;
                 uniform vec4 edgeColor[${DrawableSensorMask.MAX_FRAMES}];
                 uniform float edgeWidth;
+                uniform vec2 texelSize;
                 varying vec2 texCoord;
+
+                /* The mask averaged over the nine texels around this pixel: a lone wrong texel is a ninth
+                   and never crosses one half, a boundary a ramp crossing it once */
+                vec4 average(sampler2D mask) {
+                    vec4 m = vec4(0.0);
+                    for (int j = -1; j <= 1; j++) {
+                        for (int i = -1; i <= 1; i++) {
+                            m += texture2D(mask, texCoord + vec2(float(i), float(j)) * texelSize);
+                        }
+                    }
+                    return m / 9.0;
+                }
 
                 /* Coverage of a line edgeWidth pixels wide along the mask's one-half crossing */
                 float edge(float m) {
@@ -90,7 +108,7 @@ class SensorEdgeProgram : AbstractShaderProgram() {
                     float a;
             """.trimIndent()).append('\n')
             for (j in 0 until TARGETS) {
-                append("    if (maskCount > $j) {\n        m = texture2D(mask$j, texCoord);\n")
+                append("    if (maskCount > $j) {\n        m = average(mask$j);\n")
                 val channels = arrayOf("r", "g", "b", "a")
                 for (c in 0 until PER_TARGET) {
                     val k = j * PER_TARGET + c
