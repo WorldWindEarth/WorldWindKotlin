@@ -105,52 +105,38 @@ class SensorFrameProgram : AbstractShaderProgram() {
             #endif
             }
 
+            #ifdef WW_SHADOW_SAMPLERS
+            /* A comparison sampler yields no depths to compare, so this variant has no crest test */
+            float outlineVisibility(HP vec4 clip, HP vec2 ndc, HP vec4 params, HP vec4 cell) { return 1.0; }
+            #else
+            /* The depth the sensor saw at a depth-map position, 1 where nothing was drawn. */
+            HP float storedDepth(HP vec2 uv) { return texture2D(frameDepth, uv).r; }
+
             /*
-             * Visibility for the outline: hidden as soon as any of the eight neighbouring depth
-             * texels holds ground nearer than this fragment's ground would be there. Behind a
-             * crest a texel straddles the ridge and the plain test flickers through as dashes; the
-             * neighbour holding the crest settles it. The ground's depth changes across a texel,
-             * a great deal at a grazing angle, so each neighbour is compared with the depth the
-             * fragment's own ground plane predicts there (the receiver-plane bias of shadow
-             * mapping), from the screen derivatives of the depth-map position and the depth, which
-             * the caller takes in uniform control flow. Flat ground, however grazing, keeps its
-             * outline, since the plane predicts its neighbours. The prediction is capped at a few
-             * texels' worth of depth and the neighbours get twice the bias: at a close zoom a
-             * screen pixel spans a sliver of a fine terrain triangle, whose slope says nothing
-             * about the next depth texel tens of metres away, while a crest is nearer by far more.
+             * Visibility for the outline. Behind a crest a depth texel straddles the ridge and the
+             * plain test flickers through as dashes. The depth map itself tells a crest from smooth
+             * ground: along each axis the two neighbouring texels predict this one's depth by their
+             * mean, and a stored depth that jumps away from that prediction by more than smooth
+             * ground can is the ridge; the outline is then hidden. Every number comes from the map
+             * at the map's own resolution, so the test does not change with the zoom or the angle
+             * of view, and smooth ground, flat or steep, keeps its line.
              */
-            float outlineVisibility(
-                HP vec4 clip, HP vec2 ndc, HP vec4 params, HP vec4 cell,
-                HP vec2 dpdx, HP vec2 dpdy, HP float dddx, HP float dddy
-            ) {
+            float outlineVisibility(HP vec4 clip, HP vec2 ndc, HP vec4 params, HP vec4 cell) {
                 if (cell.w < 0.5) return 1.0;
                 HP vec2 p = clamp(ndc * 0.5 + 0.5, 0.0, 1.0);
-                HP float depth = 0.5 * clip.z / clip.w + 0.5;
+                HP vec2 uv = cell.xy + p * cell.z;
+                HP float t = cell.z / $CELL_PIXELS_FLOAT;
                 HP float texel = 2.0 * clip.w * max(params.x, params.y) / $CELL_PIXELS_FLOAT;
                 HP float bias = params.w * (0.5 + 2.0 * texel) / (clip.w * clip.w);
-                /* Depth per unit of depth-map position, from the two screen derivatives */
-                HP float det = dpdx.x * dpdy.y - dpdx.y * dpdy.x;
-                HP vec2 grad = abs(det) > 1e-12
-                    ? vec2(dpdy.y * dddx - dpdx.y * dddy, dpdx.x * dddy - dpdy.x * dddx) / det
-                    : vec2(0.0);
-                HP float t = 1.0 / $CELL_PIXELS_FLOAT;
-                HP float cap = 4.0 * bias;
-                float v = 1.0;
-                for (int j = -1; j <= 1; j++) {
-                    for (int i = -1; i <= 1; i++) {
-                        HP vec2 o = vec2(float(i), float(j)) * t;
-                        HP vec2 uv = cell.xy + clamp(p + o, 0.0, 1.0) * cell.z;
-                        HP float predicted = depth + clamp(dot(grad, o), -cap, cap);
-                        HP float reference = clamp(predicted - (i == 0 && j == 0 ? bias : 2.0 * bias), 0.0, 1.0);
-            #ifdef WW_SHADOW_SAMPLERS
-                        v = min(v, textureLod(frameDepth, vec3(uv, reference), 0.0));
-            #else
-                        v = min(v, step(reference, texture2D(frameDepth, uv).r));
-            #endif
-                    }
-                }
-                return step(0.5, v);
+                HP float here = storedDepth(uv);
+                HP float jump = 0.0;
+                jump = max(jump, abs(0.5 * (storedDepth(uv + vec2(t, 0.0)) + storedDepth(uv - vec2(t, 0.0))) - here));
+                jump = max(jump, abs(0.5 * (storedDepth(uv + vec2(0.0, t)) + storedDepth(uv - vec2(0.0, t))) - here));
+                jump = max(jump, abs(0.5 * (storedDepth(uv + vec2(t, t)) + storedDepth(uv - vec2(t, t))) - here));
+                jump = max(jump, abs(0.5 * (storedDepth(uv + vec2(t, -t)) + storedDepth(uv - vec2(t, -t))) - here));
+                return step(jump, 4.0 * bias);
             }
+            #endif
 
             /* Premultiplied tint of one frame at this fragment; vec4(0) outside it. */
             vec4 frameTint(HP vec4 clip, HP vec4 params, HP vec4 cell, vec4 outline, vec4 fill, vec4 occluded) {
@@ -185,16 +171,8 @@ class SensorFrameProgram : AbstractShaderProgram() {
                 /* The outline is the frame itself, drawn whether or not the sensor sees the ground there,
                    unless the outline is occluded too: then it stops where a ridge hides the ground */
                 float line = inside * clamp(outlineWidth + 0.5 - d, 0.0, 1.0);
-                if (outlineOccluded > 0.5) {
-                    /* Derivatives before any per-fragment branch, so the whole quad takes them */
-                    HP vec2 p = ndc * 0.5 + 0.5;
-                    HP float depth = 0.5 * clip.z / clip.w + 0.5;
-                    HP vec2 dpdx = dFdx(p);
-                    HP vec2 dpdy = dFdy(p);
-                    HP float dddx = dFdx(depth);
-                    HP float dddy = dFdy(depth);
-                    if (line > 0.0) line *= outlineVisibility(clip, ndc, params, cell, dpdx, dpdy, dddx, dddy);
-                }
+                /* Hidden where the sensor does not see the ground, and beside a crest in the depth map */
+                if (line > 0.0 && outlineOccluded > 0.5) line *= visible * outlineVisibility(clip, ndc, params, cell);
                 return outline * line + mix(occluded, fill, visible) * inside * (1.0 - line);
             }
 
