@@ -23,8 +23,7 @@ import kotlin.math.sqrt
  *
  * Frames with a cell in the depth atlas ([DrawableSensorFrameDepth], rendered earlier in the
  * frame) are occluded: their fill is drawn only where the sensor sees the ground, and their
- * occluded colour where a ridge hides it. The outline is drawn either way, unless
- * [isOutlineOccluded] cuts it where the ridge hides the ground too.
+ * occluded colour where a ridge hides it. The outline is drawn either way.
  */
 open class DrawableSensorFrames protected constructor() : Drawable {
     /** World → frame transforms (see `Sensor.frameTransform`), the first [count] used. */
@@ -40,8 +39,6 @@ open class DrawableSensorFrames protected constructor() : Drawable {
     val depthCells = FloatArray(4 * MAX_TOTAL)
     var count = 0
     var outlineWidth = 2f
-    /** Whether the outline, like the fill, stops where terrain nearer to the sensor hides the ground. */
-    var isOutlineOccluded = false
     /** Screen rectangle per frame (x, y, width, height, window coordinates), or width -1 for none. */
     val frameRects = IntArray(4 * MAX_TOTAL)
 
@@ -70,10 +67,6 @@ open class DrawableSensorFrames protected constructor() : Drawable {
         /** Diagnostics: whether tiles no frame reaches are skipped, and whether draws are scissored. */
         var isTileCullingEnabled = true
         var isScissorEnabled = true
-        /** Diagnostics for the seen-ground edge: whether the mask is written, whether the edge is drawn, and the mask's scale. */
-        var isSeenMaskEnabled = true
-        var isSeenEdgeEnabled = true
-        var seenMaskScale = 1f
 
         @JvmStatic
         fun obtain(pool: Pool<DrawableSensorFrames>): DrawableSensorFrames {
@@ -121,7 +114,6 @@ open class DrawableSensorFrames protected constructor() : Drawable {
         }
         if (!occlusion) for (k in 0 until count) depthCells[4 * k + 3] = 0f
         program.loadOutlineWidth(outlineWidth)
-        program.loadOutlineOccluded(isOutlineOccluded)
         try {
             drawTiles(dc, program)
         } finally {

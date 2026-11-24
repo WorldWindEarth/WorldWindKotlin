@@ -63,10 +63,6 @@ class SensorFrameProgram : AbstractShaderProgram() {
 
             uniform int frameCount;
             uniform float outlineWidth;
-            /* 1 to cut the outline too where terrain nearer to the sensor hides the ground */
-            uniform float outlineOccluded;
-            /* 1 to write each frame's seen-ground mask, inside times filtered visibility, instead of its tint */
-            uniform float maskMode;
             uniform vec4 outlineColor[$MAX_FRAMES];
             uniform vec4 fillColor[$MAX_FRAMES];
             uniform vec4 occludedColor[$MAX_FRAMES];
@@ -107,53 +103,6 @@ class SensorFrameProgram : AbstractShaderProgram() {
             #endif
             }
 
-            #ifdef WW_SHADOW_SAMPLERS
-            /* A comparison sampler yields no depths to compare, so this variant has no crest test */
-            float outlineVisibility(HP vec4 clip, HP vec2 ndc, HP vec4 params, HP vec4 cell) { return 1.0; }
-            #else
-            /* The depth the sensor saw at a depth-map position, 1 where nothing was drawn. */
-            HP float storedDepth(HP vec2 uv) { return texture2D(frameDepth, uv).r; }
-
-            /*
-             * Visibility for the outline. Behind a crest a depth texel straddles the ridge and the
-             * plain test flickers through as dashes. The depth map itself tells a crest from smooth
-             * ground: along each axis the two neighbouring texels predict this one's depth by their
-             * mean, and a stored depth that jumps away from that prediction by more than smooth
-             * ground can is the ridge; the outline is then hidden. Every number comes from the map
-             * at the map's own resolution, so the test does not change with the zoom or the angle
-             * of view, and smooth ground, flat or steep, keeps its line.
-             */
-            float outlineVisibility(HP vec4 clip, HP vec2 ndc, HP vec4 params, HP vec4 cell) {
-                if (cell.w < 0.5) return 1.0;
-                HP vec2 p = clamp(ndc * 0.5 + 0.5, 0.0, 1.0);
-                HP vec2 uv = cell.xy + p * cell.z;
-                HP float t = cell.z / $CELL_PIXELS_FLOAT;
-                HP float texel = 2.0 * clip.w * max(params.x, params.y) / $CELL_PIXELS_FLOAT;
-                HP float bias = params.w * (0.5 + 2.0 * texel) / (clip.w * clip.w);
-                HP float here = storedDepth(uv);
-                HP float jump = 0.0;
-                jump = max(jump, abs(0.5 * (storedDepth(uv + vec2(t, 0.0)) + storedDepth(uv - vec2(t, 0.0))) - here));
-                jump = max(jump, abs(0.5 * (storedDepth(uv + vec2(0.0, t)) + storedDepth(uv - vec2(0.0, t))) - here));
-                jump = max(jump, abs(0.5 * (storedDepth(uv + vec2(t, t)) + storedDepth(uv - vec2(t, t))) - here));
-                jump = max(jump, abs(0.5 * (storedDepth(uv + vec2(t, -t)) + storedDepth(uv - vec2(t, -t))) - here));
-                return step(jump, 4.0 * bias);
-            }
-            #endif
-
-            /* The frame's seen ground at this fragment: 1 inside and seen, 0 outside the frame, past its
-               range, behind the sensor or hidden. One plain test, as the fill: averaging the sensor's
-               depth texels fails on ground the sensor sees at a grazing angle, where the next texel is
-               already much deeper; the edge pass averages screen pixels of this mask instead. */
-            float frameMask(HP vec4 clip, HP vec4 params, HP vec4 cell) {
-                if (clip.w <= 0.0) return 0.0;
-                HP float ec = clip.w - max(abs(clip.x), abs(clip.y));
-                HP vec2 lateral = clip.xy * params.xy;
-                HP float er = params.z - sqrt(dot(lateral, lateral) + clip.w * clip.w);
-                if (ec < 0.0 || er < 0.0) return 0.0;
-                if (cell.w < 0.5) return 1.0;
-                return frameVisibility(clip, clip.xy / clip.w, params, cell);
-            }
-
             /* Premultiplied tint of one frame at this fragment; vec4(0) outside it. */
             vec4 frameTint(HP vec4 clip, HP vec4 params, HP vec4 cell, vec4 outline, vec4 fill, vec4 occluded) {
                 /*
@@ -184,24 +133,12 @@ class SensorFrameProgram : AbstractShaderProgram() {
                 HP vec2 ndc = clip.xy / clip.w;
                 float visible = frameVisibility(clip, ndc, params, cell);
                 float inside = clamp(d + 0.5, 0.0, 1.0);
-                /* The outline is the frame itself, drawn whether or not the sensor sees the ground there,
-                   unless the outline is occluded too: then it stops where a ridge hides the ground */
                 float line = inside * clamp(outlineWidth + 0.5 - d, 0.0, 1.0);
-                /* Hidden where the sensor does not see the ground, and beside a crest in the depth map */
-                if (line > 0.0 && outlineOccluded > 0.5) line *= visible * outlineVisibility(clip, ndc, params, cell);
+                /* The outline is the frame itself, drawn whether or not the sensor sees the ground there */
                 return outline * line + mix(occluded, fill, visible) * inside * (1.0 - line);
             }
 
             void main() {
-                if (maskMode > 0.5) {
-                    vec4 m = vec4(0.0);
-                    if (frameCount > 0) m.r = frameMask(frameClip0, frameParams[0], depthCell[0]);
-                    if (frameCount > 1) m.g = frameMask(frameClip1, frameParams[1], depthCell[1]);
-                    if (frameCount > 2) m.b = frameMask(frameClip2, frameParams[2], depthCell[2]);
-                    if (frameCount > 3) m.a = frameMask(frameClip3, frameParams[3], depthCell[3]);
-                    gl_FragColor = m;
-                    return;
-                }
                 vec4 color = vec4(0.0);
                 vec4 t;
                 if (frameCount > 0) { t = frameTint(frameClip0, frameParams[0], depthCell[0], outlineColor[0], fillColor[0], occludedColor[0]); color = t + color * (1.0 - t.a); }
@@ -221,8 +158,6 @@ class SensorFrameProgram : AbstractShaderProgram() {
     private var frameMatrixId = KglUniformLocation.NONE
     private var frameCountId = KglUniformLocation.NONE
     private var outlineWidthId = KglUniformLocation.NONE
-    private var outlineOccludedId = KglUniformLocation.NONE
-    private var maskModeId = KglUniformLocation.NONE
     private var outlineColorId = KglUniformLocation.NONE
     private var fillColorId = KglUniformLocation.NONE
     private var occludedColorId = KglUniformLocation.NONE
@@ -236,8 +171,6 @@ class SensorFrameProgram : AbstractShaderProgram() {
         frameMatrixId = gl.getUniformLocation(program, "frameMatrix")
         frameCountId = gl.getUniformLocation(program, "frameCount")
         outlineWidthId = gl.getUniformLocation(program, "outlineWidth")
-        outlineOccludedId = gl.getUniformLocation(program, "outlineOccluded")
-        maskModeId = gl.getUniformLocation(program, "maskMode")
         outlineColorId = gl.getUniformLocation(program, "outlineColor")
         fillColorId = gl.getUniformLocation(program, "fillColor")
         occludedColorId = gl.getUniformLocation(program, "occludedColor")
@@ -269,10 +202,6 @@ class SensorFrameProgram : AbstractShaderProgram() {
     }
 
     fun loadOutlineWidth(pixels: Float) = gl.uniform1f(outlineWidthId, pixels)
-
-    fun loadOutlineOccluded(occluded: Boolean) = gl.uniform1f(outlineOccludedId, if (occluded) 1f else 0f)
-
-    fun loadMaskMode(mask: Boolean) = gl.uniform1f(maskModeId, if (mask) 1f else 0f)
 
     companion object {
         /** Frames per draw; four keeps the varyings and uniforms within GLES 2's minimums. */

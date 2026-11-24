@@ -33,8 +33,6 @@ open class DrawContext(val gl: Kgl) {
          */
         const val SCRATCH_FRAMEBUFFER_SIZE = 1024
         /** Side of the sensor frames' depth atlas; holds `(SIZE / CELL)²` = 16 sensors. */
-        /** How many mask targets the sensors' seen ground can take, four sensors each. */
-        const val SENSOR_MASK_TARGETS = 4
         const val SENSOR_FRAME_DEPTH_SIZE = 2048
         /** Side of one sensor's cell in the depth atlas. */
         const val SENSOR_FRAME_DEPTH_CELL = 512
@@ -205,12 +203,6 @@ open class DrawContext(val gl: Kgl) {
     private var multisampleFramebufferCache: MultisampleFramebuffer? = null
     private var sensorFrameDepthFramebufferCache: Framebuffer? = null
     private var sensorFrameDepthTextureCache: Texture? = null
-    private val sensorMaskFramebufferCache = arrayOfNulls<Framebuffer>(SENSOR_MASK_TARGETS)
-    private var sensorMaskDepthTextureCache: Texture? = null
-    /** The size the sensor masks were last written at, and how many targets; set by the mask pass for the edge pass. */
-    var sensorMaskPassWidth = 0
-    var sensorMaskPassHeight = 0
-    var sensorMaskTargets = 0
     private val gaussianPassFramebufferCache = mutableMapOf<Any, Array<Framebuffer?>>()
     private val gaussianPassFramebufferParity = mutableMapOf<Any, Int>()
     private var unitSquareBufferCache: BufferObject? = null
@@ -475,49 +467,6 @@ open class DrawContext(val gl: Kgl) {
         this@DrawContext.bindFramebuffer(previousFramebuffer)
     }.also { sensorFrameDepthFramebufferCache = it }
 
-    /**
-     * Target [index] of the sensors' seen-ground masks, at least [width] by [height]: an RGBA8
-     * colour texture, one sensor per channel, sampled bilinearly by the edge pass, and the depth
-     * texture every target shares, so the terrain's depth from the eye is written once. Grow-only,
-     * as the Gaussian pass; null where sized formats are missing or the framebuffer is incomplete.
-     */
-    fun ensureSensorMaskFramebuffer(index: Int, width: Int, height: Int): Framebuffer? {
-        if (!gl.supportsSizedTextureFormats) return null
-        val depth = sensorMaskDepthTextureCache?.takeIf { it.width >= width && it.height >= height } ?: run {
-            // A larger depth: every target is remade on it
-            for (i in sensorMaskFramebufferCache.indices) {
-                sensorMaskFramebufferCache[i]?.let { it.getAttachedTexture(GL_COLOR_ATTACHMENT0).release(this); it.release(this) }
-                sensorMaskFramebufferCache[i] = null
-            }
-            sensorMaskDepthTextureCache?.release(this)
-            Texture(width, height, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, true, GL_DEPTH_COMPONENT24).apply {
-                setTexParameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
-                setTexParameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
-            }.also { sensorMaskDepthTextureCache = it }
-        }
-        sensorMaskFramebufferCache[index]?.let { return it }
-        val created = Framebuffer().apply {
-            val color = Texture(depth.width, depth.height, GL_RGBA, GL_UNSIGNED_BYTE, true, GL_RGBA8)
-            color.setTexParameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-            color.setTexParameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-            color.setTexParameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
-            color.setTexParameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
-            attachTexture(this@DrawContext, color, GL_COLOR_ATTACHMENT0)
-            attachTexture(this@DrawContext, depth, GL_DEPTH_ATTACHMENT)
-        }
-        return if (created.isFramebufferComplete(this)) {
-            sensorMaskFramebufferCache[index] = created
-            created
-        } else {
-            created.getAttachedTexture(GL_COLOR_ATTACHMENT0).release(this)
-            created.release(this)
-            null
-        }
-    }
-
-    /** The colour texture of mask target [index], once written. */
-    fun sensorMaskTexture(index: Int): Texture? = sensorMaskFramebufferCache.getOrNull(index)?.getAttachedTexture(GL_COLOR_ATTACHMENT0)
-
     /** The depth texture of [sensorFrameDepthFramebuffer]. */
     val sensorFrameDepthTexture: Texture get() {
         sensorFrameDepthFramebuffer
@@ -676,10 +625,6 @@ open class DrawContext(val gl: Kgl) {
         multisampleFramebufferCache?.release(this)
         sensorFrameDepthFramebufferCache?.release(this)
         sensorFrameDepthTextureCache?.release(this)
-        for (i in sensorMaskFramebufferCache.indices) { sensorMaskFramebufferCache[i]?.release(this); sensorMaskFramebufferCache[i] = null }
-        sensorMaskDepthTextureCache?.release(this)
-        sensorMaskDepthTextureCache = null
-        sensorMaskTargets = 0
         for (slots in gaussianPassFramebufferCache.values) for (framebuffer in slots) framebuffer?.release(this)
         unitSquareBufferCache?.release(this)
         rectangleElementsBufferCache?.release(this)
