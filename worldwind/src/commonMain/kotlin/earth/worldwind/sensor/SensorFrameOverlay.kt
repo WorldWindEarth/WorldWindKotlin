@@ -49,10 +49,10 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
     /** One sensor's frame and its colours; change them in place at any time. */
     class Frame(
         val sensor: Sensor,
-        val outlineColor: Color,
-        val fillColor: Color,
+        var outlineColor: Color,
+        var fillColor: Color,
         /** Inside the frame where the sensor cannot see the ground; transparent for none. */
-        val occludedColor: Color = Color(0f, 0f, 0f, 0f),
+        var occludedColor: Color = Color(0f, 0f, 0f, 0f),
     ) {
         var isEnabled = true
         // Terrain height range under the frame, refreshed as the sensor moves (for the scissor)
