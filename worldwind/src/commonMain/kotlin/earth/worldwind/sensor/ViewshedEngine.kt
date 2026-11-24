@@ -23,12 +23,16 @@ import kotlin.time.TimeSource
  * and then wins. Results come back on [scope]'s thread, through the listener given with [add].
  */
 class ViewshedEngine(
-    globe: Globe,
+    /** The elevation tiles to sweep over, shared with a footprint solver when there is one. */
+    val tiles: DemTileCache,
     private val scope: CoroutineScope,
-    resolutionMeters: Double = 30.0,
     private val worker: CoroutineDispatcher = Dispatchers.Default,
 ) {
-    val tiles = DemTileCache(globe, scope, resolutionMeters)
+    constructor(
+        globe: Globe, scope: CoroutineScope, resolutionMeters: Double = 30.0,
+        worker: CoroutineDispatcher = Dispatchers.Default,
+    ) : this(DemTileCache(globe, scope, resolutionMeters), scope, worker)
+
     val solver = ViewshedSolver(tiles)
     /** Of the last sweep that finished, for the measurements. */
     var lastSweepMillis = 0.0
@@ -60,10 +64,10 @@ class ViewshedEngine(
 
     fun viewshed(sensor: Sensor) = entries.firstOrNull { it.sensor === sensor }?.viewshed
 
+    /** Forgets every sensor; the tiles stay, they may be another's too. */
     fun clear() {
         for (entry in entries) entry.job?.cancel()
         entries.clear()
-        tiles.clear()
     }
 
     /** Once per frame on [scope]'s thread. Returns true while a sweep is running or a tile is loading. */
