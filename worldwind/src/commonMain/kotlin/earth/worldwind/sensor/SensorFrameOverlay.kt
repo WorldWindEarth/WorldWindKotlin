@@ -1,11 +1,15 @@
 package earth.worldwind.sensor
 
 import earth.worldwind.draw.DrawableSensorFrameDepth
+import earth.worldwind.draw.DrawableSensorEdges
 import earth.worldwind.draw.DrawableSensorFrames
+import earth.worldwind.draw.DrawableSensorMask
 import earth.worldwind.render.program.DirectionalDepthProgram
 import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
+import earth.worldwind.render.program.SceneDepthProgram
+import earth.worldwind.render.program.SensorEdgeProgram
 import earth.worldwind.render.program.SensorFrameProgram
 import earth.worldwind.geom.Sector
 import kotlin.math.PI
@@ -73,6 +77,13 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
     var isOcclusionEnabled = true
     /** Whether the outline too stops where a ridge hides the ground; needs [isOcclusionEnabled]. */
     var isOutlineOccluded = false
+    /**
+     * Whether the boundary of the ground each sensor sees is drawn as a line of its outline colour,
+     * [seenEdgeWidth] pixels wide, from a screen-space mask written per map; needs [isOcclusionEnabled].
+     * An area's boundary, found after the fact, not a line deciding pixel by pixel at the ridge.
+     */
+    var isSeenEdgeEnabled = false
+    var seenEdgeWidth = 2f
 
     init {
         isPickEnabled = false
@@ -131,8 +142,32 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
                 d.depthCells[4 * k + 3] = 1f
             } else d.depthCells[4 * k + 3] = 0f
         }
-        if (d.count > 0) rc.offerSurfaceDrawable(d, zOrder) else d.recycle()
         if (depth != null && depth.count > 0) rc.offerBackgroundDrawable(depth) else depth?.recycle()
+        if (isSeenEdgeEnabled && depth != null && d.count > 0 && DrawableSensorFrames.isSeenMaskEnabled) {
+            // After the depth pass, whose atlas it reads: the seen ground of the first frames, one channel each
+            val n = minOf(d.count, DrawableSensorMask.MAX_FRAMES)
+            val mask = DrawableSensorMask.obtain(rc.getDrawablePool(DrawableSensorMask.KEY)).also {
+                for (k in 0 until n) it.frameMatrices[k].copy(d.frameMatrices[k])
+                d.frameParams.copyInto(it.frameParams, 0, 0, 4 * n)
+                d.depthCells.copyInto(it.depthCells, 0, 0, 4 * n)
+                d.frameRects.copyInto(it.frameRects, 0, 0, 4 * n)
+                it.count = n
+                it.scale = DrawableSensorFrames.seenMaskScale
+                it.program = program
+                it.depthProgram = rc.getShaderProgram { SceneDepthProgram() }
+            }
+            rc.offerBackgroundDrawable(mask)
+            if (DrawableSensorFrames.isSeenEdgeEnabled) {
+                val edges = DrawableSensorEdges.obtain(rc.getDrawablePool(DrawableSensorEdges.KEY)).also {
+                    d.outlineColors.copyInto(it.edgeColors, 0, 0, 4 * n)
+                    it.count = n
+                    it.edgeWidth = seenEdgeWidth
+                    it.program = rc.getShaderProgram { SensorEdgeProgram() }
+                }
+                rc.offerScreenDrawable(edges, SEEN_EDGE_Z_ORDER)
+            }
+        }
+        if (d.count > 0) rc.offerSurfaceDrawable(d, zOrder) else d.recycle()
     }
 
     /**
@@ -178,6 +213,8 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
     private val limits = FloatArray(2)
 
     private companion object {
+        /** First in the SCREEN group: over the terrain and the draped shapes, under every symbol and label. */
+        const val SEEN_EDGE_Z_ORDER = -1e9
         /** Metres added above and below the elevation limits read for the scissor's height band. */
         const val HEIGHT_MARGIN = 300.0
     }
@@ -188,4 +225,5 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
         out[offset + 2] = color.blue * color.alpha
         out[offset + 3] = color.alpha
     }
+
 }

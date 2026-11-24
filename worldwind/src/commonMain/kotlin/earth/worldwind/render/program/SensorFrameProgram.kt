@@ -65,6 +65,8 @@ class SensorFrameProgram : AbstractShaderProgram() {
             uniform float outlineWidth;
             /* 1 to cut the outline too where terrain nearer to the sensor hides the ground */
             uniform float outlineOccluded;
+            /* 1 to write each frame's seen-ground mask, inside times filtered visibility, instead of its tint */
+            uniform float maskMode;
             uniform vec4 outlineColor[$MAX_FRAMES];
             uniform vec4 fillColor[$MAX_FRAMES];
             uniform vec4 occludedColor[$MAX_FRAMES];
@@ -138,6 +140,26 @@ class SensorFrameProgram : AbstractShaderProgram() {
             }
             #endif
 
+            /* The frame's seen ground at this fragment: 1 inside and seen, the mean of nine depth tests
+               around it, 0 outside the frame, past its range or behind the sensor */
+            float frameMask(HP vec4 clip, HP vec4 params, HP vec4 cell) {
+                if (clip.w <= 0.0) return 0.0;
+                HP float ec = clip.w - max(abs(clip.x), abs(clip.y));
+                HP vec2 lateral = clip.xy * params.xy;
+                HP float er = params.z - sqrt(dot(lateral, lateral) + clip.w * clip.w);
+                if (ec < 0.0 || er < 0.0) return 0.0;
+                if (cell.w < 0.5) return 1.0;
+                HP vec2 ndc = clip.xy / clip.w;
+                HP float t = 2.0 / $CELL_PIXELS_FLOAT;
+                float v = 0.0;
+                for (int j = -1; j <= 1; j++) {
+                    for (int i = -1; i <= 1; i++) {
+                        v += frameVisibility(clip, ndc + vec2(float(i), float(j)) * t, params, cell);
+                    }
+                }
+                return v / 9.0;
+            }
+
             /* Premultiplied tint of one frame at this fragment; vec4(0) outside it. */
             vec4 frameTint(HP vec4 clip, HP vec4 params, HP vec4 cell, vec4 outline, vec4 fill, vec4 occluded) {
                 /*
@@ -177,6 +199,15 @@ class SensorFrameProgram : AbstractShaderProgram() {
             }
 
             void main() {
+                if (maskMode > 0.5) {
+                    vec4 m = vec4(0.0);
+                    if (frameCount > 0) m.r = frameMask(frameClip0, frameParams[0], depthCell[0]);
+                    if (frameCount > 1) m.g = frameMask(frameClip1, frameParams[1], depthCell[1]);
+                    if (frameCount > 2) m.b = frameMask(frameClip2, frameParams[2], depthCell[2]);
+                    if (frameCount > 3) m.a = frameMask(frameClip3, frameParams[3], depthCell[3]);
+                    gl_FragColor = m;
+                    return;
+                }
                 vec4 color = vec4(0.0);
                 vec4 t;
                 if (frameCount > 0) { t = frameTint(frameClip0, frameParams[0], depthCell[0], outlineColor[0], fillColor[0], occludedColor[0]); color = t + color * (1.0 - t.a); }
@@ -197,6 +228,7 @@ class SensorFrameProgram : AbstractShaderProgram() {
     private var frameCountId = KglUniformLocation.NONE
     private var outlineWidthId = KglUniformLocation.NONE
     private var outlineOccludedId = KglUniformLocation.NONE
+    private var maskModeId = KglUniformLocation.NONE
     private var outlineColorId = KglUniformLocation.NONE
     private var fillColorId = KglUniformLocation.NONE
     private var occludedColorId = KglUniformLocation.NONE
@@ -211,6 +243,7 @@ class SensorFrameProgram : AbstractShaderProgram() {
         frameCountId = gl.getUniformLocation(program, "frameCount")
         outlineWidthId = gl.getUniformLocation(program, "outlineWidth")
         outlineOccludedId = gl.getUniformLocation(program, "outlineOccluded")
+        maskModeId = gl.getUniformLocation(program, "maskMode")
         outlineColorId = gl.getUniformLocation(program, "outlineColor")
         fillColorId = gl.getUniformLocation(program, "fillColor")
         occludedColorId = gl.getUniformLocation(program, "occludedColor")
@@ -244,6 +277,8 @@ class SensorFrameProgram : AbstractShaderProgram() {
     fun loadOutlineWidth(pixels: Float) = gl.uniform1f(outlineWidthId, pixels)
 
     fun loadOutlineOccluded(occluded: Boolean) = gl.uniform1f(outlineOccludedId, if (occluded) 1f else 0f)
+
+    fun loadMaskMode(mask: Boolean) = gl.uniform1f(maskModeId, if (mask) 1f else 0f)
 
     companion object {
         /** Frames per draw; four keeps the varyings and uniforms within GLES 2's minimums. */

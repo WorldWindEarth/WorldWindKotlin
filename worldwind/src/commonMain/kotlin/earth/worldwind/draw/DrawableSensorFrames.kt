@@ -70,6 +70,10 @@ open class DrawableSensorFrames protected constructor() : Drawable {
         /** Diagnostics: whether tiles no frame reaches are skipped, and whether draws are scissored. */
         var isTileCullingEnabled = true
         var isScissorEnabled = true
+        /** Diagnostics for the seen-ground edge: whether the mask is written, whether the edge is drawn, and the mask's scale. */
+        var isSeenMaskEnabled = true
+        var isSeenEdgeEnabled = true
+        var seenMaskScale = 1f
 
         @JvmStatic
         fun obtain(pool: Pool<DrawableSensorFrames>): DrawableSensorFrames {
