@@ -4,6 +4,7 @@ import earth.worldwind.geom.Position
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.asin
+import kotlin.math.atan
 import kotlin.math.atan2
 import kotlin.math.ceil
 import kotlin.math.cos
@@ -33,6 +34,11 @@ class Viewshed(
     val binLength: Double,
     /** `columns × bins`, column major: `seen[column * bins + bin]`. */
     val seen: BooleanArray,
+    /**
+     * How far, in metres along the ground, each cell is inside what the sensor sees: positive where
+     * seen, negative where hidden, outside the frame or past the range. The rings run where it is zero.
+     */
+    val margin: FloatArray,
     /** Closed rings around the seen regions, altitude 0, one per region; regions smaller than a cell are dropped. */
     val regions: List<List<Position>>,
     /** False while an elevation tile under the sweep was still loading. */
@@ -74,7 +80,10 @@ class ViewshedInput internal constructor(
  * and the ground's drop with the Earth's curvature is in from the first metre, which matters
  * from a few kilometres out. There is no tolerance: a cell is seen when its elevation angle
  * reaches the running maximum, and the odd sample straddling a crest leaves a hole or a sliver
- * smaller than a cell, which the contours drop.
+ * smaller than a cell, which the contours drop. Each cell also keeps its margin, how far in
+ * metres it is inside the seen ground, so the rings cross a cell edge where the margin reaches
+ * zero between two samples rather than at the edge's middle, and run straight where the
+ * boundary does.
  *
  * [prepare] snapshots the tiles on the cache's thread; [sweep] is pure and may run anywhere.
  */
@@ -132,6 +141,9 @@ class ViewshedSolver(val tiles: DemTileCache) {
         val columns = input.columns
         val bins = input.bins
         val seen = BooleanArray(columns * bins)
+        val margin = FloatArray(columns * bins) { -input.cellMeters.toFloat() }
+        val halfH = sensor.horizontalFov.inRadians / 2
+        val halfV = sensor.verticalFov.inRadians / 2
         var complete = input.isComplete
         for (i in 0 until columns) {
             val azimuth = input.startAzimuth + (i + 0.5) * input.columnAngle
@@ -151,21 +163,25 @@ class ViewshedSolver(val tiles: DemTileCache) {
                 // Height over the sensor's horizontal plane, the ground dropping away with the curvature
                 val dz = height - alt0 - s * s / (2.0 * radius)
                 val angle = atan2(dz, s)
-                val visible = angle >= horizon
-                if (visible) horizon = angle
-                if (!visible) continue
+                // Over the horizon so far, as ground distance: the angle's excess at this range
+                var m = (angle - horizon) * s
+                if (angle > horizon) horizon = angle
                 // Inside the frame: ahead of the sensor, within its angles of view and its range
                 val e = s * sinAz; val n = s * cosAz
                 val w = e * f[0] + n * f[1] + dz * f[2]
-                if (w <= 0.0) continue
-                val x = (e * r[0] + n * r[1] + dz * r[2]) / (w * tanH)
-                val y = (e * u[0] + n * u[1] + dz * u[2]) / (w * tanV)
-                if (abs(x) > 1.0 || abs(y) > 1.0) continue
-                if (sqrt(s * s + dz * dz) > range) continue
-                seen[i * bins + j] = true
+                if (w <= 0.0) {
+                    m = min(m, -s)
+                } else {
+                    val side = abs(e * r[0] + n * r[1] + dz * r[2]) / w
+                    val rise = abs(e * u[0] + n * u[1] + dz * u[2]) / w
+                    m = min(m, min((halfH - atan(side)) * s, (halfV - atan(rise)) * s))
+                }
+                m = min(m, range - sqrt(s * s + dz * dz))
+                margin[i * bins + j] = m.toFloat()
+                seen[i * bins + j] = m > 0.0
             }
         }
-        val regions = contours(seen, columns, bins).map { ring ->
+        val regions = contours(margin, columns, bins).map { ring ->
             ring.map { (ci, bj) ->
                 val azimuth = input.startAzimuth + ci * input.columnAngle
                 val sigma = max(bj, 0.0) * input.binLength / radius
@@ -177,8 +193,8 @@ class ViewshedSolver(val tiles: DemTileCache) {
             }
         }
         return Viewshed(
-            sensor, columns, bins, input.startAzimuth, input.columnAngle, input.binLength, seen, regions, complete,
-            input.generation,
+            sensor, columns, bins, input.startAzimuth, input.columnAngle, input.binLength, seen, margin, regions,
+            complete, input.generation,
         )
     }
 
@@ -251,14 +267,16 @@ class ViewshedSolver(val tiles: DemTileCache) {
         internal fun key(row: Int, column: Int) = row.toLong() shl 32 or (column.toLong() and 0xFFFFFFFFL)
 
         /**
-         * Marching squares over the seen grid, padded with a ring of unseen cells so every contour
+         * Marching squares over the margin grid, padded with a ring of hidden cells so every contour
          * closes: rings of `(column, bin)` coordinates where a cell's centre is `(i + 0.5, j + 0.5)`,
-         * each crossing midway between two cells. Rings whose area is under one cell are dropped.
+         * each crossing where the margin reaches zero between two cells. A cell is seen where its
+         * margin is positive. Rings whose area is under one cell are dropped.
          */
-        internal fun contours(seen: BooleanArray, columns: Int, bins: Int): List<List<Pair<Double, Double>>> {
+        internal fun contours(margin: FloatArray, columns: Int, bins: Int): List<List<Pair<Double, Double>>> {
             val w = columns + 2
             val h = bins + 2
-            fun at(i: Int, j: Int) = i in 1..columns && j in 1..bins && seen[(i - 1) * bins + (j - 1)]
+            fun value(i: Int, j: Int) = if (i in 1..columns && j in 1..bins) margin[(i - 1) * bins + (j - 1)] else -1f
+            fun at(i: Int, j: Int) = value(i, j) > 0f
             // Segments between edge midpoints; an edge is keyed by its lower-left sample and direction
             fun hEdge(i: Int, j: Int) = (j * w + i) * 2L        // between (i, j) and (i + 1, j)
             fun vEdge(i: Int, j: Int) = (j * w + i) * 2L + 1    // between (i, j) and (i, j + 1)
@@ -290,10 +308,14 @@ class ViewshedSolver(val tiles: DemTileCache) {
                 val index = (edge shr 1).toInt()
                 val i = index % w
                 val j = index / w
-                // Sample (i, j) sits at cell centre (i - 1 + 0.5, j - 1 + 0.5)
+                // Sample (i, j) sits at cell centre (i - 1 + 0.5, j - 1 + 0.5); the crossing is where
+                // the margin, linear between the two samples, is zero
+                val a = value(i, j).toDouble()
+                val b = (if (vertical) value(i, j + 1) else value(i + 1, j)).toDouble()
+                val t = if (a == b) 0.5 else (a / (a - b)).coerceIn(0.0, 1.0)
                 val ci = i - 0.5
                 val bj = j - 0.5
-                return if (vertical) ci to bj + 0.5 else ci + 0.5 to bj
+                return if (vertical) ci to bj + t else ci + t to bj
             }
             val rings = mutableListOf<List<Pair<Double, Double>>>()
             val visited = HashSet<Long>()

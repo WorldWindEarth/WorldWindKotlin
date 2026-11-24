@@ -10,6 +10,7 @@ import earth.worldwind.globe.geoid.Geoid
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.exp
 import kotlin.math.sqrt
@@ -168,14 +169,26 @@ class ViewshedTest {
     fun contoursCloseAroundSeenCellsAndDropASingleCell() {
         val columns = 6
         val bins = 6
-        val seen = BooleanArray(columns * bins)
-        for (c in 1..2) for (b in 1..2) seen[c * bins + b] = true          // a 2 × 2 block
-        seen[4 * bins + 4] = true                                           // a lone cell
-        val rings = ViewshedSolver.contours(seen, columns, bins)
+        val margin = FloatArray(columns * bins) { -1f }
+        for (c in 1..2) for (b in 1..2) margin[c * bins + b] = 1f          // a 2 × 2 block
+        margin[4 * bins + 4] = 1f                                           // a lone cell
+        val rings = ViewshedSolver.contours(margin, columns, bins)
         assertEquals(1, rings.size, "the block gives one ring, the lone cell none")
         val ring = rings.single()
         assertTrue(ring.size >= 8)
         assertTrue(ring.all { (x, y) -> x in 0.5..3.5 && y in 0.5..3.5 }, "the ring sits around the block")
+    }
+
+    @Test
+    fun contoursRunStraightWhereTheMarginDoes() {
+        val columns = 8
+        val bins = 8
+        // Zero along the diagonal: seen below it, hidden on and above it
+        val margin = FloatArray(columns * bins) { index -> (index / bins - index % bins).toFloat() }
+        val ring = ViewshedSolver.contours(margin, columns, bins).single()
+        val interior = ring.filter { (x, y) -> x in 0.5..columns - 0.5 && y in 0.5..bins - 0.5 }
+        assertTrue(interior.size >= columns - 2)
+        assertTrue(interior.all { (x, y) -> abs(x - y) < 1e-9 }, "every crossing lies on the diagonal, not on a cell edge's middle")
     }
 
     @Test
