@@ -114,7 +114,10 @@ class SensorFrameProgram : AbstractShaderProgram() {
              * fragment's own ground plane predicts there (the receiver-plane bias of shadow
              * mapping), from the screen derivatives of the depth-map position and the depth, which
              * the caller takes in uniform control flow. Flat ground, however grazing, keeps its
-             * outline, since the plane predicts its neighbours.
+             * outline, since the plane predicts its neighbours. The prediction is capped at a few
+             * texels' worth of depth and the neighbours get twice the bias: at a close zoom a
+             * screen pixel spans a sliver of a fine terrain triangle, whose slope says nothing
+             * about the next depth texel tens of metres away, while a crest is nearer by far more.
              */
             float outlineVisibility(
                 HP vec4 clip, HP vec2 ndc, HP vec4 params, HP vec4 cell,
@@ -131,12 +134,14 @@ class SensorFrameProgram : AbstractShaderProgram() {
                     ? vec2(dpdy.y * dddx - dpdx.y * dddy, dpdx.x * dddy - dpdy.x * dddx) / det
                     : vec2(0.0);
                 HP float t = 1.0 / $CELL_PIXELS_FLOAT;
+                HP float cap = 4.0 * bias;
                 float v = 1.0;
                 for (int j = -1; j <= 1; j++) {
                     for (int i = -1; i <= 1; i++) {
                         HP vec2 o = vec2(float(i), float(j)) * t;
                         HP vec2 uv = cell.xy + clamp(p + o, 0.0, 1.0) * cell.z;
-                        HP float reference = clamp(depth + dot(grad, o) - bias, 0.0, 1.0);
+                        HP float predicted = depth + clamp(dot(grad, o), -cap, cap);
+                        HP float reference = clamp(predicted - (i == 0 && j == 0 ? bias : 2.0 * bias), 0.0, 1.0);
             #ifdef WW_SHADOW_SAMPLERS
                         v = min(v, textureLod(frameDepth, vec3(uv, reference), 0.0));
             #else
