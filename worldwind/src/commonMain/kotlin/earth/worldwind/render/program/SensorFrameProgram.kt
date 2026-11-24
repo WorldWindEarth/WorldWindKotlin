@@ -107,20 +107,44 @@ class SensorFrameProgram : AbstractShaderProgram() {
 
             /*
              * Visibility for the outline: hidden as soon as any of the eight neighbouring depth
-             * texels says the ground is hidden. Behind a crest a texel straddles the ridge and the
-             * plain test flickers through as dots; a neighbour then holds the crest and settles it.
-             * Flat ground seen at a grazing angle keeps its outline, since its neighbours agree.
+             * texels holds ground nearer than this fragment's ground would be there. Behind a
+             * crest a texel straddles the ridge and the plain test flickers through as dashes; the
+             * neighbour holding the crest settles it. The ground's depth changes across a texel,
+             * a great deal at a grazing angle, so each neighbour is compared with the depth the
+             * fragment's own ground plane predicts there (the receiver-plane bias of shadow
+             * mapping), from the screen derivatives of the depth-map position and the depth, which
+             * the caller takes in uniform control flow. Flat ground, however grazing, keeps its
+             * outline, since the plane predicts its neighbours.
              */
-            float outlineVisibility(HP vec4 clip, HP vec2 ndc, HP vec4 params, HP vec4 cell) {
+            float outlineVisibility(
+                HP vec4 clip, HP vec2 ndc, HP vec4 params, HP vec4 cell,
+                HP vec2 dpdx, HP vec2 dpdy, HP float dddx, HP float dddy
+            ) {
                 if (cell.w < 0.5) return 1.0;
-                HP float t = 2.0 / $CELL_PIXELS_FLOAT;
+                HP vec2 p = clamp(ndc * 0.5 + 0.5, 0.0, 1.0);
+                HP float depth = 0.5 * clip.z / clip.w + 0.5;
+                HP float texel = 2.0 * clip.w * max(params.x, params.y) / $CELL_PIXELS_FLOAT;
+                HP float bias = params.w * (0.5 + 2.0 * texel) / (clip.w * clip.w);
+                /* Depth per unit of depth-map position, from the two screen derivatives */
+                HP float det = dpdx.x * dpdy.y - dpdx.y * dpdy.x;
+                HP vec2 grad = abs(det) > 1e-12
+                    ? vec2(dpdy.y * dddx - dpdx.y * dddy, dpdx.x * dddy - dpdy.x * dddx) / det
+                    : vec2(0.0);
+                HP float t = 1.0 / $CELL_PIXELS_FLOAT;
                 float v = 1.0;
                 for (int j = -1; j <= 1; j++) {
                     for (int i = -1; i <= 1; i++) {
-                        v = min(v, frameVisibility(clip, ndc + vec2(float(i), float(j)) * t, params, cell));
+                        HP vec2 o = vec2(float(i), float(j)) * t;
+                        HP vec2 uv = cell.xy + clamp(p + o, 0.0, 1.0) * cell.z;
+                        HP float reference = clamp(depth + dot(grad, o) - bias, 0.0, 1.0);
+            #ifdef WW_SHADOW_SAMPLERS
+                        v = min(v, textureLod(frameDepth, vec3(uv, reference), 0.0));
+            #else
+                        v = min(v, step(reference, texture2D(frameDepth, uv).r));
+            #endif
                     }
                 }
-                return step(0.75, v);
+                return step(0.5, v);
             }
 
             /* Premultiplied tint of one frame at this fragment; vec4(0) outside it. */
@@ -156,7 +180,16 @@ class SensorFrameProgram : AbstractShaderProgram() {
                 /* The outline is the frame itself, drawn whether or not the sensor sees the ground there,
                    unless the outline is occluded too: then it stops where a ridge hides the ground */
                 float line = inside * clamp(outlineWidth + 0.5 - d, 0.0, 1.0);
-                if (line > 0.0 && outlineOccluded > 0.5) line *= outlineVisibility(clip, ndc, params, cell);
+                if (outlineOccluded > 0.5) {
+                    /* Derivatives before any per-fragment branch, so the whole quad takes them */
+                    HP vec2 p = ndc * 0.5 + 0.5;
+                    HP float depth = 0.5 * clip.z / clip.w + 0.5;
+                    HP vec2 dpdx = dFdx(p);
+                    HP vec2 dpdy = dFdy(p);
+                    HP float dddx = dFdx(depth);
+                    HP float dddy = dFdy(depth);
+                    if (line > 0.0) line *= outlineVisibility(clip, ndc, params, cell, dpdx, dpdy, dddx, dddy);
+                }
                 return outline * line + mix(occluded, fill, visible) * inside * (1.0 - line);
             }
 
