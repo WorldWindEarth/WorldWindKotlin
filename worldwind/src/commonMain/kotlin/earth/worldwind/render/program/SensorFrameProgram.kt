@@ -63,6 +63,8 @@ class SensorFrameProgram : AbstractShaderProgram() {
 
             uniform int frameCount;
             uniform float outlineWidth;
+            /* 1 to cut the outline too where terrain nearer to the sensor hides the ground */
+            uniform float outlineOccluded;
             uniform vec4 outlineColor[$MAX_FRAMES];
             uniform vec4 fillColor[$MAX_FRAMES];
             uniform vec4 occludedColor[$MAX_FRAMES];
@@ -133,8 +135,9 @@ class SensorFrameProgram : AbstractShaderProgram() {
                 HP vec2 ndc = clip.xy / clip.w;
                 float visible = frameVisibility(clip, ndc, params, cell);
                 float inside = clamp(d + 0.5, 0.0, 1.0);
-                float line = inside * clamp(outlineWidth + 0.5 - d, 0.0, 1.0);
-                /* The outline is the frame itself, drawn whether or not the sensor sees the ground there */
+                /* The outline is the frame itself, drawn whether or not the sensor sees the ground there,
+                   unless the outline is occluded too: then it stops where a ridge hides the ground */
+                float line = inside * clamp(outlineWidth + 0.5 - d, 0.0, 1.0) * mix(1.0, visible, outlineOccluded);
                 return outline * line + mix(occluded, fill, visible) * inside * (1.0 - line);
             }
 
@@ -158,6 +161,7 @@ class SensorFrameProgram : AbstractShaderProgram() {
     private var frameMatrixId = KglUniformLocation.NONE
     private var frameCountId = KglUniformLocation.NONE
     private var outlineWidthId = KglUniformLocation.NONE
+    private var outlineOccludedId = KglUniformLocation.NONE
     private var outlineColorId = KglUniformLocation.NONE
     private var fillColorId = KglUniformLocation.NONE
     private var occludedColorId = KglUniformLocation.NONE
@@ -171,6 +175,7 @@ class SensorFrameProgram : AbstractShaderProgram() {
         frameMatrixId = gl.getUniformLocation(program, "frameMatrix")
         frameCountId = gl.getUniformLocation(program, "frameCount")
         outlineWidthId = gl.getUniformLocation(program, "outlineWidth")
+        outlineOccludedId = gl.getUniformLocation(program, "outlineOccluded")
         outlineColorId = gl.getUniformLocation(program, "outlineColor")
         fillColorId = gl.getUniformLocation(program, "fillColor")
         occludedColorId = gl.getUniformLocation(program, "occludedColor")
@@ -202,6 +207,8 @@ class SensorFrameProgram : AbstractShaderProgram() {
     }
 
     fun loadOutlineWidth(pixels: Float) = gl.uniform1f(outlineWidthId, pixels)
+
+    fun loadOutlineOccluded(occluded: Boolean) = gl.uniform1f(outlineOccludedId, if (occluded) 1f else 0f)
 
     companion object {
         /** Frames per draw; four keeps the varyings and uniforms within GLES 2's minimums. */

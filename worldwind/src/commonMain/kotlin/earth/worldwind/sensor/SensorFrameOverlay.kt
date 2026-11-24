@@ -31,7 +31,9 @@ import kotlin.math.tan
  * With [isOcclusionEnabled] (the default) it is a shadow map in full: before the scene is drawn,
  * the terrain is rendered from each sensor into a small depth map, and inside a frame only ground
  * the sensor actually sees gets the [Frame.fillColor]; ground behind a ridge gets
- * [Frame.occludedColor] (transparent by default). The outline is drawn either way. The first
+ * [Frame.occludedColor] (transparent by default). The outline is drawn either way, unless
+ * [isOutlineOccluded] cuts it at ridges as well, so a frame drawn as an outline alone shows only
+ * the ground the sensor sees. The first
  * [DrawableSensorFrameDepth.MAX_CELLS] enabled frames are occluded, any more are drawn without.
  * That costs one depth pass of the visible terrain per sensor, on the GPU; it needs depth
  * textures (GLES 3, WebGL 2, desktop GL 3), and without them the frames are drawn unoccluded.
@@ -69,6 +71,8 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
     var outlineWidth = 2f
     /** Whether the frames are occluded by the terrain between the sensor and the ground. */
     var isOcclusionEnabled = true
+    /** Whether the outline too stops where a ridge hides the ground; needs [isOcclusionEnabled]. */
+    var isOutlineOccluded = false
 
     init {
         isPickEnabled = false
@@ -98,6 +102,7 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
         val d = DrawableSensorFrames.obtain(pool).also {
             it.program = program
             it.outlineWidth = outlineWidth
+            it.isOutlineOccluded = isOutlineOccluded && isOcclusionEnabled
         }
         for (frame in frames) {
             if (!frame.isEnabled) continue
