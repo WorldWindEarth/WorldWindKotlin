@@ -85,18 +85,21 @@ class SensorFrameProgram : AbstractShaderProgram() {
 
             /*
              * 1 where the sensor sees this fragment, 0 where terrain nearer to the sensor hides it.
-             * The bias is a world distance turned into depth units: half a metre plus two depth
-             * texels' width on the ground at this distance, which absorbs the rasterisation
-             * differences between the depth pass and this pass (the caster pass adds slope-scaled
-             * polygon offset as well). Explicit level of detail: the lookup sits behind
-             * per-fragment early-outs.
+             * The bias is a world distance turned into depth units: half a metre plus slack depth
+             * texels' width on the ground at this distance. Two texels of slack absorb the
+             * rasterisation differences between the depth pass and this pass (the caster pass
+             * adds slope-scaled polygon offset as well), so the fill shows up to the ridge. A
+             * negative slack asks the ground to be clearly nearer than what the sensor saw: the
+             * outline uses it, so that behind a ridge, where a depth texel straddles the crest,
+             * the line does not flicker through as dots. Explicit level of detail: the lookup
+             * sits behind per-fragment early-outs.
              */
-            float frameVisibility(HP vec4 clip, HP vec2 ndc, HP vec4 params, HP vec4 cell) {
+            float frameVisibility(HP vec4 clip, HP vec2 ndc, HP vec4 params, HP vec4 cell, HP float slack) {
                 if (cell.w < 0.5) return 1.0;
                 HP vec2 uv = cell.xy + clamp(ndc * 0.5 + 0.5, 0.0, 1.0) * cell.z;
                 HP float depth = 0.5 * clip.z / clip.w + 0.5;
                 HP float texel = 2.0 * clip.w * max(params.x, params.y) / $CELL_PIXELS_FLOAT;
-                HP float bias = params.w * (0.5 + 2.0 * texel) / (clip.w * clip.w);
+                HP float bias = params.w * (0.5 + slack * texel) / (clip.w * clip.w);
                 HP float reference = clamp(depth - bias, 0.0, 1.0);
             #ifdef WW_SHADOW_SAMPLERS
                 return textureLod(frameDepth, vec3(uv, reference), 0.0);
@@ -133,11 +136,13 @@ class SensorFrameProgram : AbstractShaderProgram() {
                 /* Outside the frame, past its range, or behind the sensor */
                 if (clip.w <= 0.0 || d < -0.5) return vec4(0.0);
                 HP vec2 ndc = clip.xy / clip.w;
-                float visible = frameVisibility(clip, ndc, params, cell);
+                float visible = frameVisibility(clip, ndc, params, cell, 2.0);
                 float inside = clamp(d + 0.5, 0.0, 1.0);
                 /* The outline is the frame itself, drawn whether or not the sensor sees the ground there,
-                   unless the outline is occluded too: then it stops where a ridge hides the ground */
-                float line = inside * clamp(outlineWidth + 0.5 - d, 0.0, 1.0) * mix(1.0, visible, outlineOccluded);
+                   unless the outline is occluded too: then it stops where a ridge hides the ground, and
+                   only where the ground is clearly seen, so no dotted ghost of it shows behind the ridge */
+                float lineVisible = outlineOccluded > 0.5 ? step(0.75, frameVisibility(clip, ndc, params, cell, -2.0)) : 1.0;
+                float line = inside * clamp(outlineWidth + 0.5 - d, 0.0, 1.0) * lineVisible;
                 return outline * line + mix(occluded, fill, visible) * inside * (1.0 - line);
             }
 
