@@ -39,13 +39,45 @@ class Viewshed(
      * seen, negative where hidden, outside the frame or past the range. The rings run where it is zero.
      */
     val margin: FloatArray,
+    /**
+     * What bounds each cell's margin: [LIMIT_TERRAIN] where nearer ground hides it, [LIMIT_FRAME]
+     * where it is outside the frame's angles or behind the sensor, [LIMIT_RANGE] past the range,
+     * [LIMIT_NONE] where no elevation was loaded.
+     */
+    val limiter: ByteArray,
+    /**
+     * How far, in metres along the ground, each cell is inside the hidden ground: inside the frame
+     * and the range yet hidden by nearer ground. Positive there, negative where seen or outside.
+     */
+    val hiddenMargin: FloatArray,
     /** Closed rings around the seen regions, altitude 0, one per region; regions smaller than a cell are dropped. */
     val regions: List<List<Position>>,
+    /**
+     * The parts of the regions' boundaries that nearer ground makes, as open lines, leaving out
+     * the parts that run along the frame's edges or the range: what to draw when the frame itself
+     * is drawn, so the two never lie on top of each other.
+     */
+    val terrainEdges: List<List<Position>>,
     /** False while an elevation tile under the sweep was still loading. */
     val isComplete: Boolean,
     /** The tile cache generation the elevations were read at. */
     val generation: Long,
-)
+) {
+    private var mask: ViewshedMask? = null
+
+    /** The hidden ground as an image for the GPU, built once. */
+    fun hiddenMask(): ViewshedMask = mask ?: ViewshedMask.of(this).also { mask = it }
+
+    companion object {
+        const val LIMIT_NONE: Byte = 0
+        const val LIMIT_TERRAIN: Byte = 1
+        const val LIMIT_FRAME: Byte = 2
+        const val LIMIT_RANGE: Byte = 3
+    }
+}
+
+/** A point where a contour crosses between two cells, and whether nearer ground, rather than the frame or the range, hides the hidden side. */
+internal class Crossing(val column: Double, val bin: Double, val terrain: Boolean)
 
 /**
  * A sweep ready to run: the sensor's pose and the elevation tiles under its range, snapshotted on
@@ -142,6 +174,8 @@ class ViewshedSolver(val tiles: DemTileCache) {
         val bins = input.bins
         val seen = BooleanArray(columns * bins)
         val margin = FloatArray(columns * bins) { -input.cellMeters.toFloat() }
+        val limiter = ByteArray(columns * bins)
+        val hiddenMargin = FloatArray(columns * bins) { -input.cellMeters.toFloat() }
         val halfH = sensor.horizontalFov.inRadians / 2
         val halfV = sensor.verticalFov.inRadians / 2
         var complete = input.isComplete
@@ -164,37 +198,44 @@ class ViewshedSolver(val tiles: DemTileCache) {
                 val dz = height - alt0 - s * s / (2.0 * radius)
                 val angle = atan2(dz, s)
                 // Over the horizon so far, as ground distance: the angle's excess at this range
-                var m = (angle - horizon) * s
+                val terrain = (angle - horizon) * s
                 if (angle > horizon) horizon = angle
                 // Inside the frame: ahead of the sensor, within its angles of view and its range
                 val e = s * sinAz; val n = s * cosAz
                 val w = e * f[0] + n * f[1] + dz * f[2]
-                if (w <= 0.0) {
-                    m = min(m, -s)
-                } else {
+                val frame = if (w <= 0.0) -s else {
                     val side = abs(e * r[0] + n * r[1] + dz * r[2]) / w
                     val rise = abs(e * u[0] + n * u[1] + dz * u[2]) / w
-                    m = min(m, min((halfH - atan(side)) * s, (halfV - atan(rise)) * s))
+                    min((halfH - atan(side)) * s, (halfV - atan(rise)) * s)
                 }
-                m = min(m, range - sqrt(s * s + dz * dz))
-                margin[i * bins + j] = m.toFloat()
-                seen[i * bins + j] = m > 0.0
+                val reach = range - sqrt(s * s + dz * dz)
+                val m = min(terrain, min(frame, reach))
+                val index = i * bins + j
+                margin[index] = m.toFloat()
+                seen[index] = m > 0.0
+                limiter[index] = when (m) {
+                    terrain -> Viewshed.LIMIT_TERRAIN
+                    frame -> Viewshed.LIMIT_FRAME
+                    else -> Viewshed.LIMIT_RANGE
+                }
+                hiddenMargin[index] = min(-terrain, min(frame, reach)).toFloat()
             }
         }
-        val regions = contours(margin, columns, bins).map { ring ->
-            ring.map { (ci, bj) ->
-                val azimuth = input.startAzimuth + ci * input.columnAngle
-                val sigma = max(bj, 0.0) * input.binLength / radius
-                val sinSigma = sin(sigma)
-                val cosSigma = cos(sigma)
-                val lat = asin(sinLat0 * cosSigma + cosLat0 * sinSigma * cos(azimuth))
-                val lon = lon0 + atan2(sin(azimuth) * sinSigma * cosLat0, cosSigma - sinLat0 * sin(lat))
-                Position.fromRadians(lat, lon, 0.0)
-            }
+        fun position(crossing: Crossing): Position {
+            val azimuth = input.startAzimuth + crossing.column * input.columnAngle
+            val sigma = max(crossing.bin, 0.0) * input.binLength / radius
+            val sinSigma = sin(sigma)
+            val cosSigma = cos(sigma)
+            val lat = asin(sinLat0 * cosSigma + cosLat0 * sinSigma * cos(azimuth))
+            val lon = lon0 + atan2(sin(azimuth) * sinSigma * cosLat0, cosSigma - sinLat0 * sin(lat))
+            return Position.fromRadians(lat, lon, 0.0)
         }
+        val rings = crossings(margin, limiter, columns, bins)
+        val regions = rings.map { ring -> ring.map(::position) }
+        val terrainEdges = terrainRuns(rings).map { run -> run.map(::position) }
         return Viewshed(
-            sensor, columns, bins, input.startAzimuth, input.columnAngle, input.binLength, seen, margin, regions,
-            complete, input.generation,
+            sensor, columns, bins, input.startAzimuth, input.columnAngle, input.binLength, seen, margin, limiter,
+            hiddenMargin, regions, terrainEdges, complete, input.generation,
         )
     }
 
@@ -272,10 +313,19 @@ class ViewshedSolver(val tiles: DemTileCache) {
          * each crossing where the margin reaches zero between two cells. A cell is seen where its
          * margin is positive. Rings whose area is under one cell are dropped.
          */
-        internal fun contours(margin: FloatArray, columns: Int, bins: Int): List<List<Pair<Double, Double>>> {
+        internal fun contours(margin: FloatArray, columns: Int, bins: Int): List<List<Pair<Double, Double>>> =
+            crossings(margin, null, columns, bins).map { ring -> ring.map { it.column to it.bin } }
+
+        /**
+         * [contours] with each crossing tagged by what hides its hidden side, from [limiter]: nearer
+         * ground, or the frame's edge or the range. Without a limiter nothing is tagged as terrain.
+         */
+        internal fun crossings(margin: FloatArray, limiter: ByteArray?, columns: Int, bins: Int): List<List<Crossing>> {
             val w = columns + 2
             val h = bins + 2
             fun value(i: Int, j: Int) = if (i in 1..columns && j in 1..bins) margin[(i - 1) * bins + (j - 1)] else -1f
+            fun terrain(i: Int, j: Int) = limiter != null && i in 1..columns && j in 1..bins &&
+                limiter[(i - 1) * bins + (j - 1)] == Viewshed.LIMIT_TERRAIN
             fun at(i: Int, j: Int) = value(i, j) > 0f
             // Segments between edge midpoints; an edge is keyed by its lower-left sample and direction
             fun hEdge(i: Int, j: Int) = (j * w + i) * 2L        // between (i, j) and (i + 1, j)
@@ -303,7 +353,7 @@ class ViewshedSolver(val tiles: DemTileCache) {
                     10 -> { link(left, bottom); link(right, top) }
                 }
             }
-            fun point(edge: Long): Pair<Double, Double> {
+            fun point(edge: Long): Crossing {
                 val vertical = edge and 1L == 1L
                 val index = (edge shr 1).toInt()
                 val i = index % w
@@ -315,13 +365,16 @@ class ViewshedSolver(val tiles: DemTileCache) {
                 val t = if (a == b) 0.5 else (a / (a - b)).coerceIn(0.0, 1.0)
                 val ci = i - 0.5
                 val bj = j - 0.5
-                return if (vertical) ci to bj + t else ci + t to bj
+                // The hidden side is the sample whose margin is not positive
+                val hiddenIsSecond = a > 0.0
+                val terrain = if (hiddenIsSecond) (if (vertical) terrain(i, j + 1) else terrain(i + 1, j)) else terrain(i, j)
+                return if (vertical) Crossing(ci, bj + t, terrain) else Crossing(ci + t, bj, terrain)
             }
-            val rings = mutableListOf<List<Pair<Double, Double>>>()
+            val rings = mutableListOf<List<Crossing>>()
             val visited = HashSet<Long>()
             for (start in links.keys) {
                 if (start in visited) continue
-                val ring = mutableListOf<Pair<Double, Double>>()
+                val ring = mutableListOf<Crossing>()
                 var previous = -1L
                 var current = start
                 while (true) {
@@ -339,14 +392,45 @@ class ViewshedSolver(val tiles: DemTileCache) {
             return rings
         }
 
-        private fun area(ring: List<Pair<Double, Double>>): Double {
+        private fun area(ring: List<Crossing>): Double {
             var sum = 0.0
             for (k in ring.indices) {
-                val (x0, y0) = ring[k]
-                val (x1, y1) = ring[(k + 1) % ring.size]
-                sum += x0 * y1 - x1 * y0
+                val p = ring[k]
+                val q = ring[(k + 1) % ring.size]
+                sum += p.column * q.bin - q.column * p.bin
             }
             return 0.5 * sum
+        }
+
+        /**
+         * The runs of each ring that nearer ground makes: every segment with a terrain-tagged end,
+         * so a run reaches the frame's edge where the shadow meets it, joined end to end. A ring
+         * made by terrain all round comes back closed.
+         */
+        internal fun terrainRuns(rings: List<List<Crossing>>): List<List<Crossing>> {
+            val runs = mutableListOf<List<Crossing>>()
+            for (ring in rings) {
+                val n = ring.size
+                fun qualifies(k: Int) = ring[k].terrain || ring[(k + 1) % n].terrain
+                val start = (0 until n).firstOrNull { !qualifies((it + n - 1) % n) }
+                if (start == null) {
+                    if (ring.any { it.terrain }) runs += ring + ring.first()
+                    continue
+                }
+                var run = mutableListOf<Crossing>()
+                for (step in 0 until n) {
+                    val k = (start + step) % n
+                    if (qualifies(k)) {
+                        if (run.isEmpty()) run += ring[k]
+                        run += ring[(k + 1) % n]
+                    } else if (run.size >= 2) {
+                        runs += run
+                        run = mutableListOf()
+                    }
+                }
+                if (run.size >= 2) runs += run
+            }
+            return runs
         }
     }
 }

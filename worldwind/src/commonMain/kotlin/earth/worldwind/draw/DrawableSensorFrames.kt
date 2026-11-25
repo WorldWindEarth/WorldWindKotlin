@@ -2,7 +2,9 @@ package earth.worldwind.draw
 
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.render.Texture
+import earth.worldwind.render.program.SensorFrameHatchProgram
 import earth.worldwind.render.program.SensorFrameMediaProgram
+import earth.worldwind.sensor.ViewshedMask
 import earth.worldwind.render.program.SensorFrameProgram
 import earth.worldwind.render.program.SensorFrameProgram.Companion.MAX_FRAMES
 import earth.worldwind.util.Pool
@@ -30,7 +32,8 @@ import kotlin.math.sqrt
  *
  * A frame with [media] is drawn once more on its own, after the others, with
  * [SensorFrameMediaProgram]: the picture where the sensor sees the ground, its tint and outline
- * over it.
+ * over it. A frame with a hidden-ground mask ([hatchMasks]) is drawn once more again with
+ * [SensorFrameHatchProgram]: screen-space hatching where the viewshed says the ground is hidden.
  */
 open class DrawableSensorFrames protected constructor() : Drawable {
     /** World → frame transforms (see `Sensor.frameTransform`), the first [count] used. */
@@ -47,6 +50,14 @@ open class DrawableSensorFrames protected constructor() : Drawable {
     /** A frame's media texture and its opacity, where it has one. */
     val media = arrayOfNulls<Texture>(MAX_TOTAL)
     val mediaOpacity = FloatArray(MAX_TOTAL)
+    /** A frame's hidden-ground mask and its texture, where it hatches; its premultiplied colour; spacing and width in pixels. */
+    val hatchMasks = arrayOfNulls<ViewshedMask>(MAX_TOTAL)
+    val hatchTextures = arrayOfNulls<Texture>(MAX_TOTAL)
+    val hatchColors = FloatArray(4 * MAX_TOTAL)
+    val hatchParams = FloatArray(2 * MAX_TOTAL)
+    /** The sensor's Cartesian point, and its east, north and up axes, for the hatch pass. */
+    val sensorPoints = DoubleArray(3 * MAX_TOTAL)
+    val sensorAxes = FloatArray(9 * MAX_TOTAL)
     var count = 0
     var outlineWidth = 2f
     /** Screen rectangle per frame (x, y, width, height, window coordinates), or width -1 for none. */
@@ -56,6 +67,7 @@ open class DrawableSensorFrames protected constructor() : Drawable {
     /** For the frames with media: a plain texture, and an external one. */
     var mediaProgram: SensorFrameMediaProgram? = null
     var mediaProgramOes: SensorFrameMediaProgram? = null
+    var hatchProgram: SensorFrameHatchProgram? = null
     private var pool: Pool<DrawableSensorFrames>? = null
     private val mvp = Matrix4()
     private val tileMatrix = Matrix4()
@@ -110,10 +122,13 @@ open class DrawableSensorFrames protected constructor() : Drawable {
 
     override fun recycle() {
         media.fill(null, 0, count)
+        hatchMasks.fill(null, 0, count)
+        hatchTextures.fill(null, 0, count)
         count = 0
         program = null
         mediaProgram = null
         mediaProgramOes = null
+        hatchProgram = null
         pool?.release(this)
         pool = null
     }
@@ -134,6 +149,7 @@ open class DrawableSensorFrames protected constructor() : Drawable {
         try {
             drawTiles(dc, program)
             mediaBound = drawMedia(dc)
+            mediaBound = drawHatch(dc) || mediaBound
         } finally {
             dc.gl.disable(GL_SCISSOR_TEST)
             if (mediaBound) {
@@ -229,6 +245,52 @@ open class DrawableSensorFrames protected constructor() : Drawable {
                 tileMatrix.copy(frameMatrices[k]).multiplyByTranslation(origin.x, origin.y, origin.z)
                 tileMatrix.transposeToArray(chunkMatrices, 0)
                 program.loadFrameMatrices(chunkMatrices)
+                terrain.drawTriangles(dc)
+                statDraws++
+            }
+        }
+        return bound
+    }
+
+    /**
+     * Draws each frame with a hidden-ground mask on its own over the tiles it reaches, the mask
+     * bound on [SensorFrameHatchProgram.MASK_UNIT]. True when a mask texture was bound.
+     */
+    private fun drawHatch(dc: DrawContext): Boolean {
+        val program = hatchProgram ?: return false
+        var bound = false
+        var inUse = false
+        for (k in 0 until count) {
+            val mask = hatchMasks[k] ?: continue
+            val texture = hatchTextures[k] ?: continue
+            if (!inUse) {
+                if (!program.useProgram(dc)) return false
+                inUse = true
+            }
+            dc.activeTextureUnit(GL_TEXTURE0 + SensorFrameHatchProgram.MASK_UNIT)
+            val ok = texture.bindTexture(dc)
+            dc.activeTextureUnit(GL_TEXTURE0)
+            if (!ok) continue
+            bound = true
+            program.loadAxes(sensorAxes, 9 * k)
+            program.loadGrid(
+                mask.startAzimuth.toFloat(), mask.span.toFloat(), mask.reach.toFloat(),
+                mask.columns, mask.bins, mask.width, mask.height,
+            )
+            program.loadHatch(hatchColors, 4 * k, hatchParams[2 * k], hatchParams[2 * k + 1])
+            reached[0] = k
+            if (!scissorTo(dc, 0, 1)) continue
+            val range = frameParams[4 * k + 2].toDouble()
+            val sx = sensorPoints[3 * k]; val sy = sensorPoints[3 * k + 1]; val sz = sensorPoints[3 * k + 2]
+            for (idx in 0 until dc.drawableTerrainCount) {
+                val terrain = dc.getDrawableTerrain(idx)
+                val origin = terrain.vertexOrigin
+                val radius = terrain.boundingSphereRadius
+                if (isTileCullingEnabled && radius > 0.0 && !reaches(frameMatrices[k], range, origin.x, origin.y, origin.z, radius)) continue
+                if (!terrain.useVertexPointAttrib(dc, 0 /*vertexPoint*/)) continue
+                mvp.copy(dc.modelviewProjection).multiplyByTranslation(origin.x, origin.y, origin.z)
+                program.loadModelviewProjection(mvp)
+                program.loadOrigin((origin.x - sx).toFloat(), (origin.y - sy).toFloat(), (origin.z - sz).toFloat())
                 terrain.drawTriangles(dc)
                 statDraws++
             }

@@ -7,9 +7,11 @@ import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Texture
+import earth.worldwind.render.program.SensorFrameHatchProgram
 import earth.worldwind.render.program.SensorFrameMediaProgram
 import earth.worldwind.render.program.SensorFrameMediaProgramOES
 import earth.worldwind.render.program.SensorFrameProgram
+import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Sector
 import kotlin.math.PI
 import kotlin.math.cos
@@ -64,6 +66,15 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
          */
         var media: Texture? = null
         var mediaOpacity = 1f
+        /**
+         * The hidden ground to hatch, from the sensor's viewshed, in [hatchColor] with lines
+         * [hatchSpacing] pixels apart and [hatchWidth] wide; null for none. Independent of the
+         * depth pass: the hatching is the viewshed's, the same on every map and at every zoom.
+         */
+        var hatch: ViewshedMask? = null
+        var hatchColor = Color(0f, 0f, 0f, 0f)
+        var hatchSpacing = 9f
+        var hatchWidth = 1f
         // Terrain height range under the frame, refreshed as the sensor moves (for the scissor)
         internal var lowAltitude = 0.0
         internal var highAltitude = 0.0
@@ -122,6 +133,28 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
             if (frame.media != null && d.mediaProgram == null) {
                 d.mediaProgram = rc.getShaderProgram { SensorFrameMediaProgram() }
                 d.mediaProgramOes = rc.getShaderProgram { SensorFrameMediaProgramOES() }
+            }
+            val hatch = frame.hatch
+            if (hatch != null && frame.hatchColor.alpha > 0f) {
+                d.hatchMasks[k] = hatch
+                d.hatchTextures[k] = rc.renderResourceCache[hatch] as? Texture
+                    ?: hatch.newTexture().also { rc.renderResourceCache.put(hatch, it, hatch.byteCount) }
+                premultiplied(frame.hatchColor, d.hatchColors, 4 * k)
+                d.hatchParams[2 * k] = frame.hatchSpacing
+                d.hatchParams[2 * k + 1] = frame.hatchWidth
+                rc.globe.geographicToCartesianTransform(
+                    sensor.position.latitude, sensor.position.longitude, sensor.position.altitude, local,
+                )
+                val m = local.m
+                d.sensorPoints[3 * k] = m[3]; d.sensorPoints[3 * k + 1] = m[7]; d.sensorPoints[3 * k + 2] = m[11]
+                val a = d.sensorAxes; val o = 9 * k
+                a[o] = m[0].toFloat(); a[o + 1] = m[4].toFloat(); a[o + 2] = m[8].toFloat()        // east
+                a[o + 3] = m[1].toFloat(); a[o + 4] = m[5].toFloat(); a[o + 5] = m[9].toFloat()    // north
+                a[o + 6] = m[2].toFloat(); a[o + 7] = m[6].toFloat(); a[o + 8] = m[10].toFloat()   // up
+                if (d.hatchProgram == null) d.hatchProgram = rc.getShaderProgram { SensorFrameHatchProgram() }
+            } else {
+                d.hatchMasks[k] = null
+                d.hatchTextures[k] = null
             }
             d.frameParams[4 * k] = tan(sensor.horizontalFov.inRadians / 2).toFloat()
             d.frameParams[4 * k + 1] = tan(sensor.verticalFov.inRadians / 2).toFloat()
@@ -186,6 +219,7 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
     }
 
     private val limits = FloatArray(2)
+    private val local = Matrix4()
 
     private companion object {
         /** Metres added above and below the elevation limits read for the scissor's height band. */

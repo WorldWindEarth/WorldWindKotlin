@@ -191,6 +191,57 @@ class ViewshedTest {
         assertTrue(interior.all { (x, y) -> abs(x - y) < 1e-9 }, "every crossing lies on the diagonal, not on a cell edge's middle")
     }
 
+    /** The mask's value, 0 to 255, at the cell [distance] metres along the sensor's azimuth. */
+    private fun ViewshedMask.valueAt(viewshed: Viewshed, distance: Double): Int {
+        val column = ((viewshed.sensor.azimuth.inRadians - startAzimuth) / (span / columns)).toInt().coerceIn(0, columns - 1)
+        val bin = (distance / (reach / bins)).toInt().coerceIn(0, bins - 1)
+        return data[4 * ((bin + 1) * width + (column + 1))].toInt() and 0xFF
+    }
+
+    @Test
+    fun flatGroundHidesNothingAndHasNoTerrainEdges() = runBlocking {
+        val viewshed = solve(globeWith { _, _ -> plain }, sensor(altitude = 100.0, depression = 10.0))
+        assertTrue(viewshed.terrainEdges.isEmpty(), "no edge is made by terrain on a plane")
+        assertTrue(viewshed.hiddenMargin.all { it <= 0f }, "no cell is hidden")
+        val mask = viewshed.hiddenMask()
+        assertTrue(mask.valueAt(viewshed, 2000.0) < 128 && mask.valueAt(viewshed, 3500.0) < 128)
+    }
+
+    @Test
+    fun aRidgeHidesTheGroundBehindItByTerrainAndMakesTerrainEdges() = runBlocking {
+        val viewshed = solve(globeWith(ridge(1500.0, 300.0)), sensor(altitude = 20.0))
+        assertFalse(viewshed.seenAt(2500.0))
+        assertTrue(viewshed.terrainEdges.isNotEmpty(), "the ridge's shadow has a boundary of its own")
+        val hidden = viewshed.hiddenMargin.indices.filter { viewshed.hiddenMargin[it] > 0f }
+        assertTrue(hidden.isNotEmpty(), "ground behind the ridge is hidden")
+        assertTrue(hidden.all { !viewshed.seen[it] && viewshed.limiter[it] == Viewshed.LIMIT_TERRAIN },
+            "every hidden cell is unseen because of nearer ground, not the frame or the range")
+        val mask = viewshed.hiddenMask()
+        assertTrue(mask.valueAt(viewshed, 1000.0) < 128, "in front of the ridge the mask is clear")
+        assertTrue(mask.valueAt(viewshed, 2500.0) >= 128, "behind the ridge the mask is hidden")
+        // The terrain edges run along the shadow's near boundary, well inside the range
+        val maxReach = viewshed.binLength * viewshed.bins
+        assertTrue(viewshed.terrainEdges.flatten().all { position ->
+            north(position.latitude.inDegrees) < maxReach - viewshed.binLength
+        }, "no terrain edge lies at the range")
+    }
+
+    @Test
+    fun terrainRunsKeepTheSegmentsNearerGroundMakesAndReachTheFrame() {
+        fun c(x: Double, terrain: Boolean) = Crossing(x, 0.0, terrain)
+        // A ring of four crossings: two made by terrain, two by the frame
+        val ring = listOf(c(0.0, true), c(1.0, true), c(2.0, false), c(3.0, false))
+        val runs = ViewshedSolver.terrainRuns(listOf(ring))
+        assertEquals(1, runs.size)
+        // 3 -> 0 -> 1 -> 2: the segment on the frame between 2 and 3 is left out
+        assertEquals(listOf(3.0, 0.0, 1.0, 2.0), runs.single().map { it.column })
+        // A ring made by terrain all round comes back closed
+        val closed = ViewshedSolver.terrainRuns(listOf(listOf(c(0.0, true), c(1.0, true), c(2.0, true))))
+        assertEquals(listOf(0.0, 1.0, 2.0, 0.0), closed.single().map { it.column })
+        // A ring made by the frame alone gives nothing
+        assertTrue(ViewshedSolver.terrainRuns(listOf(listOf(c(0.0, false), c(1.0, false), c(2.0, false)))).isEmpty())
+    }
+
     @Test
     fun theEngineSweepsOnceAndAgainOnlyForAMoveTheDataResolves() = runBlocking {
         val globe = globeWith(ridge(1500.0, 300.0))
