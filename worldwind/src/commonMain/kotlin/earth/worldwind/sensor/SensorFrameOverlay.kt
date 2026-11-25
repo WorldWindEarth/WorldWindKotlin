@@ -75,6 +75,15 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
         var hatchColor = Color(0f, 0f, 0f, 0f)
         var hatchSpacing = 9f
         var hatchWidth = 1f
+        /** Whether the last frame drew this frame: enabled and within [DrawableSensorFrames.MAX_TOTAL]. */
+        var isDrawn = false
+            internal set
+        /**
+         * Whether the last frame drew this frame occluded, with a cell of the depth atlas: false for
+         * frames past [DrawableSensorFrameDepth.MAX_CELLS], and for all when occlusion is off.
+         */
+        var isOccluded = false
+            internal set
         // Terrain height range under the frame, refreshed as the sensor moves (for the scissor)
         internal var lowAltitude = 0.0
         internal var highAltitude = 0.0
@@ -119,9 +128,9 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
             it.program = program
             it.outlineWidth = outlineWidth
         }
+        assignDepthCells(frames, isOcclusionEnabled)
         for (frame in frames) {
-            if (!frame.isEnabled) continue
-            if (d.count == DrawableSensorFrames.MAX_TOTAL) break
+            if (!frame.isDrawn) continue
             val k = d.count++
             val sensor = frame.sensor
             sensor.frameTransform(rc.globe, d.frameMatrices[k])
@@ -165,7 +174,7 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
             if (!sensor.groundScreenRect(
                     rc.globe, rc.modelviewProjection, rc.viewport, frame.lowAltitude, frame.highAltitude, d.frameRects, 4 * k
                 )) d.frameRects[4 * k + 2] = -1
-            if (depth != null && depth.count < DrawableSensorFrameDepth.MAX_CELLS) {
+            if (depth != null && frame.isOccluded) {
                 val cell = depth.count++
                 depth.frameMatrices[cell].copy(d.frameMatrices[k])
                 depth.ranges[cell] = sensor.maxRange
@@ -221,9 +230,23 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
     private val limits = FloatArray(2)
     private val local = Matrix4()
 
-    private companion object {
+    internal companion object {
         /** Metres added above and below the elevation limits read for the scissor's height band. */
         const val HEIGHT_MARGIN = 300.0
+
+        /**
+         * Marks which [frames] are drawn, the first [DrawableSensorFrames.MAX_TOTAL] enabled ones,
+         * and which of those are occluded, the first [DrawableSensorFrameDepth.MAX_CELLS] of them
+         * when [occlusion] is on: the atlas cell of an occluded frame is its rank among them.
+         */
+        fun assignDepthCells(frames: List<Frame>, occlusion: Boolean) {
+            var drawn = 0
+            for (frame in frames) {
+                frame.isDrawn = frame.isEnabled && drawn < DrawableSensorFrames.MAX_TOTAL
+                frame.isOccluded = frame.isDrawn && occlusion && drawn < DrawableSensorFrameDepth.MAX_CELLS
+                if (frame.isDrawn) drawn++
+            }
+        }
     }
 
     private fun premultiplied(color: Color, out: FloatArray, offset: Int) {

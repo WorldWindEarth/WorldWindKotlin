@@ -93,6 +93,9 @@ open class DrawableSensorFrames protected constructor() : Drawable {
         var isTileCullingEnabled = true
         var isScissorEnabled = true
 
+        /** Frames in the draw of a tile's [n] frames that starts at frame [start]: at most [MAX_FRAMES]. */
+        internal fun chunkSize(n: Int, start: Int) = minOf(MAX_FRAMES, n - start)
+
         @JvmStatic
         fun obtain(pool: Pool<DrawableSensorFrames>): DrawableSensorFrames {
             val instance = pool.acquire() ?: DrawableSensorFrames()
@@ -172,13 +175,7 @@ open class DrawableSensorFrames protected constructor() : Drawable {
             val terrain = dc.getDrawableTerrain(idx)
             val origin = terrain.vertexOrigin
             val radius = terrain.boundingSphereRadius
-            // The frames this tile reaches
-            var n = 0
-            for (k in 0 until count) {
-                if (!isTileCullingEnabled || radius <= 0.0 || reaches(frameMatrices[k], frameParams[4 * k + 2].toDouble(), origin.x, origin.y, origin.z, radius)) {
-                    reached[n++] = k
-                }
-            }
+            val n = framesReaching(origin.x, origin.y, origin.z, radius, reached)
             if (n == 0) continue
             if (!terrain.useVertexPointAttrib(dc, 0 /*vertexPoint*/)) continue
             statTiles++
@@ -187,7 +184,7 @@ open class DrawableSensorFrames protected constructor() : Drawable {
             program.loadModelviewProjection(mvp)
             var start = 0
             while (start < n) {
-                val size = minOf(MAX_FRAMES, n - start)
+                val size = chunkSize(n, start)
                 for (j in 0 until size) {
                     val k = reached[start + j]
                     tileMatrix.copy(frameMatrices[k]).multiplyByTranslation(origin.x, origin.y, origin.z)
@@ -206,6 +203,21 @@ open class DrawableSensorFrames protected constructor() : Drawable {
                 start += size
             }
         }
+    }
+
+    /**
+     * Writes to [out] the indices of the frames that reach the tile whose bounding sphere is at
+     * ([x], [y], [z]) with [radius], in frame order, and returns how many; a tile without a sphere
+     * (radius 0) is reached by all of them.
+     */
+    internal fun framesReaching(x: Double, y: Double, z: Double, radius: Double, out: IntArray): Int {
+        var n = 0
+        for (k in 0 until count) {
+            if (!isTileCullingEnabled || radius <= 0.0 || reaches(frameMatrices[k], frameParams[4 * k + 2].toDouble(), x, y, z, radius)) {
+                out[n++] = k
+            }
+        }
+        return n
     }
 
     /**
