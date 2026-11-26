@@ -46,7 +46,7 @@ internal object JsMilStd2525Renderer : MilStd2525Renderer {
         ) ?: return null
         val symbolBounds = info.getSymbolBounds()
         return MilStd2525Symbol(
-            canvas = createMilStdCanvas(info, symbolCode),
+            canvas = createMilStdCanvas(info, symbolCode) ?: return null,
             symbolCenterX = info.getSymbolCenterX().toDouble(),
             symbolCenterY = info.getSymbolCenterY().toDouble(),
             symbolWidth = symbolBounds.getWidth().toDouble(),
@@ -123,7 +123,7 @@ internal object JsMilStd2525Renderer : MilStd2525Renderer {
                 val geo = ipc.PixelsToGeo(si.getModifierPosition() ?: return null)
                 MilStd2525ModifierImage(
                     position = Position.fromDegrees(geo.getY().toDouble(), geo.getX().toDouble(), 0.0),
-                    canvas = createMilStdCanvas(image, symbolId),
+                    canvas = createMilStdCanvas(image, symbolId) ?: return null,
                     text = si.getModifierString(),
                     angle = si.getModifierAngle().toDouble().degrees,
                 )
@@ -189,34 +189,26 @@ private val loggedCanvasFailures = mutableSetOf<String>()
 private val staticRenderOptions: dynamic = js("({ enableRedraw: false, ignoreMouse: true, ignoreAnimation: true })")
 
 /**
- * Rasterize a mil-sym [SVGSymbolInfo] to a canvas via canvg.
- * Used for point symbols and for pattern fills and modifier images on [MilStd2525TacticalGraphic].
+ * Rasterize a mil-sym [SVGSymbolInfo] to a canvas via canvg. Null when canvg throws or the SVG waits on images or
+ * fonts, which a single draw cannot wait for; callers then skip the image.
  */
-internal fun createMilStdCanvas(info: SVGSymbolInfo, symbolId: String): HTMLCanvasElement {
+internal fun createMilStdCanvas(info: SVGSymbolInfo, symbolId: String): HTMLCanvasElement? {
     val canvas = document.createElement("canvas") as HTMLCanvasElement
     val imageBounds = info.getImageBounds()
-    val width = imageBounds.getWidth().toInt()
-    val height = imageBounds.getHeight().toInt()
-    canvas.width = width
-    canvas.height = height
+    canvas.width = imageBounds.getWidth().toInt()
+    canvas.height = imageBounds.getHeight().toInt()
     val ctx = canvas.getContext("2d") as CanvasRenderingContext2D
     try {
         val canvg = Canvg.fromString(ctx, info.getSVG())
         canvg.start(staticRenderOptions)
-        // With redraw off, an SVG still loading images or fonts is never drawn.
-        if (!canvg.isReady() && loggedCanvasFailures.add(symbolId)) {
-            Logger.log(Logger.WARN, "MIL-STD-2525 symbol '$symbolId' waits on external resources and is left blank")
+        if (canvg.isReady()) return canvas
+        if (loggedCanvasFailures.add(symbolId)) {
+            Logger.log(Logger.WARN, "MIL-STD-2525 symbol '$symbolId' waits on images or fonts and is skipped")
         }
     } catch (e: Throwable) {
-        // Reset the bitmap in case canvg resized it or drew part of the SVG before failing.
-        canvas.width = width
-        canvas.height = height
-        // canvg also sets inline dimensions from the SVG.
-        canvas.style.removeProperty("width")
-        canvas.style.removeProperty("height")
         if (loggedCanvasFailures.add(symbolId)) {
             Logger.log(Logger.ERROR, "Failed to rasterize MIL-STD-2525 symbol '$symbolId'", e)
         }
     }
-    return canvas
+    return null
 }

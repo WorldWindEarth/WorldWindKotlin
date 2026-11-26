@@ -8,6 +8,10 @@ import earth.worldwind.render.Renderable
 import earth.worldwind.render.image.ImageSource
 import earth.worldwind.shape.ShapeAttributes
 import earth.worldwind.shape.TextAttributes
+import earth.worldwind.util.Logger
+
+/** Symbol ids whose tactical graphic already failed to render, so each is logged once. */
+private val failedSymbolIds = mutableSetOf<String>()
 
 actual open class MilStd2525TacticalGraphic actual constructor(
     symbolID: String, locations: List<Location>,
@@ -52,10 +56,18 @@ actual open class MilStd2525TacticalGraphic actual constructor(
         val outlines = mutableListOf<Renderable>()
         // The per-target renderer builds & rasterizes the MilStdSymbol and hands back target-agnostic
         // shapes (geo-converted); here we only turn those into WorldWind Renderables.
-        val rendered = MilStd2525.renderTacticalGraphic(
-            symbolID, controlPoints, pointULLon, pointULLat, scale, rc.densityFactor,
-            modifiers, attributes
-        )
+        val rendered = try {
+            MilStd2525.renderTacticalGraphic(
+                symbolID, controlPoints, pointULLon, pointULLat, scale, rc.densityFactor,
+                modifiers, attributes
+            )
+        } catch (e: Throwable) {
+            // mil-sym throws JS errors, which the layer's Exception catch does not stop
+            if (failedSymbolIds.add(symbolID)) {
+                Logger.log(Logger.ERROR, "Failed to render MIL-STD-2525 tactical graphic '$symbolID'", e)
+            }
+            return emptyList()
+        }
         for (shape in rendered) when (shape) {
             is MilStd2525Polyline -> {
                 val shapeAttributes = ShapeAttributes().apply {
