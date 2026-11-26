@@ -149,9 +149,8 @@ fun main() {
                 // Sightlines
                 "Real-time sightline" to SightlineTutorial(engine),
                 "Viewshed sightline" to ViewshedSightlineTutorial(engine),
-                "Sensor footprints" to SensorFootprintTutorial(
-                    engine, measure = System.getenv("WORLDWIND_SENSOR_MEASURE") == "true",
-                    droneCount = System.getenv("WORLDWIND_SENSOR_DRONES")?.toIntOrNull() ?: 10,
+                "Sensor frames: 100 drones" to SensorFootprintTutorial(
+                    engine, droneCount = System.getenv("WORLDWIND_SENSOR_DRONES")?.toIntOrNull() ?: 100,
                 ),
                 // Surface & media overlays
                 "Surface image" to SurfaceImageTutorial(engine),
