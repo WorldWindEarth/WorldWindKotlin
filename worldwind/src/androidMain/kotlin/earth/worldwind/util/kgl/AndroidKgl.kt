@@ -242,6 +242,7 @@ class AndroidKgl : Kgl {
     override fun colorMask(r: Boolean, g: Boolean, b: Boolean, a: Boolean) = GLES20.glColorMask(r, g, b, a)
 
     override fun viewport(x: Int, y: Int, width: Int, height: Int) = GLES20.glViewport(x, y, width, height)
+    override fun scissor(x: Int, y: Int, width: Int, height: Int) = GLES20.glScissor(x, y, width, height)
 
     override fun clear(mask: Int) = GLES20.glClear(mask)
 
@@ -281,6 +282,9 @@ class AndroidKgl : Kgl {
         require(offset == 0) { "AndroidKgl.texSubImage2D PBO path supports only offset=0" }
         GLES30.glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, null as Buffer?)
     }
+
+    override fun copyTexSubImage2D(target: Int, level: Int, xoffset: Int, yoffset: Int, x: Int, y: Int, width: Int, height: Int) =
+        GLES20.glCopyTexSubImage2D(target, level, xoffset, yoffset, x, y, width, height)
 
     override fun activeTexture(texture: Int) = GLES20.glActiveTexture(texture)
 

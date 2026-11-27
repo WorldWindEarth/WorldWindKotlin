@@ -28,6 +28,13 @@ import earth.worldwind.render.OesExternalTexture
  * fresh `SurfaceTexture` + `Surface` and re-fires [onSurfaceReady] so the caller can
  * rebind the player.
  *
+ * **Several windows.** Windows sharing a render resource cache share their GL contexts, so
+ * the texture itself is one for all of them; the `SurfaceTexture` wrapping it, though, belongs
+ * to the EGL context it was created on, and `updateTexImage` from another window's GL thread
+ * throws. The window that wrapped it is the only one to pull frames; the others sample the
+ * texture as it was last left. Should that window's GL thread end, the next one to bind takes
+ * the wrap over.
+ *
  * `setOnFrameAvailableListener` fires on the listener's caller thread by default; producer
  * frames typically arrive on a binder / decoder thread. The listener requests a redraw
  * (so the GL thread picks up the new frame) and then invokes the user-supplied
@@ -49,6 +56,8 @@ open class MediaSurfaceTexture(width: Int, height: Int) : OesExternalTexture(wid
     private var surfaceTexture: SurfaceTexture? = null
     /** Last GL name id we wrapped — used to detect context-loss regeneration. */
     private var boundNameId: Int = -1
+    /** The GL thread the wrap was made on, the only one that can pull frames through it. */
+    private var ownerThread: Thread? = null
 
     /** `Surface` wrapping the underlying [SurfaceTexture]. Null until [onSurfaceReady] fires. */
     var surface: Surface? = null
@@ -72,6 +81,12 @@ open class MediaSurfaceTexture(width: Int, height: Int) : OesExternalTexture(wid
 
     override fun bindTexture(dc: DrawContext): Boolean {
         if (!super.bindTexture(dc)) return false
+        val owner = ownerThread
+        if (owner != null && owner !== Thread.currentThread()) {
+            // Another window sharing the context draws what the owner last pulled
+            if (owner.isAlive) return true
+            releaseBindings()
+        }
         if (name.id != boundNameId) {
             // Drop the previous producer side first so an in-flight updateTexImage can't
             // race with deletion, then wrap the freshly allocated GL name.
@@ -86,6 +101,7 @@ open class MediaSurfaceTexture(width: Int, height: Int) : OesExternalTexture(wid
             }
             surface = Surface(st)
             boundNameId = name.id
+            ownerThread = Thread.currentThread()
             onSurfaceReady?.invoke()
         }
         // Pull the latest producer frame into the OES texture we just bound. After an
@@ -110,6 +126,7 @@ open class MediaSurfaceTexture(width: Int, height: Int) : OesExternalTexture(wid
         surfaceTexture?.release()
         surfaceTexture = null
         boundNameId = -1
+        ownerThread = null
     }
 
     override fun deleteTexture(dc: DrawContext) {

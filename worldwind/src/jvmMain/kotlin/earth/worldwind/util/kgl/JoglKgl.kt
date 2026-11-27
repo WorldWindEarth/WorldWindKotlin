@@ -253,6 +253,7 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
     override fun colorMask(r: Boolean, g: Boolean, b: Boolean, a: Boolean) = gl.glColorMask(r, g, b, a)
 
     override fun viewport(x: Int, y: Int, width: Int, height: Int) = gl.glViewport(x, y, width, height)
+    override fun scissor(x: Int, y: Int, width: Int, height: Int) = gl.glScissor(x, y, width, height)
 
     override fun clear(mask: Int) = gl.glClear(mask)
 
@@ -283,6 +284,9 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
     override fun texSubImage2D(
         target: Int, level: Int, xoffset: Int, yoffset: Int, width: Int, height: Int, format: Int, type: Int, offset: Int
     ) = gl.glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, offset.toLong())
+
+    override fun copyTexSubImage2D(target: Int, level: Int, xoffset: Int, yoffset: Int, x: Int, y: Int, width: Int, height: Int) =
+        gl.glCopyTexSubImage2D(target, level, xoffset, yoffset, x, y, width, height)
 
     override fun activeTexture(texture: Int) = gl.glActiveTexture(texture)
 

@@ -31,6 +31,7 @@ import platform.gles3.GL_CONDITION_SATISFIED
 import platform.gles3.GL_SYNC_GPU_COMMANDS_COMPLETE
 import platform.gles3.glActiveTexture
 import platform.gles3.glAttachShader
+import platform.gles3.glCopyTexSubImage2D
 import platform.gles3.glBindAttribLocation
 import platform.gles3.glBindBuffer
 import platform.gles3.glBindFramebuffer
@@ -117,6 +118,7 @@ import platform.gles3.glUniformMatrix4fv
 import platform.gles3.glUnmapBuffer
 import platform.gles3.glUseProgram
 import platform.gles3.glVertexAttribPointer
+import platform.gles3.glScissor
 import platform.gles3.glViewport
 
 /**
@@ -419,6 +421,7 @@ class IosKgl : Kgl {
     override fun clearStencil(s: Int) { glClearStencil(s) }
     override fun blendFunc(sFactor: Int, dFactor: Int) { glBlendFunc(sFactor.toUInt(), dFactor.toUInt()) }
     override fun viewport(x: Int, y: Int, width: Int, height: Int) { glViewport(x, y, width, height) }
+    override fun scissor(x: Int, y: Int, width: Int, height: Int) { glScissor(x, y, width, height) }
     override fun clearColor(r: Float, g: Float, b: Float, a: Float) { glClearColor(r, g, b, a) }
     override fun clear(mask: Int) { glClear(mask.toUInt()) }
 
@@ -485,6 +488,8 @@ class IosKgl : Kgl {
             format.toUInt(), type.toUInt(), offset.toLong().toCPointer<ByteVar>()
         )
     }
+
+    override fun copyTexSubImage2D(target: Int, level: Int, xoffset: Int, yoffset: Int, x: Int, y: Int, width: Int, height: Int) { glCopyTexSubImage2D(target.toUInt(), level, xoffset, yoffset, x, y, width, height) }
 
     override fun activeTexture(texture: Int) { glActiveTexture(texture.toUInt()) }
     override fun bindTexture(target: Int, texture: KglTexture) { glBindTexture(target.toUInt(), texture.id) }

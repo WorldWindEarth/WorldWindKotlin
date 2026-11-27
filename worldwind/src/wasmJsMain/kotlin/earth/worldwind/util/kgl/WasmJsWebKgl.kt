@@ -385,6 +385,7 @@ class WasmJsWebKgl(val gl: WebGLRenderingContext) : WebKgl {
     override fun colorMask(r: Boolean, g: Boolean, b: Boolean, a: Boolean) = gl.colorMask(r, g, b, a)
 
     override fun viewport(x: Int, y: Int, width: Int, height: Int) = gl.viewport(x, y, width, height)
+    override fun scissor(x: Int, y: Int, width: Int, height: Int) = gl.scissor(x, y, width, height)
 
     override fun clear(mask: Int) = gl.clear(mask)
 
@@ -418,6 +419,9 @@ class WasmJsWebKgl(val gl: WebGLRenderingContext) : WebKgl {
             target, level, xoffset, yoffset, width, height, format, type, offset
         )
     }
+
+    override fun copyTexSubImage2D(target: Int, level: Int, xoffset: Int, yoffset: Int, x: Int, y: Int, width: Int, height: Int) =
+        gl.copyTexSubImage2D(target, level, xoffset, yoffset, x, y, width, height)
 
     override fun activeTexture(texture: Int) = gl.activeTexture(texture)
 

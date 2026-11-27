@@ -1,5 +1,6 @@
 package earth.worldwind.draw
 
+import earth.worldwind.layer.shadow.applyShadowReceiverUniforms
 import earth.worldwind.geom.Matrix3
 import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Sector
@@ -203,6 +204,10 @@ open class DrawableSurfaceQuad protected constructor() : Drawable {
             program.enableOneVertexMode(true)
             program.enablePickMode(false)
             program.enableTexture(true)
+            // The tile is drawn as the shapes were rasterized: a lit or shadowed state left by
+            // an earlier 3D shape would otherwise shade the quad's outline with the terrain.
+            program.enableLighting(false)
+            dc.applyShadowReceiverUniforms(program, applyShadow = false)
             program.loadTexCoordMatrix(identityMatrix3)
             program.loadColor(color)
             program.loadOpacity(opacity)
@@ -287,6 +292,14 @@ open class DrawableSurfaceQuad protected constructor() : Drawable {
 
         // Use the draw context's pick mode.
         program.enablePickMode(dc.isPickMode)
+        // A flat top-down rasterization has no surface normal to light: the triangle program's
+        // "skip-if-unchanged" uniform cache would otherwise keep the lighting a previous lit shape
+        // (a 3D path, an extruded polygon) switched on, and the derivative-based face normal of
+        // a line in texture space then darkens its segments at random. Same guard as
+        // [DrawableSurfaceShape.drawShapesToTexture]. Shadows do not apply here either: the
+        // orthographic texture-space projection gives the receiver nothing to look up with.
+        program.enableLighting(false)
+        dc.applyShadowReceiverUniforms(program, applyShadow = false)
 
         program.enableOneVertexMode(false)
         program.loadClipDistance((textureMvpMatrix.m[11] / (textureMvpMatrix.m[10] - 1.0)).toFloat() / 2.0f) // set value here, but matrix is orthographic and shader clipping won't work as vertices projected orthographically always have .w == 1

@@ -1,0 +1,270 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Sensor Frames: 100 Drones Tutorial</title>
+    <script src="file:///android_asset/codemirror-5.65.3/lib/codemirror.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/mode.js" type="text/javascript"></script>
+    <script src="file:///android_asset/codemirror-5.65.3/mode/kotlin/kotlin.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/codemirror-5.65.3/lib/codemirror.css"/>
+    <link rel="stylesheet" type="text/css" href="file:///android_asset/override.css"/>
+</head>
+<body>
+<h1>Sensor Frames: 100 Drones Tutorial</h1>
+<p>
+    A hundred drones fly loops over the ridges and valleys around Mount St. Helens, 80 to 600 m above
+    the ground, each with a camera whose frame is drawn on the terrain as it flies. Each drone flies its
+    own circle or figure-eight, at its own radius, speed and height, looks along its track and slowly
+    tilts its gimbal between 10&deg; and 60&deg; down. The animation runs on the frame clock.
+</p>
+<p>
+    The frames are drawn by a <code>SensorFrameOverlay</code>, entirely on the GPU, like sun shadows
+    with the camera as the sun: the terrain is drawn once more and every pixel inside a camera's frame
+    is tinted, so the frames follow the hills exactly. The panel on the right switches, while the
+    drones fly:
+</p>
+<ul>
+    <li><b>Frustum frame</b> &mdash; the frame's outline on the ground (off by default).</li>
+    <li><b>Straight sides</b> &mdash; with the frustum frame on, the frame is drawn instead as four
+        paths between where the corner rays land (a <code>FootprintSolver</code>): the near and far
+        edges on the ground, the left and right sides straight through the air.</li>
+    <li><b>Seen tint</b> &mdash; ground inside the frame the drone sees (on, red at 10&nbsp;%), with a
+        colour and an opacity.</li>
+    <li><b>Hidden tint</b> &mdash; ground inside the frame behind a ridge (off, blue at 25&nbsp;%).</li>
+    <li><b>Picture</b> &mdash; an animated test card shared by every drone, shown on the ground each
+        drone sees in place of the seen tint; the hidden tint stays.</li>
+    <li><b>Elevation outline</b> &mdash; each drone's viewshed over the elevation data, from a
+        <code>ViewshedEngine</code> on a worker thread, its regions drawn as paths on the ground.</li>
+    <li><b>Occlusion</b> &mdash; a small depth map rendered from each drone, like a shadow map, tells
+        the seen ground from the hidden.</li>
+    <li><b>Drones</b> &mdash; 1, 10 or 100.</li>
+</ul>
+<p>
+    <b>The depth atlas holds 16 frames.</b> With 100 drones, drones 1 to 16 are occluded and drones 17
+    to 100 are drawn without occlusion: their seen tint (or picture) covers their whole frame, ridges or
+    not, and their hidden tint never shows. The panel shows the atlas size and which drones it leaves out.
+</p>
+<p>
+    The top left corner shows the frame rate, the mean and standard deviation of render and draw
+    time, the overlay's draw calls a frame and the viewshed sweeps a second; the same is written to
+    the log every 5 s.
+</p>
+<h2>Example</h2>
+<h3>SensorFootprintFragment.kt</h3>
+<p>
+    The <code>SensorFootprintFragment</code> class extends <code>BasicGlobeFragment</code>, starts a <code>SensorFootprintTutorial</code> against the engine and adds the control panel and the measurements over the globe.
+</p>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea class="kotlin-code">
+/**
+ * Sensor frames: 100 drones, with a panel on the right to switch what is drawn while the drones
+ * fly, and the measurements above it, refreshed twice a second.
+ */
+class SensorFootprintFragment: BasicGlobeFragment() {
+    private lateinit var tutorial: SensorFootprintTutorial
+    private val handler = Handler(Looper.getMainLooper())
+    private var statusView: TextView? = null
+    private val refresh = object : Runnable {
+        override fun run() {
+            statusView?.text = tutorial.status
+            handler.postDelayed(this, 500)
+        }
+    }
+
+    /**
+     * Creates a new WorldWindow (GLSurfaceView) object with drones drawing their sensor frames.
+     *
+     * @return The WorldWindow object containing the globe.
+     */
+    override fun createWorldWindow() = super.createWorldWindow().also {
+        // The panel covers the compass's top right corner and the measurements the world map's top left
+        it.engine.layers.run { removeAllLayers(filter { layer -&gt; layer is CompassLayer || layer is WorldMapLayer }) }
+        tutorial = SensorFootprintTutorial(it.engine)
+        tutorial.isStatusOnGlobe = false
+        tutorial.start()
+    }
+
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+        val rootView = super.onCreateView(inflater, container, savedInstanceState) ?: return null
+        val globe = rootView.findViewById&lt;FrameLayout&gt;(R.id.globe)
+        val context = requireContext()
+        val density = resources.displayMetrics.density
+        fun dp(value: Int) = (value * density).toInt()
+
+        val status = TextView(context).apply {
+            setTextColor(AndroidColor.WHITE)
+            setShadowLayer(3f, 0f, 0f, AndroidColor.BLACK)
+            textSize = 12f
+            setPadding(dp(8), dp(8), dp(8), dp(8))
+        }
+        statusView = status
+        globe.addView(status, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.START
+        ))
+
+        val panel = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(10), dp(6), dp(10), dp(6))
+        }
+        fun label(text: String) = TextView(context).apply {
+            this.text = text
+            setTextColor(AndroidColor.WHITE)
+            textSize = 13f
+        }
+        fun switch(text: String, checked: Boolean, onChange: (Boolean) -&gt; Unit) = Switch(context).apply {
+            this.text = text
+            setTextColor(AndroidColor.WHITE)
+            isChecked = checked
+            setOnCheckedChangeListener { _, value -&gt; onChange(value) }
+        }.also { panel.addView(it) }
+        fun slider(text: String, value: Float, onChange: (Float) -&gt; Unit) {
+            val caption = label("$text ${(value * 100).toInt()} %")
+            panel.addView(caption)
+            panel.addView(SeekBar(context).apply {
+                max = 100
+                progress = (value * 100).toInt()
+                setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) {
+                        caption.text = "$text $progress %"
+                        onChange(progress / 100f)
+                    }
+                    override fun onStartTrackingTouch(bar: SeekBar) {}
+                    override fun onStopTrackingTouch(bar: SeekBar) {}
+                })
+            })
+        }
+        fun colors(selected: Color, onChange: (Color) -&gt; Unit) {
+            val names = SensorFootprintTutorial.COLORS.map { it.first }
+            panel.addView(Spinner(context).apply {
+                adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item, names)
+                setSelection(SensorFootprintTutorial.COLORS.indexOfFirst { it.second == selected }.coerceAtLeast(0))
+                onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                    override fun onItemSelected(parent: AdapterView&lt;*&gt;, view: View?, position: Int, id: Long) {
+                        (view as? TextView)?.setTextColor(AndroidColor.WHITE)
+                        onChange(Color(SensorFootprintTutorial.COLORS[position].second))
+                    }
+                    override fun onNothingSelected(parent: AdapterView&lt;*&gt;) {}
+                }
+            })
+        }
+
+        val t = tutorial
+        switch("Frustum frame", t.isFrameShown) { t.isFrameShown = it }
+        switch("Straight sides", t.isStraightSidesShown) { t.isStraightSidesShown = it }
+        switch("Seen tint", t.isSeenShown) { t.isSeenShown = it }
+        colors(t.seenColor) { t.seenColor = it }
+        slider("Seen opacity", t.seenOpacity) { t.seenOpacity = it }
+        switch("Hidden tint", t.isHiddenShown) { t.isHiddenShown = it }
+        colors(t.hiddenColor) { t.hiddenColor = it }
+        slider("Hidden opacity", t.hiddenOpacity) { t.hiddenOpacity = it }
+        switch("Picture", t.isPictureShown) { t.isPictureShown = it }
+        slider("Picture opacity", t.pictureOpacity) { t.pictureOpacity = it }
+        switch("Elevation outline", t.isElevationOutlineShown) { t.isElevationOutlineShown = it }
+        switch("Occlusion", t.isOcclusionEnabled) { t.isOcclusionEnabled = it }
+        panel.addView(label("Drones (atlas holds ${t.atlasCells} occluded)"))
+        panel.addView(RadioGroup(context).apply {
+            orientation = RadioGroup.HORIZONTAL
+            for (count in SensorFootprintTutorial.DRONE_COUNTS) addView(RadioButton(context).apply {
+                id = View.generateViewId()
+                text = "$count"
+                setTextColor(AndroidColor.WHITE)
+                isChecked = count == t.droneCount
+                setOnCheckedChangeListener { _, checked -&gt; if (checked) t.setDroneCount(count) }
+            })
+        })
+
+        val scroll = ScrollView(context).apply {
+            setBackgroundColor(AndroidColor.argb(160, 0, 0, 0))
+            addView(panel)
+        }
+        // Ends above the activity's floating button in the bottom right corner
+        globe.addView(scroll, FrameLayout.LayoutParams(dp(230), ViewGroup.LayoutParams.MATCH_PARENT, Gravity.END).apply {
+            bottomMargin = dp(80)
+        })
+        globe.addView(Button(context).apply {
+            text = "Panel"
+            setOnClickListener { scroll.visibility = if (scroll.visibility == View.VISIBLE) View.GONE else View.VISIBLE }
+        // Beside the panel, clear of the view controls in the bottom left corner
+        }, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.END
+        ).apply { setMargins(dp(8), dp(8), dp(238), dp(8)) })
+        return rootView
+    }
+
+    override fun onResume() {
+        super.onResume()
+        handler.post(refresh)
+    }
+
+    override fun onPause() {
+        handler.removeCallbacks(refresh)
+        super.onPause()
+    }
+}
+    </textarea>
+</div>
+<h3>SensorFootprintTutorial.kt (excerpt)</h3>
+<p>
+    The <code>SensorFootprintTutorial</code> class flies the drones and styles their frames from the
+    settings. Each drone carries a <code>Sensor</code>; one <code>SensorFrameOverlay</code> draws every
+    drone's frame. Each frame, the drones move their sensors and the overlay's frames take their colours,
+    picture and occlusion from the panel. The full source, with the viewsheds, the straight sides and the
+    measurements, is in <code>worldwind-tutorials/src/commonMain/kotlin/earth.worldwind.tutorials/SensorFootprintTutorial.kt</code>,
+    and the animated test card in <code>TestPatternTexture.kt</code> beside it.
+</p>
+<div style="border-top: 1px solid black; border-bottom: 1px solid black;">
+    <textarea class="kotlin-code">
+// One overlay draws every drone's frame on the terrain
+private val overlay = SensorFrameOverlay().apply { outlineWidth = 2f }
+private val picture = TestPatternTexture()
+
+init {
+    layer.addRenderable(animator) // first, so the frames below are drawn where it left the drones
+    layer.addRenderable(overlay)
+}
+
+// Each drone carries a sensor: where it is, where it looks, its field of view and range
+val sensor = Sensor(
+    position = Position.fromDegrees(latitude, longitude, 0.0),
+    azimuth = 0.0.degrees, depression = 30.0.degrees,
+    horizontalFov = horizontalFov.degrees, verticalFov = verticalFov.degrees, maxRange = range,
+)
+
+// When the drones are rebuilt, one frame per drone
+overlay.frames.clear()
+for (drone in drones) overlay.add(drone.sensor, Color(drone.color))
+
+// Every frame, each drone moves its sensor along its loop...
+val position = sensor.position
+position.latitude = lat.degrees
+position.longitude = lon.degrees
+position.altitude = globe.getElevation(position.latitude, position.longitude) + heightAboveGround
+sensor.azimuth = (heading + panAmplitude * sin(2 * PI * time / panPeriod)).degrees.normalize360()
+sensor.depression = (35.0 + 25.0 * sin(2 * PI * time / tiltPeriod + tiltPhase)).degrees
+
+// ...and the frames take their style from the settings
+overlay.isOcclusionEnabled = isOcclusionEnabled
+for ((i, f) in overlay.frames.withIndex()) {
+    val color = drones[i].color
+    f.outlineColor.set(color.red, color.green, color.blue, if (frame) 1f else 0f)
+    // The picture replaces the seen tint on frames that carry it; the hidden tint stays
+    f.fillColor.set(seen.red, seen.green, seen.blue, seenAlpha)
+    f.occludedColor.set(hidden.red, hidden.green, hidden.blue, hiddenAlpha)
+    f.media = if (isPictureShown) picture else null
+    f.mediaOpacity = pictureOpacity
+}
+    </textarea>
+</div>
+
+<script type="text/javascript">
+      for (const area of document.getElementsByClassName("kotlin-code")) {
+        CodeMirror.fromTextArea(area, {
+          lineNumbers: true,
+          matchBrackets: true,
+          mode: "google-kotlin",
+          readOnly: true
+        });
+      }
+</script>
+</body>
+</html>
