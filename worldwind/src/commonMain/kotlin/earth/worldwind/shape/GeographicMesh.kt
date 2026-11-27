@@ -294,9 +294,10 @@ open class GeographicMesh(
      * @returns List of Intersection objects sorted by distance from ray origin
      */
     override fun rayIntersections(ray: Line, globe: Globe): Array<Intersection> {
+        val meshData = meshDataFor(globe.state)
         // Transform grid points into triangles for intersection testing
         val transformedPoints = mutableListOf<List<Vec3>>()
-        val meshPoints = currentData.vertexArray
+        val meshPoints = meshData.vertexArray
 
         // Process each grid cell (consisting of two triangles)
         for (r in 0 until numRows - 1) {
@@ -309,16 +310,16 @@ open class GeographicMesh(
 
                 // First triangle (k1, k2, k3)
                 val triangle1 = listOf(
-                    getVec3FromMeshPoints(meshPoints, k1),
-                    getVec3FromMeshPoints(meshPoints, k2),
-                    getVec3FromMeshPoints(meshPoints, k3)
+                    getVec3FromMeshPoints(meshPoints, k1, meshData.vertexOrigin),
+                    getVec3FromMeshPoints(meshPoints, k2, meshData.vertexOrigin),
+                    getVec3FromMeshPoints(meshPoints, k3, meshData.vertexOrigin)
                 )
 
                 // Second triangle (k2, k4, k3)
                 val triangle2 = listOf(
-                    getVec3FromMeshPoints(meshPoints, k2),
-                    getVec3FromMeshPoints(meshPoints, k4),
-                    getVec3FromMeshPoints(meshPoints, k3)
+                    getVec3FromMeshPoints(meshPoints, k2, meshData.vertexOrigin),
+                    getVec3FromMeshPoints(meshPoints, k4, meshData.vertexOrigin),
+                    getVec3FromMeshPoints(meshPoints, k3, meshData.vertexOrigin)
                 )
 
                 transformedPoints.add(triangle1)
@@ -340,7 +341,7 @@ open class GeographicMesh(
     /**
      * Helper method to create a Vec3 from mesh points at a specific index
      */
-    private fun getVec3FromMeshPoints(meshPoints: FloatArray, index: Int): Vec3 {
+    private fun getVec3FromMeshPoints(meshPoints: FloatArray, index: Int, origin: Vec3): Vec3 {
         val baseIndex = index * VERTEX_STRIDE
         val point = Vec3(
             meshPoints[baseIndex].toDouble(),
@@ -348,7 +349,7 @@ open class GeographicMesh(
             meshPoints[baseIndex + 2].toDouble()
         )
         // Add the reference point that was subtracted during mesh point computation
-        point.add(currentData.vertexOrigin)
+        point.add(origin)
         return point
     }
 
