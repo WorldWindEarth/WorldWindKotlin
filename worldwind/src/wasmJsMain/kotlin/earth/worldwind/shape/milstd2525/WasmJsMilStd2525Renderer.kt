@@ -47,7 +47,7 @@ internal object WasmJsMilStd2525Renderer : MilStd2525Renderer {
         ) ?: return null
         val symbolBounds = info.getSymbolBounds()
         return MilStd2525Symbol(
-            canvas = createMilStdCanvas(info),
+            canvas = createMilStdCanvas(info, symbolCode) ?: return null,
             symbolCenterX = info.getSymbolCenterX(),
             symbolCenterY = info.getSymbolCenterY(),
             symbolWidth = symbolBounds.getWidth(),
@@ -81,13 +81,19 @@ internal object WasmJsMilStd2525Renderer : MilStd2525Renderer {
 
         val result = mutableListOf<MilStd2525Shape>()
         val symbolShapes = mss.getSymbolShapes()
-        for (i in 0 until symbolShapes.length) symbolShapes[i]?.let { convertShape(it, ipc)?.let(result::add) }
+        for (i in 0 until symbolShapes.length) {
+            symbolShapes[i]?.let { convertShape(it, ipc, symbolID)?.let(result::add) }
+        }
         val modifierShapes = mss.getModifierShapes()
-        for (i in 0 until modifierShapes.length) modifierShapes[i]?.let { convertShape(it, ipc)?.let(result::add) }
+        for (i in 0 until modifierShapes.length) {
+            modifierShapes[i]?.let { convertShape(it, ipc, symbolID)?.let(result::add) }
+        }
         return result
     }
 
-    private fun convertShape(si: ShapeInfo, ipc: IPointConversion): MilStd2525Shape? = when (si.getShapeType()) {
+    private fun convertShape(
+        si: ShapeInfo, ipc: IPointConversion, symbolId: String,
+    ): MilStd2525Shape? = when (si.getShapeType()) {
         ShapeInfo.SHAPE_TYPE_POLYLINE -> {
             val lineColor = si.getLineColor()
             val dash = si.getStroke().getDashArray()?.toList()
@@ -112,7 +118,7 @@ internal object WasmJsMilStd2525Renderer : MilStd2525Renderer {
                     convertColor(RendererUtilities.getIdealOutlineColor(it).apply { setAlpha(0.5) })
                 },
                 dashFactor = if (!dash.isNullOrEmpty()) dash[0].toInt() else null,
-                patternFillCanvas = si.getPatternFillImageInfo()?.let { createMilStdCanvas(it) },
+                patternFillCanvas = si.getPatternFillImageInfo()?.let { createMilStdCanvas(it, symbolId) },
             )
         }
 
@@ -122,7 +128,7 @@ internal object WasmJsMilStd2525Renderer : MilStd2525Renderer {
                 val geo = ipc.PixelsToGeo(si.getModifierPosition() ?: return null)
                 MilStd2525ModifierImage(
                     position = Position.fromDegrees(geo.getY(), geo.getX(), 0.0),
-                    canvas = createMilStdCanvas(image),
+                    canvas = createMilStdCanvas(image, symbolId) ?: return null,
                     text = si.getModifierString(),
                     angle = si.getModifierAngle().degrees,
                 )
@@ -182,16 +188,34 @@ internal object WasmJsMilStd2525Renderer : MilStd2525Renderer {
         } ?: emptyMap()
 }
 
-/** Rasterize a mil-sym [SVGSymbolInfo] to a canvas via canvg. Shared by the renderer and the
- *  per-target [MilStd2525TacticalGraphic] (which builds its SVGSymbolInfo via the multipoint API). */
-internal fun createMilStdCanvas(info: SVGSymbolInfo): HTMLCanvasElement {
+private val loggedCanvasFailures = mutableSetOf<String>()
+
+// Draw once: canvg defaults to a redraw loop and mouse handlers that never stop.
+private fun staticRenderOptions(): JsAny = js("({ enableRedraw: false, ignoreMouse: true, ignoreAnimation: true })")
+
+/**
+ * Rasterize a mil-sym [SVGSymbolInfo] to a canvas via canvg. Null when canvg throws or the SVG waits on images or
+ * fonts, which a single draw cannot wait for; callers then skip the image.
+ */
+internal fun createMilStdCanvas(info: SVGSymbolInfo, symbolId: String): HTMLCanvasElement? {
     val canvas = document.createElement("canvas") as HTMLCanvasElement
     val imageBounds = info.getImageBounds()
     canvas.width = imageBounds.getWidth().toInt()
     canvas.height = imageBounds.getHeight().toInt()
     val ctx = canvas.getContext("2d") as CanvasRenderingContext2D
-    Canvg.fromString(ctx, info.getSVG()).start()
-    return canvas
+    try {
+        val canvg = Canvg.fromString(ctx, info.getSVG())
+        canvg.start(staticRenderOptions())
+        if (canvg.isReady()) return canvas
+        if (loggedCanvasFailures.add(symbolId)) {
+            Logger.log(Logger.WARN, "MIL-STD-2525 symbol '$symbolId' waits on images or fonts and is skipped")
+        }
+    } catch (e: Throwable) {
+        if (loggedCanvasFailures.add(symbolId)) {
+            Logger.log(Logger.ERROR, "Failed to rasterize MIL-STD-2525 symbol '$symbolId'", e)
+        }
+    }
+    return null
 }
 
 // Build a real JS Map for the mil-sym bindings (file-private; Kotlin/Wasm has no kotlin.js.collections view).

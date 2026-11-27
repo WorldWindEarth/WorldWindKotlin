@@ -198,6 +198,7 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
         drawState.enableLighting = activeAttributes.isLightingEnabled
         drawState.shadowMode = activeAttributes.shadowMode
         drawState.isOccluderOnly = isOccluderOnly
+        drawState.isProbeObstacle = isProbeObstacle
 
         // Enqueue the drawable for processing on the OpenGL thread.
         rc.offerShapeDrawable(drawable, cameraDistanceSq)
