@@ -162,6 +162,15 @@ open class DrawableSensorFrames protected constructor() : Drawable {
             dc.activeTextureUnit(GL_TEXTURE0)
         }
         if (!occlusion) for (k in 0 until count) depthCells[4 * k + 3] = 0f
+        // WebGL2 checks the sampler type against the bound texture at every draw, even when the
+        // shader never samples it: an unoccluded draw's sampler2DShadow still needs a
+        // compare-mode depth texture, or the draw fails and no frame shows
+        val nullDepth = !occlusion && dc.gl.hasShadowSamplers
+        if (nullDepth) {
+            dc.activeTextureUnit(GL_TEXTURE0 + SensorFrameProgram.DEPTH_UNIT)
+            dc.nullShadowDepthTexture.bindTexture(dc)
+            dc.activeTextureUnit(GL_TEXTURE0)
+        }
         program.loadOutlineWidth(outlineWidth)
         program.loadOutlineDash(outlineDash)
         var mediaBound = false
@@ -178,7 +187,7 @@ open class DrawableSensorFrames protected constructor() : Drawable {
             }
             // Park a plain texture on the depth unit: other programs sample it as a sampler2D,
             // and the next depth pass renders into the atlas
-            if (occlusion) {
+            if (occlusion || nullDepth) {
                 dc.activeTextureUnit(GL_TEXTURE0 + SensorFrameProgram.DEPTH_UNIT)
                 dc.defaultTexture.bindTexture(dc)
                 dc.activeTextureUnit(GL_TEXTURE0)
