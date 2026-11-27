@@ -285,6 +285,9 @@ class JoglKgl(private val gl: GL3ES3) : Kgl {
         target: Int, level: Int, xoffset: Int, yoffset: Int, width: Int, height: Int, format: Int, type: Int, offset: Int
     ) = gl.glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, offset.toLong())
 
+    override fun copyTexSubImage2D(target: Int, level: Int, xoffset: Int, yoffset: Int, x: Int, y: Int, width: Int, height: Int) =
+        gl.glCopyTexSubImage2D(target, level, xoffset, yoffset, x, y, width, height)
+
     override fun activeTexture(texture: Int) = gl.glActiveTexture(texture)
 
     override fun bindTexture(target: Int, texture: KglTexture) = gl.glBindTexture(target, texture.id)

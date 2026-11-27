@@ -31,6 +31,7 @@ import platform.gles3.GL_CONDITION_SATISFIED
 import platform.gles3.GL_SYNC_GPU_COMMANDS_COMPLETE
 import platform.gles3.glActiveTexture
 import platform.gles3.glAttachShader
+import platform.gles3.glCopyTexSubImage2D
 import platform.gles3.glBindAttribLocation
 import platform.gles3.glBindBuffer
 import platform.gles3.glBindFramebuffer
@@ -487,6 +488,8 @@ class IosKgl : Kgl {
             format.toUInt(), type.toUInt(), offset.toLong().toCPointer<ByteVar>()
         )
     }
+
+    override fun copyTexSubImage2D(target: Int, level: Int, xoffset: Int, yoffset: Int, x: Int, y: Int, width: Int, height: Int) { glCopyTexSubImage2D(target.toUInt(), level, xoffset, yoffset, x, y, width, height) }
 
     override fun activeTexture(texture: Int) { glActiveTexture(texture.toUInt()) }
     override fun bindTexture(target: Int, texture: KglTexture) { glBindTexture(target.toUInt(), texture.id) }

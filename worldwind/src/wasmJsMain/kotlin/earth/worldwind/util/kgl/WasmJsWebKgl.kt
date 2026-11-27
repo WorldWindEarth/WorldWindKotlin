@@ -420,6 +420,9 @@ class WasmJsWebKgl(val gl: WebGLRenderingContext) : WebKgl {
         )
     }
 
+    override fun copyTexSubImage2D(target: Int, level: Int, xoffset: Int, yoffset: Int, x: Int, y: Int, width: Int, height: Int) =
+        gl.copyTexSubImage2D(target, level, xoffset, yoffset, x, y, width, height)
+
     override fun activeTexture(texture: Int) = gl.activeTexture(texture)
 
     override fun bindTexture(target: Int, texture: KglTexture) = gl.bindTexture(target, texture.obj)

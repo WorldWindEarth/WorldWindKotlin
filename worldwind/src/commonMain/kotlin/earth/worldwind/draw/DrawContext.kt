@@ -203,6 +203,7 @@ open class DrawContext(val gl: Kgl) {
     private var multisampleFramebufferCache: MultisampleFramebuffer? = null
     private var sensorFrameDepthFramebufferCache: Framebuffer? = null
     private var sensorFrameDepthTextureCache: Texture? = null
+    private var sceneCopyTextureCache: Texture? = null
     private val gaussianPassFramebufferCache = mutableMapOf<Any, Array<Framebuffer?>>()
     private val gaussianPassFramebufferParity = mutableMapOf<Any, Int>()
     private var unitSquareBufferCache: BufferObject? = null
@@ -474,6 +475,24 @@ open class DrawContext(val gl: Kgl) {
     }
 
     /**
+     * An RGB texture of [width] × [height] for a pass to copy the pixels drawn so far into, with
+     * [Kgl.copyTexSubImage2D], and read what lies under it: made on first use and again when the
+     * size changes. RGB, so a framebuffer without alpha can be copied too. Nearest filtering,
+     * clamped, no mipmaps: it is sampled one texel per window pixel.
+     */
+    fun sceneCopyTexture(width: Int, height: Int): Texture {
+        sceneCopyTextureCache?.let { if (it.width == width && it.height == height) return it }
+        sceneCopyTextureCache?.release(this)
+        return Texture(width, height, GL_RGB, GL_UNSIGNED_BYTE, true).apply {
+            generateMipmaps = false
+            setTexParameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+            setTexParameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+            setTexParameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+            setTexParameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+        }.also { sceneCopyTextureCache = it }
+    }
+
+    /**
      * Returns the multisample framebuffer used as the render target for surface shape
      * rasterization, or `null` when the GL implementation doesn't support MSAA (WebGL1).
      * Callers blit (resolve) into [scratchFramebuffer]'s color attachment after rendering.
@@ -625,6 +644,7 @@ open class DrawContext(val gl: Kgl) {
         multisampleFramebufferCache?.release(this)
         sensorFrameDepthFramebufferCache?.release(this)
         sensorFrameDepthTextureCache?.release(this)
+        sceneCopyTextureCache?.release(this)
         for (slots in gaussianPassFramebufferCache.values) for (framebuffer in slots) framebuffer?.release(this)
         unitSquareBufferCache?.release(this)
         rectangleElementsBufferCache?.release(this)
@@ -647,6 +667,7 @@ open class DrawContext(val gl: Kgl) {
         multisampleFramebufferCache = null
         sensorFrameDepthFramebufferCache = null
         sensorFrameDepthTextureCache = null
+        sceneCopyTextureCache = null
         gaussianPassFramebufferCache.clear()
         gaussianPassFramebufferParity.clear()
         unitSquareBufferCache = null

@@ -597,6 +597,12 @@ interface Kgl {
      * Requires GLES3+ / WebGL2 / GL3+.
      */
     fun texSubImage2D(target: Int, level: Int, xoffset: Int, yoffset: Int, width: Int, height: Int, format: Int, type: Int, offset: Int)
+    /**
+     * Copies a [width] × [height] rectangle of the read framebuffer, its lower left corner at
+     * window ([x], [y]), into the bound 2D texture at ([xoffset], [yoffset]). The read framebuffer
+     * must not be multisampled.
+     */
+    fun copyTexSubImage2D(target: Int, level: Int, xoffset: Int, yoffset: Int, x: Int, y: Int, width: Int, height: Int)
     fun activeTexture(texture: Int)
     fun bindTexture(target: Int, texture: KglTexture)
     fun generateMipmap(target: Int)

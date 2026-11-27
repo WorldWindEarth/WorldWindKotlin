@@ -283,6 +283,9 @@ class AndroidKgl : Kgl {
         GLES30.glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, null as Buffer?)
     }
 
+    override fun copyTexSubImage2D(target: Int, level: Int, xoffset: Int, yoffset: Int, x: Int, y: Int, width: Int, height: Int) =
+        GLES20.glCopyTexSubImage2D(target, level, xoffset, yoffset, x, y, width, height)
+
     override fun activeTexture(texture: Int) = GLES20.glActiveTexture(texture)
 
     override fun bindTexture(target: Int, texture: KglTexture) = GLES20.glBindTexture(target, texture.id)
