@@ -201,9 +201,10 @@ open class TriangleMesh(
      * @returns List of Intersection objects sorted by distance from ray origin
      */
     override fun rayIntersections(ray: Line, globe: Globe): Array<Intersection> {
+        val meshData = meshDataFor(globe.state)
         // Transform mesh points to Vec3 arrays for triangle intersections
         val transformedPoints = mutableListOf<List<Vec3>>()
-        val meshPoints = currentData.vertexArray
+        val meshPoints = meshData.vertexArray
 
         // Group points by triangles
         for (i in indices.indices step VERTEX_STRIDE) {
@@ -217,7 +218,7 @@ open class TriangleMesh(
                         meshPoints[idx].toDouble(), meshPoints[idx + 1].toDouble(), meshPoints[idx + 2].toDouble()
                     )
                     // Add reference point (which was subtracted during mesh point computation)
-                    point.add(currentData.vertexOrigin)
+                    point.add(meshData.vertexOrigin)
                     points.add(point)
                 }
 

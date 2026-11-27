@@ -102,20 +102,28 @@ class ColladaScene(
 
     private val entities = mutableListOf<Entity>()
     private val placePoint = Vec3()
-    private val transformationMatrix = Matrix4()
-    private val normalTransformMatrix = Matrix4()
     private val vboKey = Any()
     private val iboKey = Any()
     private var bufferVersion = 0
-    private var transformValid = false
     private var normalsRewritten = false
-    private var cachedTransformedPoints: List<List<Vec3>>? = null
-    // Terrain-state signature the cached transform/points were built against. VE scales every altitude
-    // (incl. ABSOLUTE) in Globe.geographicToCartesian, so a VE change invalidates all modes; the elevation
-    // timestamp and globe state only move terrain-relative placements. See [checkTerrainState].
-    private var lastVE = 1.0
-    private var lastElevationTimestamp = 0L
-    private var lastGlobeState: Globe.State? = null
+    /** Transform and picking geometry for one globe state. */
+    private class GlobeData {
+        val transformationMatrix = Matrix4()
+        val normalTransformMatrix = Matrix4()
+        var transformValid = false
+        var transformedPoints: List<List<Vec3>>? = null
+        // VE moves every altitude; the elevation timestamp only terrain-relative ones
+        var lastVE = 1.0
+        var lastElevationTimestamp = 0L
+
+        fun invalidate() {
+            transformValid = false
+            transformedPoints = null
+        }
+    }
+    // Per globe state, so a 2D window next to a 3D one keeps its own transform
+    private val globeData = mutableMapOf<Globe.State?, GlobeData>()
+    private var current = GlobeData()
     // Local-space radius covering every vertex after node.worldMatrix. World radius adds
     // the user xyz-translation and scales by scale × unitScale. Invalidated when normals
     // are recomputed (rewriteBufferNormals expands indexed meshes) or localTransforms toggles.
@@ -157,12 +165,12 @@ class ColladaScene(
      * next render/pick. Assigning [position], [altitudeMode], the rotation/translation/scale properties
      * already calls this; invoke it manually only after mutating one of them in place — e.g. correcting
      * a KMZ model's altitude via `scene.position.altitude += offset; scene.invalidate()`. Terrain inputs
-     * (vertical exaggeration, and for terrain-relative modes the elevation timestamp / globe state) trigger
+     * (vertical exaggeration, and for terrain-relative modes the elevation timestamp) and globe changes trigger
      * it automatically via [checkTerrainState] so the model follows the resolved terrain.
      */
     fun invalidate() {
-        transformValid = false
-        cachedTransformedPoints = null
+        globeData.values.forEach { it.invalidate() }
+        current.invalidate()
     }
 
     override fun doRender(rc: RenderContext) {
@@ -193,9 +201,9 @@ class ColladaScene(
 
         val distanceSq = rc.cameraPoint.distanceToSquared(placePoint)
 
-        if (!transformValid) {
+        if (!current.transformValid) {
             buildTransformationMatrix(rc)
-            transformValid = true
+            current.transformValid = true
         }
 
         val program = BasicTextureProgram.get(rc)
@@ -287,8 +295,8 @@ class ColladaScene(
         drawable.shadowMode = shadowMode
         drawable.isOccluderOnly = occluderOnly
         drawable.layerOpacity = rc.currentLayer.opacity
-        drawable.transformationMatrix.copy(transformationMatrix)
-        drawable.normalTransformMatrix.copy(normalTransformMatrix)
+        drawable.transformationMatrix.copy(current.transformationMatrix)
+        drawable.normalTransformMatrix.copy(current.normalTransformMatrix)
         drawable.boundingCenter.copy(boundingSphere.center)
         drawable.boundingRadius = boundingSphere.radius
 
@@ -382,27 +390,26 @@ class ColladaScene(
         localBoundingRadius = sqrt(maxSquared)
     }
 
-    /**
-     * Invalidates the cached transform/picking geometry when the terrain inputs it was built against
-     * change — vertical exaggeration (scales every altitude, so all modes), and (terrain-relative modes
-     * only) the elevation-model timestamp and globe state. A settled scene keeps both caches, so we don't
-     * re-transform every vertex per frame; the model still follows elevation as it streams in.
-     */
+    /** Selects the current globe state's transform, invalidated on VE or (terrain-relative) elevation changes. */
     private fun checkTerrainState(rc: RenderContext) {
+        current = globeData.getOrPut(rc.globeState) { GlobeData() }
+        val data = current
         val ve = rc.globe.verticalExaggeration
         val timestamp = rc.elevationModelTimestamp
-        val globeState = rc.globeState
-        val isTerrainDependent = altitudeMode == AltitudeMode.CLAMP_TO_GROUND || altitudeMode == AltitudeMode.RELATIVE_TO_GROUND
-        val terrainMoved = isTerrainDependent && (timestamp != lastElevationTimestamp || globeState != lastGlobeState)
-        if (ve != lastVE || terrainMoved) {
-            invalidate()
-            lastVE = ve
-            lastElevationTimestamp = timestamp
-            lastGlobeState = globeState
+        if (ve != data.lastVE || isTerrainDependent && timestamp != data.lastElevationTimestamp) {
+            data.invalidate()
+            data.lastVE = ve
+            data.lastElevationTimestamp = timestamp
         }
     }
 
+    private val isTerrainDependent
+        get() = altitudeMode == AltitudeMode.CLAMP_TO_GROUND || altitudeMode == AltitudeMode.RELATIVE_TO_GROUND
+
     private fun buildTransformationMatrix(rc: RenderContext) {
+        val transformationMatrix = current.transformationMatrix
+        val normalTransformMatrix = current.normalTransformMatrix
+        current.transformedPoints = null // built from the previous transform
         rc.globe.geographicToCartesianTransform(position.latitude, position.longitude, position.altitude, transformationMatrix)
         transformationMatrix.setTranslation(placePoint.x, placePoint.y, placePoint.z)
         transformationMatrix.multiplyByRotation(1.0, 0.0, 0.0, xRotation.degrees)
@@ -441,7 +448,10 @@ class ColladaScene(
     }
 
     override fun rayIntersections(ray: Line, globe: Globe): Array<Intersection> {
-        val transformedPts = cachedTransformedPoints ?: buildTransformedPoints().also { cachedTransformedPoints = it }
+        // This globe's geometry, else the last rendered one
+        val data = globeData[globe.state]?.takeIf { it.transformValid } ?: current
+        val transformedPts = data.transformedPoints
+            ?: buildTransformedPoints(data.transformationMatrix).also { data.transformedPoints = it }
         val positions = RayIntersector.computeIntersections(globe, ray, transformedPts, ray.origin)
         return positions.map { pos ->
             val pt = Vec3()
@@ -450,7 +460,7 @@ class ColladaScene(
         }.toTypedArray()
     }
 
-    private fun buildTransformedPoints(): List<List<Vec3>> = entities.map { entity ->
+    private fun buildTransformedPoints(transformationMatrix: Matrix4): List<List<Vec3>> = entities.map { entity ->
         val vtxs = entity.mesh.vertices
         val pts = mutableListOf<Vec3>()
         if (entity.mesh.indexedRendering) {
@@ -459,17 +469,19 @@ class ColladaScene(
                 ?: IntArray(0)
             var i = 0
             while (i + 2 < idxs.size) {
-                for (j in 0..2) pts.add(transformPoint(vtxs, idxs.getOrElse(i + j) { 0 } * 3, entity.node))
+                for (j in 0..2) {
+                    pts.add(transformPoint(vtxs, idxs.getOrElse(i + j) { 0 } * 3, entity.node, transformationMatrix))
+                }
                 i += 3
             }
         } else {
             var i = 0
-            while (i + 2 < vtxs.size) { pts.add(transformPoint(vtxs, i, entity.node)); i += 3 }
+            while (i + 2 < vtxs.size) { pts.add(transformPoint(vtxs, i, entity.node, transformationMatrix)); i += 3 }
         }
         pts
     }
 
-    private fun transformPoint(vtxs: FloatArray, off: Int, node: ColladaNode): Vec3 {
+    private fun transformPoint(vtxs: FloatArray, off: Int, node: ColladaNode, transformationMatrix: Matrix4): Vec3 {
         val v = Vec3(vtxs.getOrElse(off) { 0f }.toDouble(), vtxs.getOrElse(off + 1) { 0f }.toDouble(), vtxs.getOrElse(off + 2) { 0f }.toDouble())
         if (localTransforms) v.multiplyByMatrix(node.worldMatrix)
         v.multiplyByMatrix(transformationMatrix)

@@ -245,6 +245,9 @@ abstract class AbstractMesh(attributes: ShapeAttributes) : AbstractShape(attribu
         return isTerrainDependent && currentData.isExpired()
     }
 
+    /** Mesh data of globe [state] for picking, else the last rendered one. */
+    protected fun meshDataFor(state: Globe.State?) = data[state]?.takeIf { it.vertexArray.isNotEmpty() } ?: currentData
+
     override fun assembleGeometry(rc: RenderContext) {
         ++bufferDataVersion // advance so [offerGLBufferUpload] sees fresh content this frame
         // Adjust vertex origin to correspond to the reference position
