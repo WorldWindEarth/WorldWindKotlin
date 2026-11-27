@@ -66,6 +66,10 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
          */
         var media: Texture? = null
         var mediaOpacity = 1f
+        /** Whether the picture is cut to the ground the sensor sees (the default), or laid on all the ground in the frame. */
+        var isMediaClipped = true
+        /** Width of the picture's fade towards the frame's sides, a fraction of the frame's half width; 0 for a hard edge. */
+        var mediaSoftEdge = 0f
         /**
          * The hidden ground to hatch, from the sensor's viewshed, in [hatchColor] with lines
          * [hatchSpacing] pixels apart and [hatchWidth] wide; null for none. Independent of the
@@ -74,7 +78,16 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
         var hatch: ViewshedMask? = null
         var hatchColor = Color(0f, 0f, 0f, 0f)
         var hatchSpacing = 9f
+        /** Width of the lines in pixels; as wide as [hatchSpacing], they fill the hidden ground. */
         var hatchWidth = 1f
+        /**
+         * Hatch the ground the depth pass finds hidden, the seen tint's test inverted, instead of
+         * the viewshed's [hatch]: it follows the map's drawn relief and needs no viewshed, but
+         * only an occluded frame ([isOccluded]) has it.
+         */
+        var isHatchFromDepth = false
+        /** How the hatching's lines are coloured. */
+        var hatchContrast = HatchContrast.FIXED
         /** Whether the last frame drew this frame: enabled and within [DrawableSensorFrames.MAX_TOTAL]. */
         var isDrawn = false
             internal set
@@ -93,9 +106,25 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
         internal var limitsTimestamp = 0L
     }
 
+    /** How the hidden ground's lines are coloured. */
+    enum class HatchContrast {
+        /** In [Frame.hatchColor]. */
+        FIXED,
+        /**
+         * Darker over light ground and lighter over dark ground, chosen per pixel from the
+         * luminance of what the map drew under it, at [Frame.hatchColor]'s opacity. Where the
+         * framebuffer cannot be read back (a multisampled one) it is drawn [TWO_TONE].
+         */
+        AUTO,
+        /** A light line with a thin dark edge on either side, which reads on any ground. */
+        TWO_TONE,
+    }
+
     val frames = mutableListOf<Frame>()
     /** Width of the frames' outline in screen pixels. */
     var outlineWidth = 2f
+    /** Side in screen pixels of the outline's dashes, a checkerboard so a line of any direction is dashed alike; 0 for solid. */
+    var outlineDash = 0f
     /** Whether the frames are occluded by the terrain between the sensor and the ground. */
     var isOcclusionEnabled = true
 
@@ -127,6 +156,7 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
         val d = DrawableSensorFrames.obtain(pool).also {
             it.program = program
             it.outlineWidth = outlineWidth
+            it.outlineDash = outlineDash
         }
         assignDepthCells(frames, isOcclusionEnabled)
         for (frame in frames) {
@@ -139,14 +169,23 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
             premultiplied(frame.occludedColor, d.occludedColors, 4 * k)
             d.media[k] = frame.media
             d.mediaOpacity[k] = frame.mediaOpacity
+            d.mediaClipped[k] = frame.isMediaClipped
+            d.mediaSoftEdge[k] = frame.mediaSoftEdge
             if (frame.media != null && d.mediaProgram == null) {
                 d.mediaProgram = rc.getShaderProgram { SensorFrameMediaProgram() }
                 d.mediaProgramOes = rc.getShaderProgram { SensorFrameMediaProgramOES() }
             }
-            val hatch = frame.hatch
-            if (hatch != null && frame.hatchColor.alpha > 0f) {
+            val hatch = frame.hatch.takeUnless { frame.isHatchFromDepth }
+            val hatched = frame.hatchColor.alpha > 0f && (hatch != null || frame.isHatchFromDepth && frame.isOccluded)
+            d.hatchFromDepth[k] = hatched && frame.isHatchFromDepth
+            d.hatchContrast[k] = when (frame.hatchContrast) {
+                HatchContrast.FIXED -> SensorFrameHatchProgram.CONTRAST_FIXED
+                HatchContrast.AUTO -> SensorFrameHatchProgram.CONTRAST_AUTO
+                HatchContrast.TWO_TONE -> SensorFrameHatchProgram.CONTRAST_TWO_TONE
+            }
+            if (hatched) {
                 d.hatchMasks[k] = hatch
-                d.hatchTextures[k] = rc.renderResourceCache[hatch] as? Texture
+                d.hatchTextures[k] = if (hatch == null) null else rc.renderResourceCache[hatch] as? Texture
                     ?: hatch.newTexture().also { rc.renderResourceCache.put(hatch, it, hatch.byteCount) }
                 premultiplied(frame.hatchColor, d.hatchColors, 4 * k)
                 d.hatchParams[2 * k] = frame.hatchSpacing

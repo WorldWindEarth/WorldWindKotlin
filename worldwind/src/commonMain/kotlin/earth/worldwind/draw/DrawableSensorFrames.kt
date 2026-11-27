@@ -8,8 +8,10 @@ import earth.worldwind.sensor.ViewshedMask
 import earth.worldwind.render.program.SensorFrameProgram
 import earth.worldwind.render.program.SensorFrameProgram.Companion.MAX_FRAMES
 import earth.worldwind.util.Pool
+import earth.worldwind.util.kgl.GL_SAMPLE_BUFFERS
 import earth.worldwind.util.kgl.GL_SCISSOR_TEST
 import earth.worldwind.util.kgl.GL_TEXTURE0
+import earth.worldwind.util.kgl.GL_TEXTURE_2D
 import earth.worldwind.util.kgl.GL_TEXTURE_EXTERNAL_OES
 import kotlin.jvm.JvmStatic
 import kotlin.math.sqrt
@@ -32,8 +34,10 @@ import kotlin.math.sqrt
  *
  * A frame with [media] is drawn once more on its own, after the others, with
  * [SensorFrameMediaProgram]: the picture where the sensor sees the ground, its tint and outline
- * over it. A frame with a hidden-ground mask ([hatchMasks]) is drawn once more again with
- * [SensorFrameHatchProgram]: screen-space hatching where the viewshed says the ground is hidden.
+ * over it. A frame with hidden ground to mark, from its viewshed's mask ([hatchMasks]) or from the
+ * depth atlas ([hatchFromDepth]), is drawn once more again with [SensorFrameHatchProgram]:
+ * screen-space hatching or a fill there, over the media, in a fixed colour or darkening and
+ * lightening the ground under it by its luminance ([hatchContrast]).
  */
 open class DrawableSensorFrames protected constructor() : Drawable {
     /** World → frame transforms (see `Sensor.frameTransform`), the first [count] used. */
@@ -50,16 +54,27 @@ open class DrawableSensorFrames protected constructor() : Drawable {
     /** A frame's media texture and its opacity, where it has one. */
     val media = arrayOfNulls<Texture>(MAX_TOTAL)
     val mediaOpacity = FloatArray(MAX_TOTAL)
+    /** Whether a frame's media is cut to the ground the sensor sees, and its soft edge as a fraction of the half width. */
+    val mediaClipped = BooleanArray(MAX_TOTAL)
+    val mediaSoftEdge = FloatArray(MAX_TOTAL)
     /** A frame's hidden-ground mask and its texture, where it hatches; its premultiplied colour; spacing and width in pixels. */
     val hatchMasks = arrayOfNulls<ViewshedMask>(MAX_TOTAL)
     val hatchTextures = arrayOfNulls<Texture>(MAX_TOTAL)
     val hatchColors = FloatArray(4 * MAX_TOTAL)
     val hatchParams = FloatArray(2 * MAX_TOTAL)
+    /**
+     * Whether a frame's hidden ground is the depth atlas's rather than its mask's, and how its
+     * lines are coloured, one of [SensorFrameHatchProgram]'s CONTRAST values.
+     */
+    val hatchFromDepth = BooleanArray(MAX_TOTAL)
+    val hatchContrast = IntArray(MAX_TOTAL)
     /** The sensor's Cartesian point, and its east, north and up axes, for the hatch pass. */
     val sensorPoints = DoubleArray(3 * MAX_TOTAL)
     val sensorAxes = FloatArray(9 * MAX_TOTAL)
     var count = 0
     var outlineWidth = 2f
+    /** Side of the outline's dash checkerboard in screen pixels; 0 for solid. */
+    var outlineDash = 0f
     /** Screen rectangle per frame (x, y, width, height, window coordinates), or width -1 for none. */
     val frameRects = IntArray(4 * MAX_TOTAL)
 
@@ -148,6 +163,7 @@ open class DrawableSensorFrames protected constructor() : Drawable {
         }
         if (!occlusion) for (k in 0 until count) depthCells[4 * k + 3] = 0f
         program.loadOutlineWidth(outlineWidth)
+        program.loadOutlineDash(outlineDash)
         var mediaBound = false
         try {
             drawTiles(dc, program)
@@ -236,7 +252,8 @@ open class DrawableSensorFrames protected constructor() : Drawable {
             if (!ok) continue
             bound = true
             program.loadOutlineWidth(outlineWidth)
-            program.loadMedia(texture.coordTransform, mediaOpacity[k])
+            program.loadOutlineDash(outlineDash)
+            program.loadMedia(texture.coordTransform, mediaOpacity[k], mediaClipped[k], mediaSoftEdge[k])
             outlineColors.copyInto(chunkOutline, 0, 4 * k, 4 * k + 4)
             fillColors.copyInto(chunkFill, 0, 4 * k, 4 * k + 4)
             occludedColors.copyInto(chunkOccluded, 0, 4 * k, 4 * k + 4)
@@ -265,33 +282,50 @@ open class DrawableSensorFrames protected constructor() : Drawable {
     }
 
     /**
-     * Draws each frame with a hidden-ground mask on its own over the tiles it reaches, the mask
-     * bound on [SensorFrameHatchProgram.MASK_UNIT]. True when a mask texture was bound.
+     * Draws each frame with hidden ground to mark on its own over the tiles it reaches: from its
+     * mask, bound on [SensorFrameHatchProgram.MASK_UNIT], or from the depth atlas where the frame
+     * has a cell in it. A frame coloured by the ground's luminance gets a copy of the framebuffer
+     * under its rectangle first; where the framebuffer cannot be copied it is drawn two-tone.
+     * True when a mask texture was bound.
      */
     private fun drawHatch(dc: DrawContext): Boolean {
         val program = hatchProgram ?: return false
         var bound = false
         var inUse = false
+        var copyable: Boolean? = null
         for (k in 0 until count) {
-            val mask = hatchMasks[k] ?: continue
-            val texture = hatchTextures[k] ?: continue
+            val mask = hatchMasks[k]
+            val fromDepth = hatchFromDepth[k]
+            if (fromDepth) {
+                if (depthCells[4 * k + 3] <= 0f) continue
+            } else if (mask == null || hatchTextures[k] == null) continue
             if (!inUse) {
                 if (!program.useProgram(dc)) return false
                 inUse = true
             }
-            dc.activeTextureUnit(GL_TEXTURE0 + SensorFrameHatchProgram.MASK_UNIT)
-            val ok = texture.bindTexture(dc)
-            dc.activeTextureUnit(GL_TEXTURE0)
-            if (!ok) continue
-            bound = true
-            program.loadAxes(sensorAxes, 9 * k)
-            program.loadGrid(
-                mask.startAzimuth.toFloat(), mask.span.toFloat(), mask.reach.toFloat(),
-                mask.columns, mask.bins, mask.width, mask.height,
-            )
-            program.loadHatch(hatchColors, 4 * k, hatchParams[2 * k], hatchParams[2 * k + 1])
             reached[0] = k
             if (!scissorTo(dc, 0, 1)) continue
+            if (mask != null && !fromDepth) {
+                dc.activeTextureUnit(GL_TEXTURE0 + SensorFrameHatchProgram.MASK_UNIT)
+                val ok = hatchTextures[k]!!.bindTexture(dc)
+                dc.activeTextureUnit(GL_TEXTURE0)
+                if (!ok) continue
+                bound = true
+                program.loadGrid(
+                    mask.startAzimuth.toFloat(), mask.span.toFloat(), mask.reach.toFloat(),
+                    mask.columns, mask.bins, mask.width, mask.height,
+                )
+            }
+            var contrast = hatchContrast[k]
+            if (contrast == SensorFrameHatchProgram.CONTRAST_AUTO) {
+                // A multisampled framebuffer cannot be copied: two-tone reads on any ground instead
+                val canCopy = copyable ?: (dc.gl.getParameteri(GL_SAMPLE_BUFFERS) == 0).also { copyable = it }
+                if (!canCopy || !copyScene(dc, program, k)) contrast = SensorFrameHatchProgram.CONTRAST_TWO_TONE
+            }
+            program.loadMode(fromDepth, contrast)
+            program.loadAxes(sensorAxes, 9 * k)
+            program.loadDepth(frameParams, depthCells, 4 * k)
+            program.loadHatch(hatchColors, 4 * k, hatchParams[2 * k], hatchParams[2 * k + 1])
             val range = frameParams[4 * k + 2].toDouble()
             val sx = sensorPoints[3 * k]; val sy = sensorPoints[3 * k + 1]; val sz = sensorPoints[3 * k + 2]
             for (idx in 0 until dc.drawableTerrainCount) {
@@ -302,12 +336,37 @@ open class DrawableSensorFrames protected constructor() : Drawable {
                 if (!terrain.useVertexPointAttrib(dc, 0 /*vertexPoint*/)) continue
                 mvp.copy(dc.modelviewProjection).multiplyByTranslation(origin.x, origin.y, origin.z)
                 program.loadModelviewProjection(mvp)
+                tileMatrix.copy(frameMatrices[k]).multiplyByTranslation(origin.x, origin.y, origin.z)
+                program.loadFrameMatrix(tileMatrix)
                 program.loadOrigin((origin.x - sx).toFloat(), (origin.y - sy).toFloat(), (origin.z - sz).toFloat())
                 terrain.drawTriangles(dc)
                 statDraws++
             }
         }
         return bound
+    }
+
+    /**
+     * Copies what is drawn so far under frame [k]'s screen rectangle, or the whole viewport when
+     * it has none, into the scene copy on [SensorFrameHatchProgram.SCENE_UNIT], for the pass to
+     * read the ground's luminance from. False when there was nothing to copy.
+     */
+    private fun copyScene(dc: DrawContext, program: SensorFrameHatchProgram, k: Int): Boolean {
+        val viewport = dc.viewport
+        if (viewport.width <= 0 || viewport.height <= 0) return false
+        var x0 = viewport.x; var y0 = viewport.y
+        var x1 = viewport.x + viewport.width; var y1 = viewport.y + viewport.height
+        if (isScissorEnabled && frameRects[4 * k + 2] >= 0) {
+            x0 = maxOf(x0, frameRects[4 * k]); y0 = maxOf(y0, frameRects[4 * k + 1])
+            x1 = minOf(x1, frameRects[4 * k] + frameRects[4 * k + 2]); y1 = minOf(y1, frameRects[4 * k + 1] + frameRects[4 * k + 3])
+        }
+        if (x0 >= x1 || y0 >= y1) return false
+        val texture = dc.sceneCopyTexture(viewport.width, viewport.height)
+        dc.activeTextureUnit(GL_TEXTURE0 + SensorFrameHatchProgram.SCENE_UNIT)
+        if (!texture.bindTexture(dc)) return false
+        dc.gl.copyTexSubImage2D(GL_TEXTURE_2D, 0, x0 - viewport.x, y0 - viewport.y, x0, y0, x1 - x0, y1 - y0)
+        program.loadScene(viewport.x, viewport.y, viewport.width, viewport.height)
+        return true
     }
 
     /**

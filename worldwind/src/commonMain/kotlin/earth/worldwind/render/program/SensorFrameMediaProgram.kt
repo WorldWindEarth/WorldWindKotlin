@@ -7,7 +7,8 @@ import earth.worldwind.util.kgl.KglUniformLocation
 /**
  * [SensorFrameProgram] for one frame that carries media: the ground the sensor sees inside the
  * frame shows the media, sampled where the fragment falls in the frame, the way the sensor's
- * picture falls on the ground, cut where a ridge hides the ground exactly as the fill is. The
+ * picture falls on the ground, cut where a ridge hides the ground exactly as the fill is (or not
+ * cut, and faded at the frame's sides, see [loadMedia]). The
  * frame's fill and outline are drawn over the picture as usual. One frame per draw, in the
  * first slot; the media on texture unit [SensorFrameProgram.MEDIA_UNIT].
  *
@@ -24,20 +25,28 @@ open class SensorFrameMediaProgram : SensorFrameProgram() {
 
     private var mediaTexCoordId = KglUniformLocation.NONE
     private var mediaOpacityId = KglUniformLocation.NONE
+    private var mediaShapeId = KglUniformLocation.NONE
     private val array3 = FloatArray(9)
 
     override fun initProgram(dc: DrawContext) {
         super.initProgram(dc)
         mediaTexCoordId = gl.getUniformLocation(program, "mediaTexCoord")
         mediaOpacityId = gl.getUniformLocation(program, "mediaOpacity")
+        mediaShapeId = gl.getUniformLocation(program, "mediaShape")
+        gl.uniform2f(mediaShapeId, 1f, 0f)
         gl.uniform1i(gl.getUniformLocation(program, "media"), MEDIA_UNIT)
     }
 
-    /** The media texture's coordinate transform and its opacity, 0 to 1. */
-    fun loadMedia(texCoord: Matrix3, opacity: Float) {
+    /**
+     * The media texture's coordinate transform and its opacity, 0 to 1; whether it is cut to the
+     * ground the sensor sees, and the width of its soft edge as a fraction of the frame's half
+     * width (0 for a hard edge).
+     */
+    fun loadMedia(texCoord: Matrix3, opacity: Float, clipped: Boolean = true, softEdge: Float = 0f) {
         texCoord.transposeToArray(array3, 0)
         gl.uniformMatrix3fv(mediaTexCoordId, 1, false, array3, 0)
         gl.uniform1f(mediaOpacityId, opacity)
+        gl.uniform2f(mediaShapeId, if (clipped) 1f else 0f, softEdge)
     }
 
     companion object {
@@ -45,6 +54,8 @@ open class SensorFrameMediaProgram : SensorFrameProgram() {
             uniform sampler2D media;
             uniform mat3 mediaTexCoord;
             uniform float mediaOpacity;
+            /* x = 1 to cut the picture to the seen ground, 0 to lay it on all the ground in the frame; y = soft edge, a fraction of the half width */
+            uniform vec2 mediaShape;
 
             /*
              * Premultiplied picture of a frame at this fragment: the media where the sensor sees
@@ -57,9 +68,12 @@ open class SensorFrameMediaProgram : SensorFrameProgram() {
                 HP float er = params.z - sqrt(dot(lateral, lateral) + clip.w * clip.w);
                 if (clip.w <= 0.0 || ec < 0.0 || er < 0.0) return vec4(0.0);
                 HP vec2 ndc = clip.xy / clip.w;
-                float visible = frameVisibility(clip, ndc, params, cell);
+                float visible = mix(1.0, frameVisibility(clip, ndc, params, cell), mediaShape.x);
+                /* Faded towards the frame's sides over the soft edge's width */
+                float edge = 1.0 - max(abs(ndc.x), abs(ndc.y));
+                float soft = mediaShape.y > 0.0 ? clamp(edge / mediaShape.y, 0.0, 1.0) : 1.0;
                 vec2 uv = (mediaTexCoord * vec3(ndc * 0.5 + 0.5, 1.0)).xy;
-                return texture2D(media, uv) * (mediaOpacity * visible);
+                return texture2D(media, uv) * (mediaOpacity * visible * soft);
             }
 
         """.trimIndent() + "\n"

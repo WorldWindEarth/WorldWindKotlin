@@ -70,38 +70,15 @@ open class SensorFrameProgram : AbstractShaderProgram() {
             uniform HP vec4 frameParams[$MAX_FRAMES];
             /* Depth atlas cell: xy = origin, z = size (texture coordinates), w = 1 when occluded */
             uniform HP vec4 depthCell[$MAX_FRAMES];
-            #ifdef WW_SHADOW_SAMPLERS
-            uniform highp sampler2DShadow frameDepth;
-            #else
-            uniform highp sampler2D frameDepth;
-            #endif
+            /* Side of the outline's dash pattern in screen pixels: dashes in a checkerboard of that side, 0 for solid */
+            uniform float outlineDash;
 
             varying HP vec4 frameClip0;
             varying HP vec4 frameClip1;
             varying HP vec4 frameClip2;
             varying HP vec4 frameClip3;
 
-            /*
-             * 1 where the sensor sees this fragment, 0 where terrain nearer to the sensor hides it.
-             * The bias is a world distance turned into depth units: half a metre plus two depth
-             * texels' width on the ground at this distance, which absorbs the rasterisation
-             * differences between the depth pass and this pass (the caster pass adds slope-scaled
-             * polygon offset as well). Explicit level of detail: the lookup sits behind
-             * per-fragment early-outs.
-             */
-            float frameVisibility(HP vec4 clip, HP vec2 ndc, HP vec4 params, HP vec4 cell) {
-                if (cell.w < 0.5) return 1.0;
-                HP vec2 uv = cell.xy + clamp(ndc * 0.5 + 0.5, 0.0, 1.0) * cell.z;
-                HP float depth = 0.5 * clip.z / clip.w + 0.5;
-                HP float texel = 2.0 * clip.w * max(params.x, params.y) / $CELL_PIXELS_FLOAT;
-                HP float bias = params.w * (0.5 + 2.0 * texel) / (clip.w * clip.w);
-                HP float reference = clamp(depth - bias, 0.0, 1.0);
-            #ifdef WW_SHADOW_SAMPLERS
-                return textureLod(frameDepth, vec3(uv, reference), 0.0);
-            #else
-                return step(reference, texture2D(frameDepth, uv).r);
-            #endif
-            }
+${DEPTH_GLSL.prependIndent("            ")}
 
             /* Premultiplied tint of one frame at this fragment; vec4(0) outside it. */
             vec4 frameTint(HP vec4 clip, HP vec4 params, HP vec4 cell, vec4 outline, vec4 fill, vec4 occluded) {
@@ -134,6 +111,11 @@ open class SensorFrameProgram : AbstractShaderProgram() {
                 float visible = frameVisibility(clip, ndc, params, cell);
                 float inside = clamp(d + 0.5, 0.0, 1.0);
                 float line = inside * clamp(outlineWidth + 0.5 - d, 0.0, 1.0);
+                /* A checkerboard in screen space dashes a line of any direction with the same pixel lengths at any zoom */
+                if (outlineDash > 0.0) {
+                    vec2 cell2 = floor(gl_FragCoord.xy / outlineDash);
+                    line *= mod(cell2.x + cell2.y, 2.0);
+                }
                 /* The outline is the frame itself, drawn whether or not the sensor sees the ground there */
                 return outline * line + mix(occluded, fill, visible) * inside * (1.0 - line);
             }
@@ -158,6 +140,7 @@ open class SensorFrameProgram : AbstractShaderProgram() {
     private var frameMatrixId = KglUniformLocation.NONE
     private var frameCountId = KglUniformLocation.NONE
     private var outlineWidthId = KglUniformLocation.NONE
+    private var outlineDashId = KglUniformLocation.NONE
     private var outlineColorId = KglUniformLocation.NONE
     private var fillColorId = KglUniformLocation.NONE
     private var occludedColorId = KglUniformLocation.NONE
@@ -171,6 +154,8 @@ open class SensorFrameProgram : AbstractShaderProgram() {
         frameMatrixId = gl.getUniformLocation(program, "frameMatrix")
         frameCountId = gl.getUniformLocation(program, "frameCount")
         outlineWidthId = gl.getUniformLocation(program, "outlineWidth")
+        outlineDashId = gl.getUniformLocation(program, "outlineDash")
+        gl.uniform1f(outlineDashId, 0f)
         outlineColorId = gl.getUniformLocation(program, "outlineColor")
         fillColorId = gl.getUniformLocation(program, "fillColor")
         occludedColorId = gl.getUniformLocation(program, "occludedColor")
@@ -203,6 +188,9 @@ open class SensorFrameProgram : AbstractShaderProgram() {
 
     fun loadOutlineWidth(pixels: Float) = gl.uniform1f(outlineWidthId, pixels)
 
+    /** Side of the outline's dash checkerboard in screen pixels; 0 draws it solid. */
+    fun loadOutlineDash(pixels: Float) = gl.uniform1f(outlineDashId, pixels)
+
     companion object {
         /** Frames per draw; four keeps the varyings and uniforms within GLES 2's minimums. */
         const val MAX_FRAMES = 4
@@ -215,5 +203,39 @@ open class SensorFrameProgram : AbstractShaderProgram() {
         const val MEDIA_UNIT = 7
         private const val CELL_PIXELS = earth.worldwind.draw.DrawContext.SENSOR_FRAME_DEPTH_CELL
         internal val CELL_PIXELS_FLOAT = "$CELL_PIXELS.0"
+        /**
+         * The depth atlas sampler and `frameVisibility(clip, ndc, params, cell)`: 1 where the
+         * sensor sees the fragment, 0 where nearer terrain hides it. Shared with the passes that
+         * read the same atlas; needs `HP` defined and [ShadowReceiverGlsl.glslPrefix].
+         */
+        internal val DEPTH_GLSL = """
+#ifdef WW_SHADOW_SAMPLERS
+uniform highp sampler2DShadow frameDepth;
+#else
+uniform highp sampler2D frameDepth;
+#endif
+
+/*
+ * 1 where the sensor sees this fragment, 0 where terrain nearer to the sensor hides it.
+ * The bias is a world distance turned into depth units: half a metre plus two depth
+ * texels' width on the ground at this distance, which absorbs the rasterisation
+ * differences between the depth pass and this pass (the caster pass adds slope-scaled
+ * polygon offset as well). Explicit level of detail: the lookup sits behind
+ * per-fragment early-outs.
+ */
+float frameVisibility(HP vec4 clip, HP vec2 ndc, HP vec4 params, HP vec4 cell) {
+    if (cell.w < 0.5) return 1.0;
+    HP vec2 uv = cell.xy + clamp(ndc * 0.5 + 0.5, 0.0, 1.0) * cell.z;
+    HP float depth = 0.5 * clip.z / clip.w + 0.5;
+    HP float texel = 2.0 * clip.w * max(params.x, params.y) / $CELL_PIXELS_FLOAT;
+    HP float bias = params.w * (0.5 + 2.0 * texel) / (clip.w * clip.w);
+    HP float reference = clamp(depth - bias, 0.0, 1.0);
+#ifdef WW_SHADOW_SAMPLERS
+    return textureLod(frameDepth, vec3(uv, reference), 0.0);
+#else
+    return step(reference, texture2D(frameDepth, uv).r);
+#endif
+}
+        """.trimIndent()
     }
 }
