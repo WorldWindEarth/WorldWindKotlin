@@ -58,6 +58,12 @@ class Viewshed(
      * is drawn, so the two never lie on top of each other.
      */
     val terrainEdges: List<List<Position>>,
+    /**
+     * The rest of the regions' boundaries: the parts along the frame's edges or the range, as open
+     * lines. With [terrainEdges] they make up [regions] exactly, each run ending on the very point
+     * where the next one of the other kind starts, so the two can be drawn in two styles as one contour.
+     */
+    val frameEdges: List<List<Position>>,
     /** False while an elevation tile under the sweep was still loading. */
     val isComplete: Boolean,
     /** The tile cache generation the elevations were read at. */
@@ -233,9 +239,10 @@ class ViewshedSolver(val tiles: DemTileCache) {
         val rings = crossings(margin, limiter, columns, bins)
         val regions = rings.map { ring -> ring.map(::position) }
         val terrainEdges = terrainRuns(rings).map { run -> run.map(::position) }
+        val frameEdges = frameRuns(rings).map { run -> run.map(::position) }
         return Viewshed(
             sensor, columns, bins, input.startAzimuth, input.columnAngle, input.binLength, seen, margin, limiter,
-            hiddenMargin, regions, terrainEdges, complete, input.generation,
+            hiddenMargin, regions, terrainEdges, frameEdges, complete, input.generation,
         )
     }
 
@@ -407,14 +414,23 @@ class ViewshedSolver(val tiles: DemTileCache) {
          * so a run reaches the frame's edge where the shadow meets it, joined end to end. A ring
          * made by terrain all round comes back closed.
          */
-        internal fun terrainRuns(rings: List<List<Crossing>>): List<List<Crossing>> {
+        internal fun terrainRuns(rings: List<List<Crossing>>) = runs(rings, terrain = true)
+
+        /**
+         * The runs of each ring along the frame's edges or the range: every segment with no
+         * terrain-tagged end, the complement of [terrainRuns], so each run starts and ends on a
+         * point a terrain run ends and starts on. A ring with no terrain at all comes back closed.
+         */
+        internal fun frameRuns(rings: List<List<Crossing>>) = runs(rings, terrain = false)
+
+        private fun runs(rings: List<List<Crossing>>, terrain: Boolean): List<List<Crossing>> {
             val runs = mutableListOf<List<Crossing>>()
             for (ring in rings) {
                 val n = ring.size
-                fun qualifies(k: Int) = ring[k].terrain || ring[(k + 1) % n].terrain
+                fun qualifies(k: Int) = (ring[k].terrain || ring[(k + 1) % n].terrain) == terrain
                 val start = (0 until n).firstOrNull { !qualifies((it + n - 1) % n) }
                 if (start == null) {
-                    if (ring.any { it.terrain }) runs += ring + ring.first()
+                    if (n >= 2 && qualifies(0)) runs += ring + ring.first()
                     continue
                 }
                 var run = mutableListOf<Crossing>()

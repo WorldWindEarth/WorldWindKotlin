@@ -18,6 +18,7 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -240,6 +241,32 @@ class ViewshedTest {
         assertEquals(listOf(0.0, 1.0, 2.0, 0.0), closed.single().map { it.column })
         // A ring made by the frame alone gives nothing
         assertTrue(ViewshedSolver.terrainRuns(listOf(listOf(c(0.0, false), c(1.0, false), c(2.0, false)))).isEmpty())
+    }
+
+    @Test
+    fun frameRunsAreTheRestOfTheRingAndJoinTheTerrainRunsExactly() {
+        fun c(x: Double, terrain: Boolean) = Crossing(x, 0.0, terrain)
+        val ring = listOf(c(0.0, true), c(1.0, true), c(2.0, false), c(3.0, false))
+        val terrain = ViewshedSolver.terrainRuns(listOf(ring)).single()
+        val frame = ViewshedSolver.frameRuns(listOf(ring)).single()
+        // 2 -> 3 is the frame's: it starts where the terrain run ends and ends where it starts
+        assertEquals(listOf(2.0, 3.0), frame.map { it.column })
+        assertSame(terrain.last(), frame.first())
+        assertSame(frame.last(), terrain.first())
+        // A ring made by the frame alone comes back closed, one made by terrain alone gives nothing
+        val closed = ViewshedSolver.frameRuns(listOf(listOf(c(0.0, false), c(1.0, false), c(2.0, false))))
+        assertEquals(listOf(0.0, 1.0, 2.0, 0.0), closed.single().map { it.column })
+        assertTrue(ViewshedSolver.frameRuns(listOf(listOf(c(0.0, true), c(1.0, true), c(2.0, true)))).isEmpty())
+    }
+
+    @Test
+    fun aRidgesContourIsItsTerrainEdgesAndItsFrameEdges() = runBlocking {
+        val viewshed = solve(globeWith(ridge(1500.0, 300.0)), sensor(altitude = 20.0))
+        assertTrue(viewshed.frameEdges.isNotEmpty(), "the seen ground in front of the ridge is bounded by the frame too")
+        val segments = { lines: List<List<Position>> -> lines.sumOf { it.size - 1 } }
+        val ringSegments = viewshed.regions.sumOf { it.size }
+        assertEquals(ringSegments, segments(viewshed.terrainEdges) + segments(viewshed.frameEdges),
+            "every segment of every ring is in exactly one of the two")
     }
 
     @Test
