@@ -85,6 +85,12 @@ ${BEND_GLSL.prependIndent("            ")}
             uniform HP vec4 depthCell[$MAX_FRAMES];
             /* Side of the outline's dash pattern in screen pixels: dashes in a checkerboard of that side, 0 for solid */
             uniform float outlineDash;
+            /*
+             * Pick pass: each frame's outline and fill colours are its pick colour (or transparent
+             * where that part is not pickable), written solid with no antialiasing, dashes or
+             * occlusion; fragments outside every frame are discarded.
+             */
+            uniform bool pickMode;
 
             varying HP vec4 frameClip0;
             varying HP vec4 frameClip1;
@@ -120,6 +126,10 @@ ${DEPTH_GLSL.prependIndent("            ")}
             #endif
                 /* Outside the frame, past its range, or behind the sensor */
                 if (clip.w <= 0.0 || d < -0.5) return vec4(0.0);
+                if (pickMode) {
+                    if (d < 0.0) return vec4(0.0);
+                    return outline.a > 0.0 && d <= outlineWidth ? outline : fill;
+                }
                 HP vec2 ndc = clip.xy / clip.w;
                 float visible = frameVisibility(clip, ndc, params, cell);
                 float inside = clamp(d + 0.5, 0.0, 1.0);
@@ -140,6 +150,7 @@ ${DEPTH_GLSL.prependIndent("            ")}
                 if (frameCount > 1) { t = frameTint(frameClip1, frameParams[1], depthCell[1], outlineColor[1], fillColor[1], occludedColor[1]); color = t + color * (1.0 - t.a); }
                 if (frameCount > 2) { t = frameTint(frameClip2, frameParams[2], depthCell[2], outlineColor[2], fillColor[2], occludedColor[2]); color = t + color * (1.0 - t.a); }
                 if (frameCount > 3) { t = frameTint(frameClip3, frameParams[3], depthCell[3], outlineColor[3], fillColor[3], occludedColor[3]); color = t + color * (1.0 - t.a); }
+                if (pickMode && color.a == 0.0) discard;
                 gl_FragColor = color;
             }
         """.trimIndent()
@@ -160,6 +171,7 @@ ${DEPTH_GLSL.prependIndent("            ")}
     private var occludedColorId = KglUniformLocation.NONE
     private var frameParamsId = KglUniformLocation.NONE
     private var depthCellId = KglUniformLocation.NONE
+    private var pickModeId = KglUniformLocation.NONE
     private val array = FloatArray(16)
 
     override fun initProgram(dc: DrawContext) {
@@ -179,6 +191,8 @@ ${DEPTH_GLSL.prependIndent("            ")}
         depthCellId = gl.getUniformLocation(program, "depthCell")
         gl.uniform1i(gl.getUniformLocation(program, "frameDepth"), DEPTH_UNIT)
         gl.uniform1i(frameCountId, 0)
+        pickModeId = gl.getUniformLocation(program, "pickMode")
+        gl.uniform1i(pickModeId, 0)
     }
 
     fun loadModelviewProjection(matrix: Matrix4) {
@@ -209,6 +223,9 @@ ${DEPTH_GLSL.prependIndent("            ")}
 
     /** Side of the outline's dash checkerboard in screen pixels; 0 draws it solid. */
     fun loadOutlineDash(pixels: Float) = gl.uniform1f(outlineDashId, pixels)
+
+    /** Whether to draw the frames' pick colours, solid, for the pick pass (see the fragment shader). */
+    fun loadPickMode(enable: Boolean) = gl.uniform1i(pickModeId, if (enable) 1 else 0)
 
     companion object {
         /** Frames per draw; four keeps the varyings and uniforms within GLES 2's minimums. */

@@ -121,7 +121,7 @@ open class BasicGlobeFragment: Fragment() {
                         val x = event.x
                         val y = event.y
                         lifecycleScope.launch {
-                            picker.showPick(wwd.engine, wwd.pickAsync(x, y).await().topPickedObject?.cartesianPoint)
+                            picker.showPick(wwd.engine, wwd.pickAsync(x, y).await())
                             wwd.requestRedraw()
                         }
                     }

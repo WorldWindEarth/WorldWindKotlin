@@ -365,7 +365,7 @@ fun main() {
                         // pickAsync resolves on the JOGL thread; await it via mainScope.
                         val p = wwd!!.viewportCoordinates(e.x, e.y)
                         mainScope.launch {
-                            picker.showPick(engine, wwd!!.pickAsync(p.x, p.y).await().topPickedObject?.cartesianPoint)
+                            picker.showPick(engine, wwd!!.pickAsync(p.x, p.y).await())
                             wwd?.requestRedraw()
                         }
                     }

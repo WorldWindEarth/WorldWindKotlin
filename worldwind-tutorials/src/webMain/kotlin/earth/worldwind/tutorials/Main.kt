@@ -99,7 +99,7 @@ fun main() {
             wwd.addEventListener("click") { e ->
                 if (!picker.isActive || e !is MouseEvent) return@addEventListener
                 val clickPoint = wwd.canvasCoordinates(e.clientX, e.clientY)
-                picker.showPick(wwd.engine, wwd.pick(clickPoint).topPickedObject?.cartesianPoint)
+                picker.showPick(wwd.engine, wwd.pick(clickPoint))
                 wwd.requestRedraw()
             }
         }
@@ -143,7 +143,7 @@ fun main() {
             // Sightlines
             "Real-time sightline" to SightlineTutorial(wwd.engine),
             "Viewshed sightline" to ViewshedSightlineTutorial(wwd.engine),
-            "Sensor frames: 100 drones" to SensorFootprintTutorial(wwd.engine),
+            "Sensor frames: 100 drones" to SensorFootprintTutorial(wwd.engine).also { installDepthPicker(it.picker) },
             // Surface & media overlays
             "Surface image" to SurfaceImageTutorial(wwd.engine),
             "NITF Imagery" to NitfImageryTutorial(wwd.engine),

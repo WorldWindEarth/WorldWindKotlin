@@ -44,6 +44,10 @@ import kotlin.math.sqrt
  * depth atlas ([hatchFromDepth]), is drawn once more again with [SensorFrameHatchProgram]:
  * screen-space hatching or a fill there, over the media, in a fixed colour or darkening and
  * lightening the ground under it by its luminance ([hatchContrast]).
+ *
+ * In the pick pass ([DrawContext.isPickMode]) the frames' outline and fill colours are their pick
+ * colours, or transparent where that part is not pickable, and the program draws them solid,
+ * unoccluded, with no media and no hatching: where frames overlap the last one wins.
  */
 open class DrawableSensorFrames protected constructor() : Drawable {
     /** World → frame transforms (see `Sensor.frameTransform`), the first [count] used. */
@@ -224,11 +228,15 @@ open class DrawableSensorFrames protected constructor() : Drawable {
         }
         program.loadOutlineWidth(outlineWidth)
         program.loadOutlineDash(outlineDash)
+        program.loadPickMode(dc.isPickMode)
         var mediaBound = false
         try {
             drawTiles(dc, program)
-            mediaBound = drawMedia(dc)
-            mediaBound = drawHatch(dc) || mediaBound
+            // The pick pass draws only the frames' pick colours; it carries no media or hatching
+            if (!dc.isPickMode) {
+                mediaBound = drawMedia(dc)
+                mediaBound = drawHatch(dc) || mediaBound
+            }
         } finally {
             dc.gl.disable(GL_SCISSOR_TEST)
             if (mediaBound) {

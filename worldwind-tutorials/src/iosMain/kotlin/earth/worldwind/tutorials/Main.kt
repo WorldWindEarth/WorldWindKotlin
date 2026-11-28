@@ -411,7 +411,7 @@ object Tutorials {
                 if (!tutorial.picker.isActive) return
                 wwd.engine.renderResourceCache.mainScope.launch {
                     val list = wwd.pickAsync(xPx, yPx).await()
-                    tutorial.picker.showPick(wwd.engine, list.topPickedObject?.cartesianPoint)
+                    tutorial.picker.showPick(wwd.engine, list)
                     wwd.requestRedraw()
                 }
             }

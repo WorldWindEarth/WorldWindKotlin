@@ -50,6 +50,7 @@ class SensorFootprintFragment: BasicGlobeFragment() {
         tutorial = SensorFootprintTutorial(it.engine)
         tutorial.isStatusOnGlobe = false
         tutorial.start()
+        installDepthPickIndicator(tutorial.picker)
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {

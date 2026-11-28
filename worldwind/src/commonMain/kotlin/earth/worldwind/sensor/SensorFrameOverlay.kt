@@ -1,5 +1,6 @@
 package earth.worldwind.sensor
 
+import earth.worldwind.PickedObject
 import earth.worldwind.draw.DrawableSensorFrameDepth
 import earth.worldwind.draw.DrawableSensorFrames
 import earth.worldwind.render.AbstractRenderable
@@ -56,6 +57,13 @@ import kotlin.math.tan
  * on the map where it does on the 3D globe (a thousandth of its width at worst, see
  * [SensorLocalFrame]). A continuous map's wrapped copies each get the frames too. A sensor
  * outside the projection's limits is not drawn.
+ *
+ * Frames are pickable: a pick on a frame returns a [PickedObject] whose user object is the
+ * [Frame] (or its [Frame.pickDelegate]), one per frame, with the terrain position under the pick.
+ * A frame is hit inside it ([isPickInterior]) where it draws a fill, an occluded tint, media or
+ * hatching, and on its outline where that is drawn; a frame that draws nothing is not hit. The
+ * pick ignores occlusion and dashes, so the ground behind a ridge inside the frame and the gaps
+ * between dashes are hit as well. Where frames overlap the last one in [frames] is returned.
  */
 open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
     /** One sensor's frame and its colours; change them in place at any time. */
@@ -67,6 +75,10 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
         var occludedColor: Color = Color(0f, 0f, 0f, 0f),
     ) {
         var isEnabled = true
+        /** Whether a pick can return this frame. */
+        var isPickEnabled = true
+        /** The picked object's user object when this frame is picked; null for the frame itself. */
+        var pickDelegate: Any? = null
         /**
          * The sensor's picture, shown on the ground it sees inside the frame, with [mediaOpacity];
          * null for none. Its coordinate transform maps the frame's 0..1 to the texture.
@@ -134,10 +146,8 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
     var outlineDash = 0f
     /** Whether the frames are occluded by the terrain between the sensor and the ground. */
     var isOcclusionEnabled = true
-
-    init {
-        isPickEnabled = false
-    }
+    /** Whether a pick inside a frame returns it, or only one on its outline. */
+    var isPickInterior = true
 
     /**
      * Adds [sensor]'s frame, outlined in [outlineColor], with [fillColor] where the sensor sees the
@@ -153,7 +163,8 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
     }
 
     override fun doRender(rc: RenderContext) {
-        if (rc.isPickMode || frames.isEmpty()) return
+        if (frames.isEmpty()) return
+        if (rc.isPickMode) return doPick(rc)
         val globe = rc.globe
         val pool = rc.getDrawablePool(DrawableSensorFrames.KEY)
         val program = rc.getShaderProgram { SensorFrameProgram() }
@@ -173,17 +184,13 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
         for (frame in frames) {
             if (!frame.isDrawn) continue
             val sensor = frame.sensor
+            val k = addFrame(rc, d, frame)
             // Outside a 2D projection's limits there is no frame to draw
-            if (!local.set(globe, sensor.position)) {
+            if (k < 0) {
                 frame.isDrawn = false
                 frame.isOccluded = false
                 continue
             }
-            val k = d.count++
-            sensor.frameTransform(local, d.frameMatrices[k], sensor.frameNear(), sensor.frameFar(), d.bendClips, DrawableSensorFrames.CLIP_FLOATS * k)
-            d.sensorPoints[3 * k] = local.origin.x; d.sensorPoints[3 * k + 1] = local.origin.y; d.sensorPoints[3 * k + 2] = local.origin.z
-            for (i in 0..8) d.sensorAxes[9 * k + i] = local.toLocal[i].toFloat()
-            d.bendSlack[k] = bendSlack(local, sensor.maxRange)
             premultiplied(frame.outlineColor, d.outlineColors, 4 * k)
             premultiplied(frame.fillColor, d.fillColors, 4 * k)
             premultiplied(frame.occludedColor, d.occludedColors, 4 * k)
@@ -215,15 +222,6 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
                 d.hatchMasks[k] = null
                 d.hatchTextures[k] = null
             }
-            d.frameParams[4 * k] = tan(sensor.horizontalFov.inRadians / 2).toFloat()
-            d.frameParams[4 * k + 1] = tan(sensor.verticalFov.inRadians / 2).toFloat()
-            d.frameParams[4 * k + 2] = min(sensor.maxRange, Float.MAX_VALUE.toDouble()).toFloat()
-            d.frameParams[4 * k + 3] = sensor.frameNear().toFloat()
-            // Where on screen the frame's ground can be: each draw is scissored to it
-            updateHeightLimits(rc, frame)
-            if (!sensor.groundScreenRect(
-                    globe, local, rc.modelviewProjection, rc.viewport, frame.lowAltitude, frame.highAltitude, d.frameRects, 4 * k
-                )) d.frameRects[4 * k + 2] = -1
             if (depth != null && frame.isOccluded) {
                 val cell = depth.count++
                 depth.frameMatrices[cell].copy(d.frameMatrices[k])
@@ -240,6 +238,71 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
         }
         if (d.count > 0) rc.offerSurfaceDrawable(d, zOrder) else d.recycle()
         if (depth != null && depth.count > 0) rc.offerBackgroundDrawable(depth) else depth?.recycle()
+    }
+
+    /**
+     * The pick pass: each frame that draws something gets a pick ID, its pick colour on the parts
+     * that can be hit, and a picked object. The same frames as [doRender] would draw, the first
+     * [DrawableSensorFrames.MAX_TOTAL] enabled ones, but without touching [Frame.isDrawn] or
+     * [Frame.isOccluded], and with no depth pass: the pick frame's terrain is only the tiles
+     * around the pick, which would leave the depth maps without the ridges that occlude.
+     */
+    protected open fun doPick(rc: RenderContext) {
+        val d = DrawableSensorFrames.obtain(rc.getDrawablePool(DrawableSensorFrames.KEY)).also {
+            it.program = rc.getShaderProgram { SensorFrameProgram() }
+            it.outlineWidth = outlineWidth
+            it.offset = rc.globe.offset
+        }
+        var enabled = 0
+        for (frame in frames) {
+            if (!frame.isEnabled) continue
+            if (enabled++ >= DrawableSensorFrames.MAX_TOTAL) break
+            if (!frame.isPickEnabled) continue
+            val outline = frame.outlineColor.alpha > 0f
+            val interior = isPickInterior && (
+                frame.fillColor.alpha > 0f || frame.occludedColor.alpha > 0f || frame.media != null ||
+                    frame.hatchColor.alpha > 0f && (frame.hatch != null || frame.isHatchFromDepth)
+                )
+            if (!outline && !interior) continue
+            val k = addFrame(rc, d, frame)
+            if (k < 0) continue
+            val id = rc.nextPickedObjectId()
+            PickedObject.identifierToUniqueColor(id, pickColor)
+            premultiplied(if (outline) pickColor else NONE, d.outlineColors, 4 * k)
+            premultiplied(if (interior) pickColor else NONE, d.fillColors, 4 * k)
+            premultiplied(NONE, d.occludedColors, 4 * k)
+            d.depthCells[4 * k + 3] = 0f
+            rc.offerPickedObject(
+                PickedObject.fromUserObject(id, frame.pickDelegate ?: frame, rc.currentLayer, useTerrainPosition = true)
+            )
+        }
+        if (d.count > 0) rc.offerSurfaceDrawable(d, zOrder) else d.recycle()
+    }
+
+    /**
+     * Adds [frame]'s geometry to [d] as its next frame: the frame matrix, the sensor's point and
+     * axes, the 2D bend terms, the frame parameters and the screen rectangle. Returns its index,
+     * or -1 when the sensor is outside a 2D projection's limits and there is no frame to draw.
+     */
+    private fun addFrame(rc: RenderContext, d: DrawableSensorFrames, frame: Frame): Int {
+        val globe = rc.globe
+        val sensor = frame.sensor
+        if (!local.set(globe, sensor.position)) return -1
+        val k = d.count++
+        sensor.frameTransform(local, d.frameMatrices[k], sensor.frameNear(), sensor.frameFar(), d.bendClips, DrawableSensorFrames.CLIP_FLOATS * k)
+        d.sensorPoints[3 * k] = local.origin.x; d.sensorPoints[3 * k + 1] = local.origin.y; d.sensorPoints[3 * k + 2] = local.origin.z
+        for (i in 0..8) d.sensorAxes[9 * k + i] = local.toLocal[i].toFloat()
+        d.bendSlack[k] = bendSlack(local, sensor.maxRange)
+        d.frameParams[4 * k] = tan(sensor.horizontalFov.inRadians / 2).toFloat()
+        d.frameParams[4 * k + 1] = tan(sensor.verticalFov.inRadians / 2).toFloat()
+        d.frameParams[4 * k + 2] = min(sensor.maxRange, Float.MAX_VALUE.toDouble()).toFloat()
+        d.frameParams[4 * k + 3] = sensor.frameNear().toFloat()
+        // Where on screen the frame's ground can be: each draw is scissored to it
+        updateHeightLimits(rc, frame)
+        if (!sensor.groundScreenRect(
+                globe, local, rc.modelviewProjection, rc.viewport, frame.lowAltitude, frame.highAltitude, d.frameRects, 4 * k
+            )) d.frameRects[4 * k + 2] = -1
+        return k
     }
 
     /**
@@ -283,6 +346,7 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
     }
 
     private val limits = FloatArray(2)
+    private val pickColor = Color()
     private val local = SensorLocalFrame()
 
     /**
@@ -306,6 +370,7 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
     internal companion object {
         /** Metres added above and below the elevation limits read for the scissor's height band. */
         const val HEIGHT_MARGIN = 300.0
+        private val NONE = Color(0f, 0f, 0f, 0f)
 
         /**
          * Marks which [frames] are drawn, the first [DrawableSensorFrames.MAX_TOTAL] enabled ones,

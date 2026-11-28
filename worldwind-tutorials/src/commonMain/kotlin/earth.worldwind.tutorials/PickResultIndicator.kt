@@ -1,5 +1,6 @@
 package earth.worldwind.tutorials
 
+import earth.worldwind.PickedObjectList
 import earth.worldwind.WorldWind
 import earth.worldwind.geom.AltitudeMode
 import earth.worldwind.geom.Position
@@ -77,6 +78,18 @@ class PickResultIndicator(
      */
     fun showPick(engine: WorldWind, cartesianPoint: Vec3?) {
         if (cartesianPoint != null) show(engine, cartesianPoint) else clear()
+    }
+
+    /**
+     * What a tutorial does with a whole pick result before the marker: true when it handled the
+     * pick itself, so no marker is dropped. Null to always drop the marker.
+     */
+    var onPicked: ((PickedObjectList) -> Boolean)? = null
+
+    /** Handles [picks] with [onPicked], or else drops a marker at its top object's surface point. */
+    fun showPick(engine: WorldWind, picks: PickedObjectList) {
+        if (!isActive) return
+        if (onPicked?.invoke(picks) == true) clear() else showPick(engine, picks.topPickedObject?.cartesianPoint)
     }
 
     private fun formatPosition(p: Position): String {

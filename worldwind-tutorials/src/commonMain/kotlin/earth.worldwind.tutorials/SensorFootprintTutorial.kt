@@ -1,5 +1,6 @@
 package earth.worldwind.tutorials
 
+import earth.worldwind.PickedObjectList
 import earth.worldwind.WorldWind
 import earth.worldwind.draw.DrawContext
 import earth.worldwind.draw.DrawableSensorFrameDepth
@@ -62,6 +63,11 @@ import kotlin.time.TimeSource
  *    and right sides straight lines through the air;
  *  - the drone count, 1, 10 or 100, and occlusion.
  *
+ * Tap or click a frame to pick it: the overlay's pick pass returns the frame, here with its drone
+ * as the frame's pick delegate. The picked drone's frame is drawn outlined and tinted in its
+ * colour, its aircraft labelled, and the status shows which drone it is and the ground position
+ * under the pick. A tap off every frame clears the pick.
+ *
  * The overlay's depth atlas holds [DrawableSensorFrameDepth.MAX_CELLS] frames: with 100 drones,
  * drones 1 to 16 are occluded and drones 17 to 100 are drawn without occlusion, so their seen
  * tint covers the whole frame and their hidden tint never shows.
@@ -73,7 +79,7 @@ class SensorFootprintTutorial(
     engine: WorldWind,
     /** Drones to start with: 1, 10 or 100. */
     droneCount: Int = MAX_DRONES,
-) : AbstractTutorial(engine) {
+) : AbstractTutorial(engine), PickIndicatorTutorial {
 
     // ---- Settings, set from any thread, applied at the next frame ----
 
@@ -109,6 +115,31 @@ class SensorFootprintTutorial(
     /** What the panel shows, a few lines, refreshed twice a second. */
     @Volatile var status = ""
         private set
+
+    // ---- Picking ----
+
+    /** The drone whose frame was picked last, or null; set on the UI thread, read on the render thread. */
+    @Volatile private var picked: Drone? = null
+    @Volatile private var pickedPosition: Position? = null
+
+    /** Hands each pick result to [onPick]; the platforms call it from their tap or click handlers. */
+    override val picker = PickResultIndicator().also { it.onPicked = ::onPick }
+
+    /**
+     * Picks the drone whose frame is under the tap, the pick's top object, or clears the pick when
+     * the tap missed every frame. True when a frame was hit, so no marker is dropped.
+     */
+    private fun onPick(picks: PickedObjectList): Boolean {
+        val drone = picks.topPickedObject?.userObject as? Drone
+        picked = drone
+        pickedPosition = drone?.let { picks.terrainPickedObject?.terrainPosition }
+        println(
+            if (drone == null) "SensorFrames pick: no frame"
+            else "SensorFrames pick: drone ${drone.index + 1} at ${pickedPosition?.let(::formatPosition) ?: "?"}"
+        )
+        WorldWind.requestRedraw()
+        return drone != null
+    }
 
     // ---- Actions, for platforms that show buttons rather than a panel ----
 
@@ -212,14 +243,17 @@ class SensorFootprintTutorial(
     /** Bumped each time the drones are rebuilt, so the background work drops results for old ones. */
     private var droneGeneration = 0
 
-    private val layer = RenderableLayer("Sensor frames").apply { isPickEnabled = false }
+    /** Pickable for the frames; the animator skips the pick frames and the status text is not pickable. */
+    private val layer = RenderableLayer("Sensor frames")
     private val placemarks = RenderableLayer("Drones").apply { isPickEnabled = false }
     private val outlineLayer = RenderableLayer("Elevation outlines").apply { isPickEnabled = false }
     private val sidesLayer = RenderableLayer("Straight sides").apply { isPickEnabled = false }
     private val overlay = SensorFrameOverlay().apply { outlineWidth = 2f }
     private val picture = TestPatternTexture()
     private val statusLines = List(STATUS_LINES) {
-        ScreenText(screenOffset = Offset(OffsetMode.PIXELS, 12.0, OffsetMode.INSET_PIXELS, 12.0 + 22.0 * it))
+        ScreenText(screenOffset = Offset(OffsetMode.PIXELS, 12.0, OffsetMode.INSET_PIXELS, 12.0 + 22.0 * it)).apply {
+            isPickEnabled = false
+        }
     }
     private var running = false
     private var started = TimeSource.Monotonic.markNow()
@@ -228,7 +262,8 @@ class SensorFootprintTutorial(
     /** Moves the drones once a frame, styles their frames, hands work to the background, measures. */
     private val animator = object : AbstractRenderable("Sensor frame animator") {
         override fun doRender(rc: RenderContext) {
-            if (!running) return
+            // A pick frame draws the scene as it stands: no flying, no measuring
+            if (!running || rc.isPickMode) return
             val now = TimeSource.Monotonic.markNow()
             if (pendingDroneCount != drones.size) rebuildDrones(pendingDroneCount)
             val seconds = (now - lastFrame).inWholeMicroseconds / 1e6
@@ -282,8 +317,10 @@ class SensorFootprintTutorial(
         droneGeneration++
         overlay.frames.clear()
         placemarks.clearRenderables()
+        picked = null
+        pickedPosition = null
         for (drone in drones) {
-            overlay.add(drone.sensor, Color(drone.color))
+            overlay.add(drone.sensor, Color(drone.color)).pickDelegate = drone
             placemarks.addRenderable(drone.placemark)
         }
         outlinePaths.forEach { it.clear() }
@@ -304,14 +341,21 @@ class SensorFootprintTutorial(
         val seenAlpha = if (isSeenShown && !isPictureShown) seenOpacity else 0f
         val hiddenAlpha = if (isHiddenShown) hiddenOpacity else 0f
         overlay.isOcclusionEnabled = isOcclusionEnabled
+        val picked = picked
         for ((i, f) in overlay.frames.withIndex()) {
-            val color = drones[i].color
-            f.outlineColor.set(color.red, color.green, color.blue, if (frame) 1f else 0f)
+            val drone = drones[i]
+            val color = drone.color
+            val isPicked = drone === picked
+            // The picked frame is outlined, and tinted in its drone's colour
+            f.outlineColor.set(color.red, color.green, color.blue, if (frame || isPicked) 1f else 0f)
             // The picture replaces the seen tint on frames that carry it; the hidden tint stays
-            f.fillColor.set(seen.red, seen.green, seen.blue, seenAlpha)
+            if (isPicked) f.fillColor.set(color.red, color.green, color.blue, PICKED_OPACITY)
+            else f.fillColor.set(seen.red, seen.green, seen.blue, seenAlpha)
             f.occludedColor.set(hidden.red, hidden.green, hidden.blue, hiddenAlpha)
             f.media = if (isPictureShown) picture else null
             f.mediaOpacity = pictureOpacity
+            val label = if (isPicked) "Drone ${drone.index + 1}" else null
+            if (drone.placemark.label != label) drone.placemark.label = label
         }
     }
 
@@ -589,6 +633,9 @@ class SensorFootprintTutorial(
             "overlay ${s.overlayDraws.f1()} + depth ${s.depthDraws.f1()} draws/frame · ${s.sweeps} sweeps/s" +
                 if (isFrameShown && isStraightSidesShown) " · corners ${cornerSolveMillis.f1()} ms" else "",
             "[${optionsLabel()}]",
+            picked?.let { drone ->
+                "picked: drone ${drone.index + 1}" + (pickedPosition?.let { " at ${formatPosition(it)}" } ?: "")
+            } ?: "tap a frame to pick it",
         )
         status = lines.joinToString("\n")
         if (isStatusOnGlobe) for ((i, text) in statusLines.withIndex()) text.text = lines.getOrElse(i) { "" }
@@ -625,6 +672,7 @@ class SensorFootprintTutorial(
     override fun start() {
         super.start()
         running = true
+        picker.attach(engine)
         engine.layers.addLayer(outlineLayer)
         engine.layers.addLayer(sidesLayer)
         engine.layers.addLayer(layer)
@@ -640,6 +688,9 @@ class SensorFootprintTutorial(
     override fun stop() {
         super.stop()
         running = false
+        picker.detach(engine)
+        picked = null
+        pickedPosition = null
         engine.layers.removeLayer(outlineLayer)
         engine.layers.removeLayer(sidesLayer)
         engine.layers.removeLayer(layer)
@@ -680,9 +731,14 @@ class SensorFootprintTutorial(
         private const val CENTER_LONGITUDE = -122.19
         private const val METERS_PER_DEGREE = 111_320.0
         private const val POSE = 5
-        private const val STATUS_LINES = 4
+        private const val STATUS_LINES = 5
+        /** Opacity of the picked frame's tint. */
+        private const val PICKED_OPACITY = 0.35f
         private val STATUS_INTERVAL = 500.milliseconds
         private val LOG_INTERVAL = 5.seconds
+
+        private fun formatPosition(p: Position) =
+            "${(p.latitude.inDegrees * 1e5).roundToInt() / 1e5}°, ${(p.longitude.inDegrees * 1e5).roundToInt() / 1e5}°"
 
         private fun Int.closestCount() = DRONE_COUNTS.minBy { abs(it - this) }
 
