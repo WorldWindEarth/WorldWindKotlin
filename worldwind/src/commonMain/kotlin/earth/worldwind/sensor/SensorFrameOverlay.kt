@@ -2,18 +2,18 @@ package earth.worldwind.sensor
 
 import earth.worldwind.draw.DrawableSensorFrameDepth
 import earth.worldwind.draw.DrawableSensorFrames
-import earth.worldwind.render.program.DirectionalDepthProgram
 import earth.worldwind.render.AbstractRenderable
 import earth.worldwind.render.Color
 import earth.worldwind.render.RenderContext
 import earth.worldwind.render.Texture
+import earth.worldwind.render.program.SensorFrameDepthProgram
 import earth.worldwind.render.program.SensorFrameHatchProgram
 import earth.worldwind.render.program.SensorFrameMediaProgram
 import earth.worldwind.render.program.SensorFrameMediaProgramOES
 import earth.worldwind.render.program.SensorFrameProgram
-import earth.worldwind.geom.Matrix4
 import earth.worldwind.geom.Sector
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
@@ -48,7 +48,14 @@ import kotlin.math.tan
  *  - Coordinates: it only colours pixels. Cast the frame's corner rays with a
  *    [FootprintSolver] (or [SensorFootprintEngine]) for positions.
  *  - Terrain the map has not drawn: it tints the map's own terrain, at the map's level of
- *    detail. It is skipped on 2D globes, and assumes no vertical exaggeration.
+ *    detail. On a 3D globe it assumes no vertical exaggeration.
+ *
+ * On a 2D globe the frames are drawn on the flat map the same way, any projection: each sensor's
+ * frame is the map's projection made linear at the sensor, with a second-order term added back
+ * per vertex for the Earth's curvature and the projection's change of scale, so the frame lands
+ * on the map where it does on the 3D globe (a thousandth of its width at worst, see
+ * [SensorLocalFrame]). A continuous map's wrapped copies each get the frames too. A sensor
+ * outside the projection's limits is not drawn.
  */
 open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
     /** One sensor's frame and its colours; change them in place at any time. */
@@ -146,24 +153,37 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
     }
 
     override fun doRender(rc: RenderContext) {
-        if (rc.isPickMode || rc.globe.is2D || frames.isEmpty()) return
+        if (rc.isPickMode || frames.isEmpty()) return
+        val globe = rc.globe
         val pool = rc.getDrawablePool(DrawableSensorFrames.KEY)
         val program = rc.getShaderProgram { SensorFrameProgram() }
         // Depth pass first, in BACKGROUND: one atlas cell per occluded frame
         val depth = if (isOcclusionEnabled) DrawableSensorFrameDepth.obtain(rc.getDrawablePool(DrawableSensorFrameDepth.KEY)).also {
-            it.program = rc.getShaderProgram { DirectionalDepthProgram() }
+            it.program = rc.getShaderProgram { SensorFrameDepthProgram() }
+            it.offset = globe.offset
+            it.wrapWidth = if (globe.is2D && globe.isContinuous) 2.0 * PI * globe.equatorialRadius else 0.0
         } else null
         val d = DrawableSensorFrames.obtain(pool).also {
             it.program = program
             it.outlineWidth = outlineWidth
             it.outlineDash = outlineDash
+            it.offset = globe.offset
         }
         assignDepthCells(frames, isOcclusionEnabled)
         for (frame in frames) {
             if (!frame.isDrawn) continue
-            val k = d.count++
             val sensor = frame.sensor
-            sensor.frameTransform(rc.globe, d.frameMatrices[k])
+            // Outside a 2D projection's limits there is no frame to draw
+            if (!local.set(globe, sensor.position)) {
+                frame.isDrawn = false
+                frame.isOccluded = false
+                continue
+            }
+            val k = d.count++
+            sensor.frameTransform(local, d.frameMatrices[k], sensor.frameNear(), sensor.frameFar(), d.bendClips, DrawableSensorFrames.CLIP_FLOATS * k)
+            d.sensorPoints[3 * k] = local.origin.x; d.sensorPoints[3 * k + 1] = local.origin.y; d.sensorPoints[3 * k + 2] = local.origin.z
+            for (i in 0..8) d.sensorAxes[9 * k + i] = local.toLocal[i].toFloat()
+            d.bendSlack[k] = bendSlack(local, sensor.maxRange)
             premultiplied(frame.outlineColor, d.outlineColors, 4 * k)
             premultiplied(frame.fillColor, d.fillColors, 4 * k)
             premultiplied(frame.occludedColor, d.occludedColors, 4 * k)
@@ -190,15 +210,6 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
                 premultiplied(frame.hatchColor, d.hatchColors, 4 * k)
                 d.hatchParams[2 * k] = frame.hatchSpacing
                 d.hatchParams[2 * k + 1] = frame.hatchWidth
-                rc.globe.geographicToCartesianTransform(
-                    sensor.position.latitude, sensor.position.longitude, sensor.position.altitude, local,
-                )
-                val m = local.m
-                d.sensorPoints[3 * k] = m[3]; d.sensorPoints[3 * k + 1] = m[7]; d.sensorPoints[3 * k + 2] = m[11]
-                val a = d.sensorAxes; val o = 9 * k
-                a[o] = m[0].toFloat(); a[o + 1] = m[4].toFloat(); a[o + 2] = m[8].toFloat()        // east
-                a[o + 3] = m[1].toFloat(); a[o + 4] = m[5].toFloat(); a[o + 5] = m[9].toFloat()    // north
-                a[o + 6] = m[2].toFloat(); a[o + 7] = m[6].toFloat(); a[o + 8] = m[10].toFloat()   // up
                 if (d.hatchProgram == null) d.hatchProgram = rc.getShaderProgram { SensorFrameHatchProgram() }
             } else {
                 d.hatchMasks[k] = null
@@ -211,12 +222,17 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
             // Where on screen the frame's ground can be: each draw is scissored to it
             updateHeightLimits(rc, frame)
             if (!sensor.groundScreenRect(
-                    rc.globe, rc.modelviewProjection, rc.viewport, frame.lowAltitude, frame.highAltitude, d.frameRects, 4 * k
+                    globe, local, rc.modelviewProjection, rc.viewport, frame.lowAltitude, frame.highAltitude, d.frameRects, 4 * k
                 )) d.frameRects[4 * k + 2] = -1
             if (depth != null && frame.isOccluded) {
                 val cell = depth.count++
                 depth.frameMatrices[cell].copy(d.frameMatrices[k])
                 depth.ranges[cell] = sensor.maxRange
+                d.sensorPoints.copyInto(depth.sensorPoints, 3 * cell, 3 * k, 3 * k + 3)
+                d.sensorAxes.copyInto(depth.sensorAxes, 9 * cell, 9 * k, 9 * k + 9)
+                val clips = DrawableSensorFrames.CLIP_FLOATS
+                d.bendClips.copyInto(depth.bendClips, clips * cell, clips * k, clips * k + clips)
+                depth.bendSlack[cell] = d.bendSlack[k]
                 DrawableSensorFrameDepth.cellOrigin(cell, d.depthCells, 4 * k)
                 d.depthCells[4 * k + 2] = DrawableSensorFrameDepth.CELL_SCALE
                 d.depthCells[4 * k + 3] = 1f
@@ -267,7 +283,25 @@ open class SensorFrameOverlay : AbstractRenderable("Sensor frames") {
     }
 
     private val limits = FloatArray(2)
-    private val local = Matrix4()
+    private val local = SensorLocalFrame()
+
+    /**
+     * How far, in Cartesian units, the second-order term can move ground within [range] of the
+     * sensor: a bound on it at the range, by the longest of the frame's metre steps. 0 on a 3D globe.
+     */
+    private fun bendSlack(local: SensorLocalFrame, range: Double): Double {
+        if (!local.hasQuad) return 0.0
+        val w = local.toWorld
+        val q = local.quad
+        var step = 0.0
+        var metres = 0.0
+        for (j in 0..2) {
+            step = max(step, sqrt(w[j] * w[j] + w[3 + j] * w[3 + j] + w[6 + j] * w[6 + j]))
+            // |e²·a + e·n·b + n²·c| ≤ (|a| + |b| + |c|)·r² for e, n within r
+            metres += abs(q[3 * j]) + abs(q[3 * j + 1]) + abs(q[3 * j + 2])
+        }
+        return metres * range * range * step
+    }
 
     internal companion object {
         /** Metres added above and below the elevation limits read for the scissor's height band. */

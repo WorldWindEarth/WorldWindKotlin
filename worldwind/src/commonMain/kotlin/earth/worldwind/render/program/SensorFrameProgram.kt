@@ -25,7 +25,11 @@ import earth.worldwind.util.kgl.KglUniformLocation
  * scissor, take the pass from about 39 to 14 ms in a timed run, the same as an empty shader;
  * per-tile shader variants and medium precision gained nothing there.)
  *
- * Vertices arrive tile-origin-relative; the per-tile frame matrices fold the tile origin in.
+ * Vertices arrive tile-origin-relative; the per-tile frame matrices fold the tile origin in. On a
+ * 2D globe the frame matrix is the map's projection made linear at the sensor, and the vertex
+ * shader adds the second-order term back, the Earth's curvature and the projection's change of
+ * scale, growing with the square of the distance from the sensor ([loadFrameBends]); on a 3D
+ * globe that term is zero.
  */
 open class SensorFrameProgram : AbstractShaderProgram() {
 
@@ -33,6 +37,13 @@ open class SensorFrameProgram : AbstractShaderProgram() {
         """
             uniform mat4 mvpMatrix;
             uniform mat4 frameMatrix[$MAX_FRAMES];
+            /*
+             * Per frame, five in a row: the vertex's east and north linear metres from the sensor
+             * (xyz the row, w the tile origin's), and the frame coordinates' change per e*e, e*n
+             * and n*n of them, the Earth's curvature and the projection's change of scale on a 2D
+             * globe; zero on a 3D globe.
+             */
+            uniform vec4 frameBend[${BEND_VECTORS * MAX_FRAMES}];
 
             attribute vec4 vertexPoint;
 
@@ -41,13 +52,15 @@ open class SensorFrameProgram : AbstractShaderProgram() {
             varying vec4 frameClip2;
             varying vec4 frameClip3;
 
+${BEND_GLSL.prependIndent("            ")}
+
             void main() {
                 gl_Position = mvpMatrix * vertexPoint;
-                /* Linear in the vertex, so interpolating the clip coordinates is exact on each triangle */
-                frameClip0 = frameMatrix[0] * vertexPoint;
-                frameClip1 = frameMatrix[1] * vertexPoint;
-                frameClip2 = frameMatrix[2] * vertexPoint;
-                frameClip3 = frameMatrix[3] * vertexPoint;
+                /* Linear in the vertex on a 3D globe, so interpolating the clip coordinates is exact on each triangle */
+                frameClip0 = frameMatrix[0] * vertexPoint + frameDrop(frameBend[0], frameBend[1], frameBend[2], frameBend[3], frameBend[4]);
+                frameClip1 = frameMatrix[1] * vertexPoint + frameDrop(frameBend[5], frameBend[6], frameBend[7], frameBend[8], frameBend[9]);
+                frameClip2 = frameMatrix[2] * vertexPoint + frameDrop(frameBend[10], frameBend[11], frameBend[12], frameBend[13], frameBend[14]);
+                frameClip3 = frameMatrix[3] * vertexPoint + frameDrop(frameBend[15], frameBend[16], frameBend[17], frameBend[18], frameBend[19]);
             }
         """.trimIndent(),
         """
@@ -138,6 +151,7 @@ ${DEPTH_GLSL.prependIndent("            ")}
 
     private var mvpMatrixId = KglUniformLocation.NONE
     private var frameMatrixId = KglUniformLocation.NONE
+    private var frameBendId = KglUniformLocation.NONE
     private var frameCountId = KglUniformLocation.NONE
     private var outlineWidthId = KglUniformLocation.NONE
     private var outlineDashId = KglUniformLocation.NONE
@@ -152,6 +166,8 @@ ${DEPTH_GLSL.prependIndent("            ")}
         super.initProgram(dc)
         mvpMatrixId = gl.getUniformLocation(program, "mvpMatrix")
         frameMatrixId = gl.getUniformLocation(program, "frameMatrix")
+        frameBendId = gl.getUniformLocation(program, "frameBend")
+        gl.uniform4fv(frameBendId, BEND_VECTORS * MAX_FRAMES, FloatArray(BEND_FLOATS * MAX_FRAMES), 0)
         frameCountId = gl.getUniformLocation(program, "frameCount")
         outlineWidthId = gl.getUniformLocation(program, "outlineWidth")
         outlineDashId = gl.getUniformLocation(program, "outlineDash")
@@ -172,6 +188,9 @@ ${DEPTH_GLSL.prependIndent("            ")}
 
     /** [matrices] holds [MAX_FRAMES] column-major matrices, 16 floats each. */
     fun loadFrameMatrices(matrices: FloatArray) = gl.uniformMatrix4fv(frameMatrixId, MAX_FRAMES, false, matrices, 0)
+
+    /** [bends] holds [MAX_FRAMES] frames' east row, north row and three clip changes, [BEND_FLOATS] floats each (see the vertex shader). */
+    fun loadFrameBends(bends: FloatArray) = gl.uniform4fv(frameBendId, BEND_VECTORS * MAX_FRAMES, bends, 0)
 
     /** Colours premultiplied; params and depth cells as in the shader; 4 floats per frame each. */
     fun loadFrames(
@@ -201,6 +220,22 @@ ${DEPTH_GLSL.prependIndent("            ")}
         const val DEPTH_UNIT = 6
         /** Texture unit of a frame's media, see [SensorFrameMediaProgram]. */
         const val MEDIA_UNIT = 7
+        /** vec4s of a frame's `frameBend`: the east and north rows, and the clip change per e², e·n and n². */
+        const val BEND_VECTORS = 5
+        const val BEND_FLOATS = 4 * BEND_VECTORS
+        /**
+         * `frameDrop(east, north, ee, en, nn)`: what a frame's coordinates change by at
+         * `vertexPoint` on a 2D globe, `e²·ee + e·n·en + n²·nn` with `e` and `n` the vertex's
+         * east and north linear metres from the sensor (each a row, its `w` the tile origin's).
+         * Shared by the passes that carry terrain into a frame.
+         */
+        internal val BEND_GLSL = """
+vec4 frameDrop(vec4 east, vec4 north, vec4 ee, vec4 en, vec4 nn) {
+    float e = dot(east, vertexPoint);
+    float n = dot(north, vertexPoint);
+    return (e * e) * ee + (e * n) * en + (n * n) * nn;
+}
+        """.trimIndent()
         private const val CELL_PIXELS = earth.worldwind.draw.DrawContext.SENSOR_FRAME_DEPTH_CELL
         internal val CELL_PIXELS_FLOAT = "$CELL_PIXELS.0"
         /**

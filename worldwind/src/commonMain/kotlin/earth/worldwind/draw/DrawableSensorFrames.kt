@@ -1,11 +1,13 @@
 package earth.worldwind.draw
 
 import earth.worldwind.geom.Matrix4
+import earth.worldwind.globe.Globe
 import earth.worldwind.render.Texture
 import earth.worldwind.render.program.SensorFrameHatchProgram
 import earth.worldwind.render.program.SensorFrameMediaProgram
 import earth.worldwind.sensor.ViewshedMask
 import earth.worldwind.render.program.SensorFrameProgram
+import earth.worldwind.render.program.SensorFrameProgram.Companion.BEND_FLOATS
 import earth.worldwind.render.program.SensorFrameProgram.Companion.MAX_FRAMES
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.GL_SAMPLE_BUFFERS
@@ -27,6 +29,10 @@ import kotlin.math.sqrt
  * tile reached by more than [MAX_FRAMES] frames (sensors close together) is drawn once more for
  * each further [MAX_FRAMES]. Each draw is scissored to the screen rectangle its frames' ground can
  * cover ([frameRects]), so the shader runs only where the frames can be, not over the whole tile.
+ *
+ * On a 2D globe the frame matrices are the map's projection made linear at each sensor, and the
+ * passes add back the second-order term per vertex ([bendClips]); terrain is drawn only at the
+ * globe [offset] the matrices were made for, one drawable per offset of a continuous map.
  *
  * Frames with a cell in the depth atlas ([DrawableSensorFrameDepth], rendered earlier in the
  * frame) are occluded: their fill is drawn only where the sensor sees the ground, and their
@@ -68,9 +74,22 @@ open class DrawableSensorFrames protected constructor() : Drawable {
      */
     val hatchFromDepth = BooleanArray(MAX_TOTAL)
     val hatchContrast = IntArray(MAX_TOTAL)
-    /** The sensor's Cartesian point, and its east, north and up axes, for the hatch pass. */
+    /**
+     * The sensor's Cartesian point, and the rows taking a Cartesian offset from it to east, north
+     * and up metres (its unit axes on a 3D globe), per frame.
+     */
     val sensorPoints = DoubleArray(3 * MAX_TOTAL)
     val sensorAxes = FloatArray(9 * MAX_TOTAL)
+    /**
+     * Per frame, the change of its coordinates per e², e·n and n² of the linear metres from the
+     * sensor, three vec4s, which puts the second-order term back on a 2D globe; zero on a 3D
+     * globe. See `SensorLocalFrame` and `Sensor.frameTransform`.
+     */
+    val bendClips = FloatArray(CLIP_FLOATS * MAX_TOTAL)
+    /** Per frame, how far the second-order term can move ground within the range, Cartesian units: added to a tile's sphere when culling. */
+    val bendSlack = DoubleArray(MAX_TOTAL)
+    /** The globe offset the frames' matrices were made at: only terrain at that offset is drawn. */
+    var offset = Globe.Offset.Center
     var count = 0
     var outlineWidth = 2f
     /** Side of the outline's dash checkerboard in screen pixels; 0 for solid. */
@@ -94,6 +113,7 @@ open class DrawableSensorFrames protected constructor() : Drawable {
     private val chunkOccluded = FloatArray(4 * MAX_FRAMES)
     private val chunkParams = FloatArray(4 * MAX_FRAMES)
     private val chunkCells = FloatArray(4 * MAX_FRAMES)
+    private val chunkBends = FloatArray(BEND_FLOATS * MAX_FRAMES)
 
     companion object {
         val KEY = DrawableSensorFrames::class
@@ -107,6 +127,34 @@ open class DrawableSensorFrames protected constructor() : Drawable {
         /** Diagnostics: whether tiles no frame reaches are skipped, and whether draws are scissored. */
         var isTileCullingEnabled = true
         var isScissorEnabled = true
+
+        /** Floats of a frame's [bendClips]. */
+        const val CLIP_FLOATS = 12
+
+        /**
+         * Writes to [out] at [outOffset] the [BEND_FLOATS] floats of `frameBend` for a frame on a
+         * tile whose vertices are relative to ([ox], [oy], [oz]): the east and north rows from
+         * [axes] at [axesOffset], each with the tile origin's metres from the sensor at ([sx],
+         * [sy], [sz]) as its `w`, then the frame's clip changes at [clipOffset] in [clips]. All
+         * zero where the frame has none (a 3D globe).
+         */
+        internal fun tileBend(
+            axes: FloatArray, axesOffset: Int, sx: Double, sy: Double, sz: Double,
+            clips: FloatArray, clipOffset: Int, ox: Double, oy: Double, oz: Double, out: FloatArray, outOffset: Int,
+        ) {
+            if ((0 until CLIP_FLOATS).all { clips[clipOffset + it] == 0f }) {
+                out.fill(0f, outOffset, outOffset + BEND_FLOATS)
+                return
+            }
+            val dx = ox - sx; val dy = oy - sy; val dz = oz - sz
+            for (row in 0..1) {
+                val a = axesOffset + 3 * row
+                val o = outOffset + 4 * row
+                out[o] = axes[a]; out[o + 1] = axes[a + 1]; out[o + 2] = axes[a + 2]
+                out[o + 3] = (axes[a] * dx + axes[a + 1] * dy + axes[a + 2] * dz).toFloat()
+            }
+            clips.copyInto(out, outOffset + 8, clipOffset, clipOffset + CLIP_FLOATS)
+        }
 
         /** Frames in the draw of a tile's [n] frames that starts at frame [start]: at most [MAX_FRAMES]. */
         internal fun chunkSize(n: Int, start: Int) = minOf(MAX_FRAMES, n - start)
@@ -142,7 +190,10 @@ open class DrawableSensorFrames protected constructor() : Drawable {
         media.fill(null, 0, count)
         hatchMasks.fill(null, 0, count)
         hatchTextures.fill(null, 0, count)
+        bendClips.fill(0f, 0, CLIP_FLOATS * count)
+        bendSlack.fill(0.0, 0, count)
         count = 0
+        offset = Globe.Offset.Center
         program = null
         mediaProgram = null
         mediaProgramOes = null
@@ -198,6 +249,7 @@ open class DrawableSensorFrames protected constructor() : Drawable {
     private fun drawTiles(dc: DrawContext, program: SensorFrameProgram) {
         for (idx in 0 until dc.drawableTerrainCount) {
             val terrain = dc.getDrawableTerrain(idx)
+            if (terrain.offset != offset) continue
             val origin = terrain.vertexOrigin
             val radius = terrain.boundingSphereRadius
             val n = framesReaching(origin.x, origin.y, origin.z, radius, reached)
@@ -219,15 +271,31 @@ open class DrawableSensorFrames protected constructor() : Drawable {
                     occludedColors.copyInto(chunkOccluded, 4 * j, 4 * k, 4 * k + 4)
                     frameParams.copyInto(chunkParams, 4 * j, 4 * k, 4 * k + 4)
                     depthCells.copyInto(chunkCells, 4 * j, 4 * k, 4 * k + 4)
+                    bendOf(k, origin.x, origin.y, origin.z, BEND_FLOATS * j)
                 }
                 if (!scissorTo(dc, start, size)) { start += size; continue }
                 program.loadFrames(size, chunkOutline, chunkFill, chunkOccluded, chunkParams, chunkCells)
                 program.loadFrameMatrices(chunkMatrices)
+                program.loadFrameBends(chunkBends)
                 terrain.drawTriangles(dc)
                 statDraws++
                 start += size
             }
         }
+    }
+
+    private fun bendOf(k: Int, ox: Double, oy: Double, oz: Double, outOffset: Int) = tileBend(
+        sensorAxes, 9 * k, sensorPoints[3 * k], sensorPoints[3 * k + 1], sensorPoints[3 * k + 2],
+        bendClips, CLIP_FLOATS * k, ox, oy, oz, chunkBends, outOffset,
+    )
+
+    /** Whether a terrain tile at this drawable's offset may be reached by frame [k]. */
+    private fun tileReaches(k: Int, terrain: DrawableTerrain): Boolean {
+        if (terrain.offset != offset) return false
+        val origin = terrain.vertexOrigin
+        val radius = terrain.boundingSphereRadius
+        return !isTileCullingEnabled || radius <= 0.0 ||
+            reaches(frameMatrices[k], frameParams[4 * k + 2].toDouble(), origin.x, origin.y, origin.z, radius + bendSlack[k])
     }
 
     /**
@@ -238,7 +306,7 @@ open class DrawableSensorFrames protected constructor() : Drawable {
     internal fun framesReaching(x: Double, y: Double, z: Double, radius: Double, out: IntArray): Int {
         var n = 0
         for (k in 0 until count) {
-            if (!isTileCullingEnabled || radius <= 0.0 || reaches(frameMatrices[k], frameParams[4 * k + 2].toDouble(), x, y, z, radius)) {
+            if (!isTileCullingEnabled || radius <= 0.0 || reaches(frameMatrices[k], frameParams[4 * k + 2].toDouble(), x, y, z, radius + bendSlack[k])) {
                 out[n++] = k
             }
         }
@@ -271,18 +339,18 @@ open class DrawableSensorFrames protected constructor() : Drawable {
             program.loadFrames(1, chunkOutline, chunkFill, chunkOccluded, chunkParams, chunkCells)
             reached[0] = k
             if (!scissorTo(dc, 0, 1)) continue
-            val range = frameParams[4 * k + 2].toDouble()
             for (idx in 0 until dc.drawableTerrainCount) {
                 val terrain = dc.getDrawableTerrain(idx)
-                val origin = terrain.vertexOrigin
-                val radius = terrain.boundingSphereRadius
-                if (isTileCullingEnabled && radius > 0.0 && !reaches(frameMatrices[k], range, origin.x, origin.y, origin.z, radius)) continue
+                if (!tileReaches(k, terrain)) continue
                 if (!terrain.useVertexPointAttrib(dc, 0 /*vertexPoint*/)) continue
+                val origin = terrain.vertexOrigin
                 mvp.copy(dc.modelviewProjection).multiplyByTranslation(origin.x, origin.y, origin.z)
                 program.loadModelviewProjection(mvp)
                 tileMatrix.copy(frameMatrices[k]).multiplyByTranslation(origin.x, origin.y, origin.z)
                 tileMatrix.transposeToArray(chunkMatrices, 0)
                 program.loadFrameMatrices(chunkMatrices)
+                bendOf(k, origin.x, origin.y, origin.z, 0)
+                program.loadFrameBends(chunkBends)
                 terrain.drawTriangles(dc)
                 statDraws++
             }
@@ -335,18 +403,18 @@ open class DrawableSensorFrames protected constructor() : Drawable {
             program.loadAxes(sensorAxes, 9 * k)
             program.loadDepth(frameParams, depthCells, 4 * k)
             program.loadHatch(hatchColors, 4 * k, hatchParams[2 * k], hatchParams[2 * k + 1])
-            val range = frameParams[4 * k + 2].toDouble()
             val sx = sensorPoints[3 * k]; val sy = sensorPoints[3 * k + 1]; val sz = sensorPoints[3 * k + 2]
             for (idx in 0 until dc.drawableTerrainCount) {
                 val terrain = dc.getDrawableTerrain(idx)
-                val origin = terrain.vertexOrigin
-                val radius = terrain.boundingSphereRadius
-                if (isTileCullingEnabled && radius > 0.0 && !reaches(frameMatrices[k], range, origin.x, origin.y, origin.z, radius)) continue
+                if (!tileReaches(k, terrain)) continue
                 if (!terrain.useVertexPointAttrib(dc, 0 /*vertexPoint*/)) continue
+                val origin = terrain.vertexOrigin
                 mvp.copy(dc.modelviewProjection).multiplyByTranslation(origin.x, origin.y, origin.z)
                 program.loadModelviewProjection(mvp)
                 tileMatrix.copy(frameMatrices[k]).multiplyByTranslation(origin.x, origin.y, origin.z)
                 program.loadFrameMatrix(tileMatrix)
+                bendOf(k, origin.x, origin.y, origin.z, 0)
+                program.loadFrameBend(chunkBends, 0)
                 program.loadOrigin((origin.x - sx).toFloat(), (origin.y - sy).toFloat(), (origin.z - sz).toFloat())
                 terrain.drawTriangles(dc)
                 statDraws++

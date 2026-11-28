@@ -3,7 +3,9 @@ package earth.worldwind.draw
 import earth.worldwind.draw.DrawContext.Companion.SENSOR_FRAME_DEPTH_CELL
 import earth.worldwind.draw.DrawContext.Companion.SENSOR_FRAME_DEPTH_SIZE
 import earth.worldwind.geom.Matrix4
-import earth.worldwind.render.program.DirectionalDepthProgram
+import earth.worldwind.globe.Globe
+import earth.worldwind.render.program.SensorFrameDepthProgram
+import earth.worldwind.render.program.SensorFrameProgram
 import earth.worldwind.util.Pool
 import earth.worldwind.util.kgl.GL_CULL_FACE
 import earth.worldwind.util.kgl.GL_DEPTH_BUFFER_BIT
@@ -23,14 +25,29 @@ import kotlin.jvm.JvmStatic
  * render target switches once a frame, not between on-screen passes (costly on tiled mobile
  * GPUs). Casters are the map's own terrain tiles: occluders the map has not drawn, such as a
  * ridge off screen, do not occlude.
+ *
+ * On a 2D globe the second-order term is added back per vertex, as the overlay adds it. A
+ * continuous 2D map is drawn once per globe offset; the atlas is the same for all of them, so
+ * every copy of the map's terrain is rendered into it, moved by the wrap width into the offset
+ * the frame matrices were made at ([offset]).
  */
 open class DrawableSensorFrameDepth protected constructor() : Drawable {
     /** World → frame transforms, the first [count] rendered, frame `k` into atlas cell `k`. */
     val frameMatrices = Array(MAX_CELLS) { Matrix4() }
     /** Slant range of each frame, metres: tiles beyond it are not rendered. */
     val ranges = DoubleArray(MAX_CELLS)
+    /** Per cell, as [DrawableSensorFrames]' sensorPoints, sensorAxes, bendClips and bendSlack. */
+    val sensorPoints = DoubleArray(3 * MAX_CELLS)
+    val sensorAxes = FloatArray(9 * MAX_CELLS)
+    val bendClips = FloatArray(DrawableSensorFrames.CLIP_FLOATS * MAX_CELLS)
+    val bendSlack = DoubleArray(MAX_CELLS)
+    /** The globe offset the frame matrices were made at. */
+    var offset = Globe.Offset.Center
+    /** Cartesian width of one copy of a continuous 2D map, 0 otherwise. */
+    var wrapWidth = 0.0
     var count = 0
-    var program: DirectionalDepthProgram? = null
+    var program: SensorFrameDepthProgram? = null
+    private val bend = FloatArray(SensorFrameProgram.BEND_FLOATS)
     private var pool: Pool<DrawableSensorFrameDepth>? = null
     private val matrix = Matrix4()
 
@@ -63,10 +80,21 @@ open class DrawableSensorFrameDepth protected constructor() : Drawable {
     }
 
     override fun recycle() {
+        bendClips.fill(0f, 0, DrawableSensorFrames.CLIP_FLOATS * count)
+        bendSlack.fill(0.0, 0, count)
         count = 0
+        offset = Globe.Offset.Center
+        wrapWidth = 0.0
         program = null
         pool?.release(this)
         pool = null
+    }
+
+    /** Cartesian x of a globe offset's copy of the map, relative to the centre one. */
+    private fun shift(offset: Globe.Offset) = when (offset) {
+        Globe.Offset.Center -> 0.0
+        Globe.Offset.Right -> wrapWidth
+        Globe.Offset.Left -> -wrapWidth
     }
 
     override fun draw(dc: DrawContext) {
@@ -98,12 +126,19 @@ open class DrawableSensorFrameDepth protected constructor() : Drawable {
                 for (idx in 0 until dc.drawableTerrainCount) {
                     val terrain = dc.getDrawableTerrain(idx)
                     val origin = terrain.vertexOrigin
+                    // The tile's origin in the copy of the map the frame was made in
+                    val ox = origin.x + shift(offset) - shift(terrain.offset)
                     val radius = terrain.boundingSphereRadius
-                    if (radius > 0.0 && !DrawableSensorFrames.reaches(frame, ranges[k], origin.x, origin.y, origin.z, radius)) continue
+                    if (radius > 0.0 && !DrawableSensorFrames.reaches(frame, ranges[k], ox, origin.y, origin.z, radius + bendSlack[k])) continue
                     if (!terrain.useVertexPointAttrib(dc, 0 /*vertexPoint*/)) continue
                     // Terrain vertices are tile-origin-relative; compose in double per tile
-                    matrix.copy(frame).multiplyByTranslation(origin.x, origin.y, origin.z)
+                    matrix.copy(frame).multiplyByTranslation(ox, origin.y, origin.z)
                     program.loadModelviewProjection(matrix)
+                    DrawableSensorFrames.tileBend(
+                        sensorAxes, 9 * k, sensorPoints[3 * k], sensorPoints[3 * k + 1], sensorPoints[3 * k + 2],
+                        bendClips, DrawableSensorFrames.CLIP_FLOATS * k, ox, origin.y, origin.z, bend, 0,
+                    )
+                    program.loadFrameBend(bend, 0)
                     terrain.drawTriangles(dc)
                     statDraws++
                 }

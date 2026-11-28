@@ -36,16 +36,20 @@ open class SensorFrameHatchProgram : AbstractShaderProgram() {
             uniform mat4 mvpMatrix;
             uniform mat4 frameMatrix;
             uniform vec3 originRel;
+            /* As SensorFrameProgram's frameBend, for the one frame */
+            uniform vec4 frameBend[5];
 
             attribute vec4 vertexPoint;
 
             varying vec3 rel;
             varying vec4 frameClip;
 
+${SensorFrameProgram.BEND_GLSL.prependIndent("            ")}
+
             void main() {
                 gl_Position = mvpMatrix * vertexPoint;
                 rel = originRel + vertexPoint.xyz;
-                frameClip = frameMatrix * vertexPoint;
+                frameClip = frameMatrix * vertexPoint + frameDrop(frameBend[0], frameBend[1], frameBend[2], frameBend[3], frameBend[4]);
             }
         """.trimIndent(),
         """
@@ -137,6 +141,7 @@ ${SensorFrameProgram.DEPTH_GLSL.prependIndent("            ")}
     private var mvpMatrixId = KglUniformLocation.NONE
     private var frameMatrixId = KglUniformLocation.NONE
     private var originRelId = KglUniformLocation.NONE
+    private var frameBendId = KglUniformLocation.NONE
     private var eastId = KglUniformLocation.NONE
     private var northId = KglUniformLocation.NONE
     private var upId = KglUniformLocation.NONE
@@ -155,6 +160,8 @@ ${SensorFrameProgram.DEPTH_GLSL.prependIndent("            ")}
         mvpMatrixId = gl.getUniformLocation(program, "mvpMatrix")
         frameMatrixId = gl.getUniformLocation(program, "frameMatrix")
         originRelId = gl.getUniformLocation(program, "originRel")
+        frameBendId = gl.getUniformLocation(program, "frameBend")
+        gl.uniform4fv(frameBendId, SensorFrameProgram.BEND_VECTORS, FloatArray(SensorFrameProgram.BEND_FLOATS), 0)
         eastId = gl.getUniformLocation(program, "east")
         northId = gl.getUniformLocation(program, "north")
         upId = gl.getUniformLocation(program, "up")
@@ -182,10 +189,16 @@ ${SensorFrameProgram.DEPTH_GLSL.prependIndent("            ")}
         gl.uniformMatrix4fv(frameMatrixId, 1, false, array, 0)
     }
 
-    /** The tile's vertex origin relative to the sensor's point, metres. */
+    /** The frame's east row, north row and clip changes, [SensorFrameProgram.BEND_FLOATS] floats at [offset], as [SensorFrameProgram.loadFrameBends] takes per frame. */
+    fun loadFrameBend(bends: FloatArray, offset: Int) = gl.uniform4fv(frameBendId, SensorFrameProgram.BEND_VECTORS, bends, offset)
+
+    /** The tile's vertex origin relative to the sensor's point, in the globe's Cartesian units. */
     fun loadOrigin(x: Float, y: Float, z: Float) = gl.uniform3f(originRelId, x, y, z)
 
-    /** The sensor's east, north and up axes: nine floats at [offset] in [axes]. */
+    /**
+     * The rows taking a Cartesian offset from the sensor to its east, north and up metres: nine
+     * floats at [offset] in [axes]. On a 3D globe the sensor's unit axes.
+     */
     fun loadAxes(axes: FloatArray, offset: Int) {
         gl.uniform3f(eastId, axes[offset], axes[offset + 1], axes[offset + 2])
         gl.uniform3f(northId, axes[offset + 3], axes[offset + 4], axes[offset + 5])
